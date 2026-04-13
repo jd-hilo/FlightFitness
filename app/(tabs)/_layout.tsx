@@ -1,59 +1,41 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { FlightTabBar } from '@/components/FlightTabBar';
+import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
+import { theme } from '@/constants/theme';
+import { useVerseModalStore } from '@/stores/verseModalStore';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
-
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const visible = useVerseModalStore((s) => s.visible);
+  const verse = useVerseModalStore((s) => s.verse);
+  const reflection = useVerseModalStore((s) => s.reflection);
+  const hide = useVerseModalStore((s) => s.hide);
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-        }}
+    <View style={styles.flex}>
+      <Tabs
+        tabBar={(props) => <FlightTabBar {...props} />}
+        screenOptions={{
+          headerShown: useClientOnlyValue(false, false),
+        }}>
+        <Tabs.Screen name="index" options={{ title: 'Home' }} />
+        <Tabs.Screen name="train" options={{ title: 'Train' }} />
+        <Tabs.Screen name="fuel" options={{ title: 'Fuel' }} />
+        <Tabs.Screen name="faith" options={{ title: 'Faith' }} />
+        <Tabs.Screen name="elite" options={{ title: 'Profile' }} />
+      </Tabs>
+      <VerseCelebrationModal
+        visible={visible}
+        verse={verse}
+        reflection={reflection ?? undefined}
+        onClose={hide}
       />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-        }}
-      />
-    </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: theme.colors.background },
+});

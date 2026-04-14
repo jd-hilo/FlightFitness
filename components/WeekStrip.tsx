@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/constants/theme';
-import { WEEKDAY_LABELS, weekDatesFromStart } from '@/lib/weekUtils';
+import { weekdayAbbrevUpper, weekDatesFromStart } from '@/lib/weekUtils';
 
 type Props = {
   weekStartYmd: string;
@@ -26,7 +26,7 @@ export function WeekStrip({ weekStartYmd, selectedIndex, onSelect }: Props) {
             onPress={() => onSelect(i)}
             style={[styles.pill, active && styles.pillActive]}>
             <Text style={[styles.dow, active && styles.dowActive]}>
-              {WEEKDAY_LABELS[i]}
+              {weekdayAbbrevUpper(d)}
             </Text>
             <Text style={[styles.dom, active && styles.domActive]}>
               {d.getDate()}

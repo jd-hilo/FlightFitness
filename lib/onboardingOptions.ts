@@ -89,7 +89,11 @@ export const DIET_PATTERN_OPTIONS = [
     label: 'Mostly plant-based',
     ai: 'Emphasize plants with occasional animal protein; flexible templates.',
   },
-  { id: 'other_flexible', label: 'Other / flexible', ai: 'User will clarify in modifiers; default balanced omnivore-style swaps.' },
+  {
+    id: 'other_flexible',
+    label: 'Other / flexible',
+    ai: 'Use dietOtherNotes from profile if present; else balanced omnivore-style meals with no strict exclusions.',
+  },
 ] as const;
 
 /** Multi, max 5 — stacks on top of diet pattern. */
@@ -178,6 +182,245 @@ export function isTrainingTimeWindowId(id: string): boolean {
   return (TIME_WINDOW_IDS as readonly string[]).includes(id);
 }
 
+/** Inclusive; used only for nutrition estimates — copy stays respectful. */
+export const SEX_OPTIONS = [
+  {
+    id: 'sex_woman',
+    label: 'Woman',
+    ai: 'Use female-typical BMR/energy estimation priors; avoid gendered assumptions in coaching copy.',
+  },
+  {
+    id: 'sex_man',
+    label: 'Man',
+    ai: 'Use male-typical BMR/energy estimation priors; avoid gendered assumptions in coaching copy.',
+  },
+  {
+    id: 'sex_nonbinary',
+    label: 'Non-binary',
+    ai: 'Use middle-of-road energy estimates between typical male/female averages; use neutral language in copy.',
+  },
+  {
+    id: 'sex_prefer_not',
+    label: 'Prefer not to say',
+    ai: 'Use conservative middle-of-road calorie estimates; do not assume sex-specific physiology in wording.',
+  },
+] as const;
+
+export const SESSION_LENGTH_OPTIONS = [
+  {
+    id: 'session_30',
+    label: 'Up to ~30 min',
+    ai: 'Keep sessions compact: 4–6 movements, supersets OK, minimal fluff; prioritize compounds.',
+  },
+  {
+    id: 'session_45',
+    label: '~45 minutes',
+    ai: 'Standard session: moderate exercise count with adequate warm-up cues.',
+  },
+  {
+    id: 'session_60',
+    label: '~60 minutes',
+    ai: 'Full session: can include accessories and conditioning finisher.',
+  },
+  {
+    id: 'session_75_plus',
+    label: '75+ minutes',
+    ai: 'Higher volume possible; still program deliberate rest and avoid junk volume.',
+  },
+] as const;
+
+export const INJURY_NONE_ID = 'injury_none';
+
+export const INJURY_LIMITATION_OPTIONS = [
+  {
+    id: INJURY_NONE_ID,
+    label: 'None — no limits right now',
+    ai: 'No injury-driven exercise substitutions required.',
+  },
+  {
+    id: 'injury_lower_back',
+    label: 'Lower back sensitivity',
+    ai: 'Favor neutral spine, hinge variations, core bracing; avoid heavy axial load early; no aggressive good-mornings.',
+  },
+  {
+    id: 'injury_knees',
+    label: 'Knee issues',
+    ai: 'Limit deep flexion under load initially; prefer box squats, split squats with control, bike over running; avoid jumping if painful.',
+  },
+  {
+    id: 'injury_shoulders',
+    label: 'Shoulder issues',
+    ai: 'Limit overhead pressing volume; neutral-grip pressing, landmine, rows; gradual ROM.',
+  },
+  {
+    id: 'injury_wrists',
+    label: 'Wrist pain',
+    ai: 'Neutral grips, fat grips or dumbbells instead of painful bar positions; limit front rack if needed.',
+  },
+  {
+    id: 'injury_hips',
+    label: 'Hip pain',
+    ai: 'Modify deep squats/lunges; lateral work and glute med activation; avoid painful end ROM.',
+  },
+  {
+    id: 'injury_neck',
+    label: 'Neck / cervical',
+    ai: 'Avoid loaded neck flexion/extension; careful loading on carries; no yoke-style pressure.',
+  },
+  {
+    id: 'injury_cardio_limited',
+    label: 'Cardio clearance limited',
+    ai: 'Keep conditioning moderate; prefer low-impact; physician clearance if symptomatic.',
+  },
+] as const;
+
+export const ALLERGY_NONE_ID = 'allergy_none';
+
+export const ALLERGY_OPTIONS = [
+  {
+    id: ALLERGY_NONE_ID,
+    label: 'No known food allergies',
+    ai: 'No allergy-driven ingredient bans beyond user diet pattern.',
+  },
+  {
+    id: 'allergy_peanuts',
+    label: 'Peanuts',
+    ai: 'Strictly exclude peanuts and peanut-derived ingredients; watch cross-contact language.',
+  },
+  {
+    id: 'allergy_tree_nuts',
+    label: 'Tree nuts',
+    ai: 'Exclude almonds, walnuts, cashews, pecans, etc.; label swaps clearly.',
+  },
+  {
+    id: 'allergy_shellfish',
+    label: 'Shellfish',
+    ai: 'Exclude shrimp, crab, lobster, mollusks; note fish may still be OK unless user avoids fish elsewhere.',
+  },
+  {
+    id: 'allergy_fish',
+    label: 'Fish (finfish)',
+    ai: 'Exclude finfish; shellfish policy per other selections.',
+  },
+  {
+    id: 'allergy_eggs',
+    label: 'Eggs',
+    ai: 'Exclude eggs and egg-containing products; suggest egg-free binds.',
+  },
+  {
+    id: 'allergy_soy',
+    label: 'Soy',
+    ai: 'Exclude soy sauce, tofu, tempeh, edamame unless fermented soy clearly OK for user.',
+  },
+  {
+    id: 'allergy_wheat_gluten',
+    label: 'Wheat / gluten',
+    ai: 'Strict gluten-free ingredient choices; note oats if sensitive.',
+  },
+  {
+    id: 'allergy_dairy_allergy',
+    label: 'Dairy (allergy)',
+    ai: 'Exclude all dairy proteins (not just lactose); distinct from dairy-free preference.',
+  },
+  {
+    id: 'allergy_sesame',
+    label: 'Sesame',
+    ai: 'Exclude sesame seeds/oil/tahini where relevant.',
+  },
+] as const;
+
+export const NUTRITION_PACE_OPTIONS = [
+  {
+    id: 'pace_sustainable',
+    label: 'Slow & sustainable',
+    ai: 'Favor mild deficit/surplus (~0.25–0.5% bodyweight change/week idea); prioritize adherence.',
+  },
+  {
+    id: 'pace_moderate',
+    label: 'Moderate pace',
+    ai: 'Balanced approach; noticeable but not extreme energy change vs maintenance estimate.',
+  },
+  {
+    id: 'pace_aggressive',
+    label: 'Faster results (harder)',
+    ai: 'Steeper deficit or surplus acceptable only if protein/training protects muscle; warn on adherence.',
+  },
+  {
+    id: 'pace_not_tracking',
+    label: 'Not focused on scale speed',
+    ai: 'Emphasize habits, performance, and how clothes feel vs aggressive weight delta.',
+  },
+] as const;
+
+export const MEALS_PER_DAY_OPTIONS = [
+  {
+    id: 'meals_3',
+    label: '3 meals',
+    ai: 'Structure around breakfast, lunch, dinner; snacks optional light.',
+  },
+  {
+    id: 'meals_3_snack',
+    label: '3 meals + snack',
+    ai: 'Add one planned snack; good for higher protein spread.',
+  },
+  {
+    id: 'meals_4_5',
+    label: '4–5 smaller meals',
+    ai: 'Split protein across more feedings; lighter portions per sitting.',
+  },
+  {
+    id: 'meals_2_large',
+    label: '2 larger meals (e.g. IF-style)',
+    ai: 'Condense calories into two main meals; ensure daily protein still hit.',
+  },
+] as const;
+
+export const COOKING_SKILL_OPTIONS = [
+  {
+    id: 'cook_minimal',
+    label: 'Minimal / mostly simple',
+    ai: '5–20 min ideas, few ingredients, one-pan / microwave / assemble; avoid chef techniques.',
+  },
+  {
+    id: 'cook_comfortable',
+    label: 'Comfortable in the kitchen',
+    ai: 'Standard recipes OK; moderate prep steps acceptable.',
+  },
+  {
+    id: 'cook_enjoy',
+    label: 'I like to cook',
+    ai: 'Can include longer recipes, marinades, and batch steps if helpful.',
+  },
+] as const;
+
+export const AGE_MIN = 16;
+export const AGE_MAX = 90;
+
+export function ageValues(): number[] {
+  const out: number[] = [];
+  for (let y = AGE_MIN; y <= AGE_MAX; y++) out.push(y);
+  return out;
+}
+
+/** Total inches, 4'6" – 7'0". */
+export const HEIGHT_INCHES_MIN = 54;
+export const HEIGHT_INCHES_MAX = 84;
+
+export function heightInchesValues(): number[] {
+  const out: number[] = [];
+  for (let h = HEIGHT_INCHES_MIN; h <= HEIGHT_INCHES_MAX; h++) out.push(h);
+  return out;
+}
+
+export function formatHeightInchesLabel(totalInches: number): string {
+  const ft = Math.floor(totalInches / 12);
+  const inch = totalInches % 12;
+  return `${ft}'${inch}" (${totalInches} in)`;
+}
+
+export const MAX_INJURY_SELECTIONS = 5;
+export const MAX_ALLERGY_SELECTIONS = 6;
+
 export const WEIGHT_LB_MIN = 80;
 export const WEIGHT_LB_MAX = 400;
 
@@ -195,3 +438,10 @@ export type DietModifierId = (typeof DIET_MODIFIER_OPTIONS)[number]['id'];
 export type FoodPreferenceId = (typeof FOOD_PREFERENCE_OPTIONS)[number]['id'];
 export type TrainingDaysId = (typeof TRAINING_DAYS_OPTIONS)[number]['id'];
 export type TrainingTimeId = (typeof TRAINING_TIME_OPTIONS)[number]['id'];
+export type SexId = (typeof SEX_OPTIONS)[number]['id'];
+export type SessionLengthId = (typeof SESSION_LENGTH_OPTIONS)[number]['id'];
+export type InjuryLimitationId = (typeof INJURY_LIMITATION_OPTIONS)[number]['id'];
+export type AllergyId = (typeof ALLERGY_OPTIONS)[number]['id'];
+export type NutritionPaceId = (typeof NUTRITION_PACE_OPTIONS)[number]['id'];
+export type MealsPerDayId = (typeof MEALS_PER_DAY_OPTIONS)[number]['id'];
+export type CookingSkillId = (typeof COOKING_SKILL_OPTIONS)[number]['id'];

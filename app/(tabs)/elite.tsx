@@ -1,13 +1,15 @@
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, type Href } from 'expo-router';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
-import { GOAL_OPTIONS } from '@/lib/onboardingOptions';
+import { getProfileSectionSummaries } from '@/lib/profileSectionSummaries';
+import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -17,6 +19,7 @@ const WAITLIST_URL = 'https://example.com/flight-fitness-coaching';
 
 export default function EliteScreen() {
   const insets = useSafeAreaInsets();
+  const [signingOut, setSigningOut] = useState(false);
   const tier = useSubscriptionStore((s) => s.tier);
   const setTier = useSubscriptionStore((s) => s.setTier);
   const resetDev = useSubscriptionStore((s) => s.resetDev);
@@ -24,11 +27,40 @@ export default function EliteScreen() {
   const trainingStreak = useCompletionStore((s) => s.streak);
   const faithStreak = useFaithDailyStore((s) => s.faithStreak);
 
-  const goalLabel =
-    GOAL_OPTIONS.find((o) => o.id === answers.goal)?.label ?? 'Not set';
+  const profileSections = getProfileSectionSummaries(answers);
 
   const openWaitlist = () => {
     Linking.openURL(WAITLIST_URL).catch(() => {});
+  };
+
+  const onSignOut = () => {
+    Alert.alert(
+      'Sign out',
+      supabaseConfigured
+        ? 'Clears your cloud session on this device (anonymous sign-in). Your plan and onboarding answers stay on this phone until you reset them.'
+        : 'Cloud session is not configured. You can still return to the welcome screen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            setSigningOut(true);
+            try {
+              if (supabase) {
+                const { error } = await supabase.auth.signOut({ scope: 'local' });
+                if (__DEV__ && error) {
+                  console.warn('[signOut] local scope:', error.message);
+                }
+              }
+            } finally {
+              setSigningOut(false);
+              router.replace('/welcome' as Href);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -70,12 +102,23 @@ export default function EliteScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Your focus</Text>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoMain}>{goalLabel}</Text>
-          <Text style={styles.infoSub}>
-            Body: {answers.currentWeightLb} lb → {answers.targetWeightLb} lb
-          </Text>
+        <Text style={styles.sectionLabel}>Your plan inputs</Text>
+        <Pressable
+          style={styles.editProfileBtn}
+          onPress={() => router.push('/profile-edit' as Href)}>
+          <Text style={styles.editProfileBtnTxt}>Edit all choices</Text>
+        </Pressable>
+        <View style={styles.profileSectionsWrap}>
+          {profileSections.map((sec) => (
+            <View key={sec.title} style={styles.profileSectionCard}>
+              <Text style={styles.profileSectionTitle}>{sec.title}</Text>
+              {sec.lines.map((line, i) => (
+                <Text key={i} style={styles.profileSectionLine}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+          ))}
         </View>
 
         <Text style={styles.sectionLabel}>Membership</Text>
@@ -97,6 +140,16 @@ export default function EliteScreen() {
             <Text style={styles.outlineTxt}>Join waitlist</Text>
           </Pressable>
         </View>
+
+        <Text style={styles.sectionLabel}>Account</Text>
+        <Pressable
+          style={[styles.signOutBtn, signingOut && styles.signOutBtnDisabled]}
+          onPress={onSignOut}
+          disabled={signingOut}>
+          <Text style={styles.signOutTxt}>
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </Text>
+        </Pressable>
 
         <Text style={styles.devLabel}>Developer</Text>
         <Text style={styles.devHint}>Simulate subscription tier for testing:</Text>
@@ -196,24 +249,42 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 10,
   },
-  infoCard: {
+  editProfileBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  editProfileBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  profileSectionsWrap: { marginBottom: 20 },
+  profileSectionCard: {
     borderWidth: 1,
     borderColor: theme.colors.outline,
-    padding: 16,
-    marginBottom: 28,
+    padding: 14,
+    marginBottom: 12,
     backgroundColor: theme.colors.surfaceContainerLow,
   },
-  infoMain: {
+  profileSectionTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 16,
-    color: theme.colors.onBackground,
+    fontSize: 12,
+    color: theme.colors.gold,
     textTransform: 'uppercase',
-    marginBottom: 6,
+    letterSpacing: 1,
+    marginBottom: 8,
   },
-  infoSub: {
+  profileSectionLine: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
+    color: theme.colors.onBackground,
+    lineHeight: 19,
+    marginBottom: 4,
   },
   cardGold: {
     backgroundColor: theme.colors.gold,
@@ -275,6 +346,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 2,
     color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  signOutBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  signOutBtnDisabled: { opacity: 0.5 },
+  signOutTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: theme.colors.error,
     textTransform: 'uppercase',
   },
   devLabel: {

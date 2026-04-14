@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { MacroTargets, Meal, WeekPlan, WorkoutDay } from '@/types/plan';
 
-type PlanState = {
+export type PlanState = {
   weekStart: string | null;
   macroTargets: MacroTargets | null;
   mealsByDay: Meal[][] | null;

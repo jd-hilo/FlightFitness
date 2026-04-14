@@ -1,7 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  InputAccessoryView,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +21,10 @@ import { theme } from '@/constants/theme';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { getDailyVerse } from '@/lib/verses';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
+
+const JOURNAL_ACCESSORY_ID = 'faithJournalAccessory';
 
 function TaskCheck({ done }: { done: boolean }) {
   return (
@@ -35,7 +42,11 @@ export default function FaithScreen() {
   const insets = useSafeAreaInsets();
   const dateKey = new Date().toISOString().slice(0, 10);
   const reading = useMemo(() => getDailyFaithReading(), []);
-  const dailyVerse = useMemo(() => getDailyVerse(), []);
+  const dailyRemote = useDailyContentStore((s) => s.content);
+  const dailyVerse = useMemo(
+    () => dailyRemote?.verse ?? getDailyVerse(),
+    [dailyRemote]
+  );
 
   const byDay = useFaithDailyStore((s) => s.byDay);
   const faithStreak = useFaithDailyStore((s) => s.faithStreak);
@@ -43,6 +54,12 @@ export default function FaithScreen() {
   const toggleStudyRead = useFaithDailyStore((s) => s.toggleStudyRead);
   const toggleJournalDone = useFaithDailyStore((s) => s.toggleJournalDone);
   const setJournalLine = useFaithDailyStore((s) => s.setJournalLine);
+  const markJournalReflectionComplete = useFaithDailyStore(
+    (s) => s.markJournalReflectionComplete
+  );
+
+  const scrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const day = byDay[dateKey] ?? {
     verseRead: false,
@@ -75,16 +92,53 @@ export default function FaithScreen() {
     void loadFromApi();
   }, [loadFromApi]);
 
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  const onJournalDone = useCallback(() => {
+    Keyboard.dismiss();
+    markJournalReflectionComplete(dateKey);
+  }, [dateKey, markJournalReflectionComplete]);
+
+  const scrollJournalIntoView = useCallback(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 280);
+  }, []);
+
+  const kavOffset = insets.top + (Platform.OS === 'ios' ? 52 : 0);
+
   return (
     <View style={styles.screen}>
       <ScreenHeader />
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + 120 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={kavOffset}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingBottom:
+                insets.bottom +
+                120 +
+                (Platform.OS === 'android' && keyboardHeight > 0 ? 52 : 0),
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive">
         <Text style={styles.head}>Faith</Text>
         <Text style={styles.lead}>
           Bible study, daily reading, and small habits that anchor your training in
@@ -186,9 +240,9 @@ export default function FaithScreen() {
             <View style={styles.taskHeaderText}>
               <Text style={styles.taskHeaderTitle}>Your reflection</Text>
               <Text style={styles.taskHeaderSub}>
-                Respond to today&apos;s study above: the passage, the reflection, and
-                the prompt. Tap the check when you&apos;ve written something;
-                checking clears your line; typing auto-marks done.
+                Respond to today&apos;s study above. When you&apos;re finished, tap
+                Done on the keyboard — we&apos;ll check it off. Tap the check again to
+                clear and start over.
               </Text>
             </View>
           </Pressable>
@@ -201,15 +255,42 @@ export default function FaithScreen() {
             multiline
             maxLength={280}
             textAlignVertical="top"
+            inputAccessoryViewID={
+              Platform.OS === 'ios' ? JOURNAL_ACCESSORY_ID : undefined
+            }
+            onFocus={scrollJournalIntoView}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {Platform.OS === 'ios' ? (
+        <InputAccessoryView nativeID={JOURNAL_ACCESSORY_ID}>
+          <View style={styles.inputAccessory}>
+            <Pressable
+              onPress={onJournalDone}
+              style={styles.inputAccessoryDoneHit}
+              hitSlop={12}>
+              <Text style={styles.inputAccessoryDone}>Done</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
+
+      {Platform.OS === 'android' && keyboardHeight > 0 ? (
+        <View style={[styles.androidKbBar, { bottom: keyboardHeight }]}>
+          <Pressable onPress={onJournalDone} style={styles.androidKbDoneHit}>
+            <Text style={styles.androidKbDone}>Done</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
+  kav: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
   head: {
     fontFamily: theme.fonts.headline,
@@ -403,7 +484,8 @@ const styles = StyleSheet.create({
   journalInput: {
     marginHorizontal: 16,
     marginBottom: 16,
-    minHeight: 88,
+    minHeight: 120,
+    maxHeight: 200,
     borderWidth: 1,
     borderColor: theme.colors.outline,
     backgroundColor: theme.colors.background,
@@ -412,5 +494,50 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     padding: 14,
+  },
+  inputAccessory: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+  },
+  inputAccessoryDoneHit: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  inputAccessoryDone: {
+    fontFamily: theme.fonts.label,
+    fontSize: 16,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  androidKbBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 48,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.outline,
+  },
+  androidKbDoneHit: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  androidKbDone: {
+    fontFamily: theme.fonts.label,
+    fontSize: 14,
+    letterSpacing: 2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
 });

@@ -28,14 +28,12 @@ export const useSubscriptionStore = create<SubscriptionState>()(
   )
 );
 
+/** AI plan generation is always allowed (subscription gating disabled for now). */
 export function useCanGeneratePlan() {
-  const tier = useSubscriptionStore((s) => s.tier);
-  const freeUsed = useSubscriptionStore((s) => s.freePlanUsed);
-  if (tier === 'essentials' || tier === 'coaching') return true;
-  return !freeUsed;
+  return true;
 }
 
+/** AI customization (swap meal, etc.) is always allowed. */
 export function useCanCustomize() {
-  const tier = useSubscriptionStore((s) => s.tier);
-  return tier === 'essentials' || tier === 'coaching';
+  return true;
 }

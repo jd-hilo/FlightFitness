@@ -9,9 +9,7 @@ import {
 } from 'react-native';
 
 import { theme } from '@/constants/theme';
-import { weightLbValues } from '@/lib/onboardingOptions';
 
-const VALUES = weightLbValues();
 const ITEM_HEIGHT = 48;
 const PICKER_HEIGHT = 216;
 const PAD = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
@@ -19,40 +17,52 @@ const PAD = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
 type Props = {
   label: string;
   hint?: string;
+  values: readonly number[];
   value: number;
-  onChange: (lb: number) => void;
+  onChange: (n: number) => void;
+  /** Default: plain number string. */
+  formatItem?: (n: number) => string;
 };
 
-/** ScrollView-based wheel — avoids nesting VirtualizedList inside onboarding ScrollViews. */
-export function WeightPicker({ label, hint, value, onChange }: Props) {
+/** ScrollView-based wheel (not FlatList) so it can sit inside onboarding ScrollViews without nesting warnings. */
+export function ScrollNumberPicker({
+  label,
+  hint,
+  values,
+  value,
+  onChange,
+  formatItem = (n) => String(n),
+}: Props) {
   const scrollRef = useRef<ScrollView>(null);
-  const safe =
-    value >= VALUES[0]! && value <= VALUES[VALUES.length - 1]!
-      ? value
-      : VALUES[0]!;
+  const first = values[0]!;
+  const last = values[values.length - 1]!;
+  const safe = value >= first && value <= last ? value : first;
 
-  const scrollToLb = useCallback((lb: number, animated: boolean) => {
-    const i = VALUES.indexOf(lb);
-    if (i < 0) return;
-    scrollRef.current?.scrollTo({ y: i * ITEM_HEIGHT, animated });
-  }, []);
+  const scrollTo = useCallback(
+    (n: number, animated: boolean) => {
+      const i = values.indexOf(n);
+      if (i < 0) return;
+      scrollRef.current?.scrollTo({ y: i * ITEM_HEIGHT, animated });
+    },
+    [values]
+  );
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
-      scrollToLb(safe, false);
+      scrollTo(safe, false);
     });
     return () => cancelAnimationFrame(id);
-  }, [safe, scrollToLb]);
+  }, [safe, scrollTo]);
 
   const onMomentumScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = e.nativeEvent.contentOffset.y;
       const raw = Math.round(y / ITEM_HEIGHT);
-      const i = Math.max(0, Math.min(VALUES.length - 1, raw));
-      const lb = VALUES[i]!;
-      if (lb !== value) onChange(lb);
+      const i = Math.max(0, Math.min(values.length - 1, raw));
+      const n = values[i]!;
+      if (n !== value) onChange(n);
     },
-    [onChange, value]
+    [onChange, value, values]
   );
 
   return (
@@ -70,12 +80,12 @@ export function WeightPicker({ label, hint, value, onChange }: Props) {
             contentContainerStyle={styles.listContent}
             style={styles.list}
             onMomentumScrollEnd={onMomentumScrollEnd}>
-            {VALUES.map((item) => {
+            {values.map((item) => {
               const active = item === safe;
               return (
                 <View key={item} style={styles.row}>
                   <Text style={[styles.rowText, active && styles.rowTextActive]}>
-                    {item} lb
+                    {formatItem(item)}
                   </Text>
                 </View>
               );

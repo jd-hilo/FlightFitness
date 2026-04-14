@@ -16,20 +16,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
+import { EditMealModal } from '@/components/plan/EditMealModal';
 import { MealCard } from '@/components/plan/MealCard';
 import { WeekStrip } from '@/components/WeekStrip';
 import { theme } from '@/constants/theme';
 import { generateWeekPlan } from '@/lib/api/plan';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
 import { getWeekPlanFromStore } from '@/lib/planFromStore';
-import { dateKeyForPlanDay, planDayIndexForToday } from '@/lib/weekUtils';
+import {
+  dateKeyForViewStripDay,
+  isViewStripDayBeforeToday,
+  mealDayIndexForViewStrip,
+  viewStripIndexForToday,
+  viewWeekStartYmdLocal,
+  weekDatesFromStart,
+} from '@/lib/weekUtils';
 import { getTriggerVerse } from '@/lib/verses';
 import { normalizeDay, useCompletionStore } from '@/stores/completionStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
+import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
-import { useCanCustomize, useCanGeneratePlan } from '@/stores/subscriptionStore';
+import type { Meal } from '@/types/plan';
 
 const FLIGHT_FOODS_PRE_WORKOUT =
   'https://flight-foods.com/collections/pre-workout';
@@ -65,25 +74,49 @@ export default function FuelScreen() {
   const byDay = useCompletionStore((s) => s.byDay);
   const toggleMeal = useCompletionStore((s) => s.toggleMeal);
   const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
+  const updateMeal = usePlanStore((s) => s.updateMeal);
   const showVerse = useVerseModalStore((s) => s.show);
-  const canCustomize = useCanCustomize();
-  const canGen = useCanGeneratePlan();
   const [busy, setBusy] = useState(false);
+  const [mealEditing, setMealEditing] = useState<Meal | null>(null);
+  const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
+
+  /** Calendar strip always shows Mon–Sun of the week that contains **today**. */
+  const viewWeekYmd = viewWeekStartYmdLocal();
+  const isPastDay = isViewStripDayBeforeToday(viewWeekYmd, selectedPlanDay);
+
+  const selectedCalendarDate = useMemo(() => {
+    if (!weekStart) return null;
+    return weekDatesFromStart(viewWeekYmd)[selectedPlanDay] ?? null;
+  }, [weekStart, viewWeekYmd, selectedPlanDay]);
+
+  const selectedDateLong = selectedCalendarDate
+    ? selectedCalendarDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : '';
 
   useEffect(() => {
-    if (weekStart) setSelectedPlanDay(planDayIndexForToday(weekStart));
+    if (!weekStart) return;
+    setSelectedPlanDay(viewStripIndexForToday(viewWeekStartYmdLocal()));
   }, [weekStart, setSelectedPlanDay]);
 
-  if (!weekStart || !macroTargets || !mealsByDay) {
-    return (
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
-        <Text style={styles.muted}>No plan loaded.</Text>
-      </View>
-    );
-  }
+  const hasPlanData =
+    weekStart != null && macroTargets != null && mealsByDay != null;
 
-  const dateKey = dateKeyForPlanDay(weekStart, selectedPlanDay);
-  const dayMeals = mealsByDay[selectedPlanDay] ?? [];
+  const planMealIndex =
+    hasPlanData && weekStart
+      ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay)
+      : null;
+  const dateKey = hasPlanData
+    ? dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay)
+    : '';
+  const dayMeals =
+    hasPlanData && planMealIndex != null
+      ? mealsByDay![planMealIndex] ?? []
+      : [];
   const completion = normalizeDay(byDay[dateKey]);
 
   const logged = useMemo(() => {
@@ -91,7 +124,26 @@ export default function FuelScreen() {
     return sumMacrosForMeals(done);
   }, [dayMeals, completion.mealIds]);
 
+  if (!hasPlanData) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        {weekPlanEnsuring ? (
+          <View style={styles.generatingBox}>
+            <ActivityIndicator color={theme.colors.gold} />
+            <Text style={styles.generatingTitle}>Generating your custom plan</Text>
+            <Text style={styles.muted}>
+              Your personalized meals for this week are on the way…
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.muted}>No plan loaded.</Text>
+        )}
+      </View>
+    );
+  }
+
   const onMealToggle = (mealId: string) => {
+    if (isPastDay) return;
     const nowDone = toggleMeal(dateKey, mealId);
     if (nowDone) {
       const v = getTriggerVerse('gratitude', `${dateKey}-${mealId}-fuel`);
@@ -103,14 +155,6 @@ export default function FuelScreen() {
     action: Parameters<typeof generateWeekPlan>[0]['action'],
     extra?: Partial<Parameters<typeof generateWeekPlan>[0]>
   ) => {
-    if (!canCustomize) {
-      router.push('/paywall');
-      return;
-    }
-    if (!canGen) {
-      Alert.alert('Upgrade required', 'Unlock unlimited AI to customize your plan.');
-      return;
-    }
     const current = getWeekPlanFromStore();
     if (!current) return;
     setBusy(true);
@@ -125,21 +169,25 @@ export default function FuelScreen() {
     else Alert.alert('Request failed', res.error);
   };
 
-  const onSwapMeal = (slot: string) => {
-    runCustomize('swapMeal', {
-      swapMeal: { dayIndex: selectedPlanDay, slot },
-    });
-  };
-
   const onRegenerateDay = () => {
+    const viewY = viewWeekStartYmdLocal();
+    const idx = mealDayIndexForViewStrip(weekStart, viewY, selectedPlanDay);
+    if (idx == null) {
+      Alert.alert(
+        'Outside plan week',
+        'This calendar day is not covered by your current 7-day plan. Regenerate a full week or pick another day.'
+      );
+      return;
+    }
     Alert.alert(
       'Regenerate day',
-      'Replace today’s meals with a fresh AI set?',
+      'Replace this day’s meals with a fresh AI set?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Regenerate',
-          onPress: () => runCustomize('regenerateDay', { regenerateDay: { dayIndex: selectedPlanDay } }),
+          onPress: () =>
+            runCustomize('regenerateDay', { regenerateDay: { dayIndex: idx } }),
         },
       ]
     );
@@ -171,10 +219,16 @@ export default function FuelScreen() {
         ]}>
         <TabScreenHeading title="Fuel" />
         <WeekStrip
-          weekStartYmd={weekStart}
+          weekStartYmd={viewWeekYmd}
           selectedIndex={selectedPlanDay}
           onSelect={setSelectedPlanDay}
         />
+        {isPastDay ? (
+          <Text style={styles.pastHint}>Past day — view only</Text>
+        ) : null}
+        {selectedDateLong ? (
+          <Text style={styles.selectedDateCaption}>{selectedDateLong}</Text>
+        ) : null}
         <MacroDashboard
           targets={macroTargets}
           loggedKcal={logged.kcal}
@@ -182,12 +236,22 @@ export default function FuelScreen() {
           loggedCarbs={logged.carbsG}
           loggedFat={logged.fatG}
         />
-        <View style={styles.toolbar}>
-          <Pressable style={styles.toolBtn} onPress={onRegenerateDay}>
-            <Text style={styles.toolTxt}>Regenerate day</Text>
+        <View style={[styles.toolbar, isPastDay && styles.toolbarMuted]}>
+          <Pressable
+            style={styles.toolBtn}
+            onPress={onRegenerateDay}
+            disabled={isPastDay}>
+            <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
+              Regenerate day
+            </Text>
           </Pressable>
-          <Pressable style={styles.toolBtn} onPress={onAdjustMacros}>
-            <Text style={styles.toolTxt}>+5% calories</Text>
+          <Pressable
+            style={styles.toolBtn}
+            onPress={onAdjustMacros}
+            disabled={isPastDay}>
+            <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
+              +5% calories
+            </Text>
           </Pressable>
         </View>
         {busy ? (
@@ -199,13 +263,32 @@ export default function FuelScreen() {
             <Text style={styles.link}>Grocery</Text>
           </Pressable>
         </View>
+        {planMealIndex == null ? (
+          weekPlanEnsuring ? (
+            <View style={styles.generatingInline}>
+              <ActivityIndicator color={theme.colors.gold} />
+              <Text style={styles.generatingInlineTitle}>
+                Generating your custom plan
+              </Text>
+              <Text style={styles.outsidePlanHint}>
+                Your daily log will fill in here as soon as your week is ready…
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.outsidePlanHint}>
+              No meals for this date — it falls outside your saved plan week (plan
+              starts {weekStart}).
+            </Text>
+          )
+        ) : null}
         {dayMeals.map((meal) => (
           <MealCard
             key={meal.id}
             meal={meal}
             completed={completion.mealIds.includes(meal.id)}
             onToggleComplete={() => onMealToggle(meal.id)}
-            onSwap={() => onSwapMeal(meal.slot)}
+            onEdit={setMealEditing}
+            readOnly={isPastDay}
           />
         ))}
         <Text style={styles.energySectionTitle}>Energy</Text>
@@ -258,6 +341,20 @@ export default function FuelScreen() {
           </Text>
         </View>
       </ScrollView>
+      <EditMealModal
+        visible={mealEditing != null}
+        meal={mealEditing}
+        onClose={() => setMealEditing(null)}
+        onSave={(updated) => {
+          const idx = mealDayIndexForViewStrip(
+            weekStart,
+            viewWeekYmd,
+            selectedPlanDay
+          );
+          if (idx != null) updateMeal(idx, updated.id, updated);
+          setMealEditing(null);
+        }}
+      />
     </View>
   );
 }
@@ -265,7 +362,53 @@ export default function FuelScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
+  selectedDateCaption: {
+    fontFamily: theme.fonts.body,
+    fontSize: 14,
+    color: theme.colors.onSurfaceVariant,
+    marginBottom: 14,
+    marginTop: -4,
+  },
+  outsidePlanHint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    lineHeight: 19,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  generatingBox: {
+    padding: 24,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  generatingTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  generatingInline: {
+    marginBottom: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  generatingInlineTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 15,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  pastHint: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
   toolbar: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  toolbarMuted: { opacity: 0.45 },
   toolBtn: {
     flex: 1,
     borderWidth: 1,
@@ -279,6 +422,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: theme.colors.gold,
     textTransform: 'uppercase',
+  },
+  toolTxtMuted: {
+    color: theme.colors.onSurfaceVariant,
   },
   sectionHead: {
     flexDirection: 'row',

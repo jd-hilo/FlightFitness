@@ -1,3 +1,4 @@
+import { formatYmdLocal } from '@/lib/weekUtils';
 import type { OnboardingAnswers } from '@/types/plan';
 import type { WeekPlan } from '@/types/plan';
 import {
@@ -7,13 +8,45 @@ import {
   FOOD_PREFERENCE_OPTIONS,
 } from '@/lib/onboardingOptions';
 
+/** Rough maintenance estimate (Mifflin–St Jeor × 1.55 activity). */
+function estimateMaintenanceKcal(a: OnboardingAnswers): number {
+  const kg = a.currentWeightLb * 0.45359237;
+  const cm = a.heightInches * 2.54;
+  const age = Math.max(16, Math.min(90, a.ageYears));
+  let bmr: number;
+  if (a.sex === 'sex_man') {
+    bmr = 10 * kg + 6.25 * cm - 5 * age + 5;
+  } else if (a.sex === 'sex_woman') {
+    bmr = 10 * kg + 6.25 * cm - 5 * age - 161;
+  } else {
+    const m = 10 * kg + 6.25 * cm - 5 * age + 5;
+    const f = 10 * kg + 6.25 * cm - 5 * age - 161;
+    bmr = (m + f) / 2;
+  }
+  return Math.round(Math.max(1200, bmr * 1.55));
+}
+
+function deficitForPace(a: OnboardingAnswers): number {
+  switch (a.nutritionPaceId) {
+    case 'pace_moderate':
+      return 400;
+    case 'pace_aggressive':
+      return 550;
+    case 'pace_not_tracking':
+      return 150;
+    case 'pace_sustainable':
+    default:
+      return 280;
+  }
+}
+
 function mondayOfWeek(d: Date) {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const mon = new Date(d);
   mon.setDate(diff);
-  mon.setHours(0, 0, 0, 0);
-  return mon.toISOString().slice(0, 10);
+  mon.setHours(12, 0, 0, 0);
+  return formatYmdLocal(mon);
 }
 
 function dietSummary(a: OnboardingAnswers) {
@@ -49,18 +82,25 @@ export function buildMockWeekPlan(answers: OnboardingAnswers): WeekPlan {
   const g = answers.goal;
   const deltaLb = answers.targetWeightLb - answers.currentWeightLb;
 
-  let calories = 2550;
+  const maintenance = estimateMaintenanceKcal(answers);
+  let calories = maintenance;
   const wantsLose = g === 'lose_fat' || (deltaLb < -8 && g !== 'build_muscle');
   const wantsGain = g === 'build_muscle' && deltaLb > 8;
   const recomp = g === 'recomp';
 
-  if (wantsLose && !wantsGain) calories = deltaLb < -20 ? 2000 : 2200;
-  else if (wantsGain && !wantsLose) calories = deltaLb > 15 ? 3100 : 2850;
-  else if (recomp) calories = 2350;
+  if (wantsLose && !wantsGain) {
+    calories = maintenance - deficitForPace(answers);
+    if (deltaLb < -20) calories -= 80;
+  } else if (wantsGain && !wantsLose) {
+    calories = maintenance + (deltaLb > 15 ? 380 : 280);
+  } else if (recomp) {
+    calories = maintenance - 120;
+  }
   if (g === 'general_health') {
-    calories = Math.min(calories, 2450);
+    calories = Math.min(calories, maintenance + 50);
   }
   if (g === 'performance') calories += 120;
+  calories = Math.max(1500, Math.min(4000, Math.round(calories)));
 
   const proteinG = Math.round((calories * 0.3) / 4);
   const carbsG = Math.round((calories * 0.45) / 4);

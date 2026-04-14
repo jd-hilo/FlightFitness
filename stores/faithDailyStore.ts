@@ -43,6 +43,8 @@ type FaithDailyState = {
   toggleStudyRead: (dateKey: string) => void;
   toggleJournalDone: (dateKey: string) => void;
   setJournalLine: (dateKey: string, line: string) => void;
+  /** Call when user taps Done — checks off only if there is non-empty text. */
+  markJournalReflectionComplete: (dateKey: string) => void;
   reset: () => void;
 };
 
@@ -92,15 +94,24 @@ export const useFaithDailyStore = create<FaithDailyState>()(
       },
       toggleJournalDone: (dateKey) => {
         const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
-        const next = !day.journalDone;
-        day.journalDone = next;
-        if (!next) day.journalLine = '';
+        if (day.journalDone) {
+          day.journalDone = false;
+          day.journalLine = '';
+        } else if (day.journalLine.trim().length > 0) {
+          day.journalDone = true;
+        }
         set({ byDay: { ...get().byDay, [dateKey]: day } });
       },
       setJournalLine: (dateKey, line) => {
         const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
         day.journalLine = line;
-        day.journalDone = line.trim().length > 0;
+        if (line.trim().length === 0) day.journalDone = false;
+        set({ byDay: { ...get().byDay, [dateKey]: day } });
+      },
+      markJournalReflectionComplete: (dateKey) => {
+        const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
+        if (day.journalLine.trim().length === 0) return;
+        day.journalDone = true;
         set({ byDay: { ...get().byDay, [dateKey]: day } });
       },
       reset: () =>

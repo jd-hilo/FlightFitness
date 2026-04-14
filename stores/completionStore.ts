@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { formatYmdLocal } from '@/lib/weekUtils';
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return formatYmdLocal(new Date());
 }
 
 type DayCompletion = {
@@ -50,7 +52,7 @@ function bumpStreakIfNewDay(
   }
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yKey = yesterday.toISOString().slice(0, 10);
+  const yKey = formatYmdLocal(yesterday);
   let next = streak;
   if (lastIncrement == null) {
     next = 1;

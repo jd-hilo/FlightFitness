@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,7 +16,13 @@ import { WeekStrip } from '@/components/WeekStrip';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
 import { generateWeekPlan } from '@/lib/api/plan';
-import { dateKeyForPlanDay, planDayIndexForToday } from '@/lib/weekUtils';
+import {
+  dateKeyForViewStripDay,
+  isViewStripDayBeforeToday,
+  mealDayIndexForViewStrip,
+  viewStripIndexForToday,
+  viewWeekStartYmdLocal,
+} from '@/lib/weekUtils';
 import { getWeekPlanFromStore } from '@/lib/planFromStore';
 import { getTriggerVerse } from '@/lib/verses';
 import {
@@ -26,10 +31,9 @@ import {
 } from '@/stores/completionStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
+import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
-import { useCanCustomize, useCanGeneratePlan } from '@/stores/subscriptionStore';
-
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
   const weekStart = usePlanStore((s) => s.weekStart);
@@ -46,38 +50,69 @@ export default function TrainScreen() {
   );
   const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
   const showVerse = useVerseModalStore((s) => s.show);
-  const canCustomize = useCanCustomize();
-  const canGen = useCanGeneratePlan();
   const [busy, setBusy] = useState(false);
+  const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
+
+  const viewWeekYmd = viewWeekStartYmdLocal();
+  const isPastDay = isViewStripDayBeforeToday(viewWeekYmd, selectedPlanDay);
+  const hasPlanData = weekStart != null && workoutsByDay != null;
+  const planWorkoutIndex =
+    hasPlanData && weekStart
+      ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay)
+      : null;
+  const dateKey = hasPlanData
+    ? dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay)
+    : '';
+  const workout =
+    hasPlanData && planWorkoutIndex != null
+      ? workoutsByDay![planWorkoutIndex]
+      : null;
+  const completion = normalizeDay(byDay[dateKey]);
 
   useEffect(() => {
-    if (weekStart) setSelectedPlanDay(planDayIndexForToday(weekStart));
+    if (!weekStart) return;
+    setSelectedPlanDay(viewStripIndexForToday(viewWeekStartYmdLocal()));
   }, [weekStart, setSelectedPlanDay]);
 
   useEffect(() => {
     if (!weekStart || !workoutsByDay) return;
-    const w = workoutsByDay[selectedPlanDay];
+    const idx = mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay);
+    if (idx == null) return;
+    const w = workoutsByDay[idx];
     if (!w) return;
-    const dk = dateKeyForPlanDay(weekStart, selectedPlanDay);
+    const dk = dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay);
     backfillExerciseIdsIfWorkoutDone(
       dk,
       w.exercises.map((e) => e.id)
     );
-  }, [weekStart, workoutsByDay, selectedPlanDay, backfillExerciseIdsIfWorkoutDone]);
+  }, [
+    weekStart,
+    workoutsByDay,
+    selectedPlanDay,
+    viewWeekYmd,
+    backfillExerciseIdsIfWorkoutDone,
+  ]);
 
-  if (!weekStart || !workoutsByDay) {
+  if (!hasPlanData) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top }]}>
-        <Text style={styles.muted}>No plan loaded.</Text>
+        {weekPlanEnsuring ? (
+          <View style={styles.generatingBox}>
+            <ActivityIndicator color={theme.colors.gold} />
+            <Text style={styles.generatingTitle}>Generating your week</Text>
+            <Text style={styles.muted}>
+              Syncing your plan for this calendar week…
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.muted}>No plan loaded.</Text>
+        )}
       </View>
     );
   }
 
-  const dateKey = dateKeyForPlanDay(weekStart, selectedPlanDay);
-  const workout = workoutsByDay[selectedPlanDay];
-  const completion = normalizeDay(byDay[dateKey]);
-
   const onToggleWorkout = () => {
+    if (isPastDay) return;
     const ids = workout?.exercises.map((e) => e.id) ?? [];
     const nowDone = toggleWorkout(dateKey, ids);
     if (nowDone) {
@@ -87,7 +122,7 @@ export default function TrainScreen() {
   };
 
   const onToggleExercise = (exerciseId: string) => {
-    if (!workout) return;
+    if (isPastDay || !workout) return;
     const before = normalizeDay(useCompletionStore.getState().byDay[dateKey]);
     toggleExerciseDone(dateKey, exerciseId);
     const after = normalizeDay(useCompletionStore.getState().byDay[dateKey]);
@@ -104,12 +139,17 @@ export default function TrainScreen() {
   };
 
   const onSwapExercise = async (exerciseIndex: number) => {
-    if (!canCustomize) {
-      router.push('/paywall');
-      return;
-    }
-    if (!canGen) {
-      Alert.alert('Upgrade required', 'Unlock unlimited AI to swap exercises.');
+    if (isPastDay) return;
+    const idx = mealDayIndexForViewStrip(
+      weekStart,
+      viewWeekYmd,
+      selectedPlanDay
+    );
+    if (idx == null) {
+      Alert.alert(
+        'Outside plan week',
+        'This calendar day is not in your current 7-day plan.'
+      );
       return;
     }
     const current = getWeekPlanFromStore();
@@ -118,7 +158,7 @@ export default function TrainScreen() {
     const res = await generateWeekPlan({
       onboarding: answers,
       action: 'swapExercise',
-      swapExercise: { dayIndex: selectedPlanDay, exerciseIndex },
+      swapExercise: { dayIndex: idx, exerciseIndex },
       currentPlan: current,
     });
     setBusy(false);
@@ -136,14 +176,37 @@ export default function TrainScreen() {
         ]}>
         <TabScreenHeading title="Train" />
         <WeekStrip
-          weekStartYmd={weekStart}
+          weekStartYmd={viewWeekYmd}
           selectedIndex={selectedPlanDay}
           onSelect={setSelectedPlanDay}
         />
+        {isPastDay ? (
+          <Text style={styles.pastHint}>Past day — view only</Text>
+        ) : null}
         {busy ? (
           <ActivityIndicator color={theme.colors.gold} style={{ marginVertical: 24 }} />
         ) : null}
-        {workout ? (
+        {planWorkoutIndex == null ? (
+          <View style={styles.rest}>
+            {weekPlanEnsuring ? (
+              <>
+                <ActivityIndicator color={theme.colors.gold} style={{ marginBottom: 16 }} />
+                <Text style={styles.restTitle}>Generating your week</Text>
+                <Text style={styles.muted}>
+                  Building your plan for this calendar week…
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.restTitle}>Outside plan week</Text>
+                <Text style={styles.muted}>
+                  This date is not covered by your saved plan (plan starts {weekStart}).
+                  Regenerate a full week or choose another day.
+                </Text>
+              </>
+            )}
+          </View>
+        ) : workout ? (
           <WorkoutBlock
             workout={workout}
             completed={completion.workoutDone}
@@ -151,9 +214,10 @@ export default function TrainScreen() {
             onToggleComplete={onToggleWorkout}
             onToggleExercise={onToggleExercise}
             onSwapExercise={onSwapExercise}
+            readOnly={isPastDay}
           />
         ) : (
-          <View style={styles.rest}>
+          <View style={[styles.rest, isPastDay && styles.restReadOnly]}>
             <Text style={styles.restTitle}>Recovery day</Text>
             <Text style={styles.muted}>
               Light walk or mobility — your split builds in rest too.
@@ -168,6 +232,17 @@ export default function TrainScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
+  generatingBox: {
+    padding: 24,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  generatingTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
   rest: {
     padding: 24,
     borderWidth: 1,
@@ -186,5 +261,16 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     fontSize: 14,
     lineHeight: 20,
+  },
+  pastHint: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  restReadOnly: {
+    opacity: 0.55,
   },
 });

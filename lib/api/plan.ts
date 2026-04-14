@@ -1,17 +1,21 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
+
 import { weekPlanSchema } from '@/types/plan';
 import type { OnboardingAnswers, WeekPlan } from '@/types/plan';
 import { buildMockWeekPlan } from '@/lib/mockPlan';
 import { summarizeOnboardingForAI } from '@/lib/onboardingSummarize';
 import {
-  ensureSupabaseSession,
+  bootstrapAnonymousSession,
+  ensureFreshSessionForEdge,
   supabase,
   supabaseConfigured,
 } from '@/lib/supabase';
+import { normalizeWeekPlanFromAI } from '@/lib/weekPlanAINormalize';
 
 export type GeneratePlanBody = {
   onboarding: OnboardingAnswers;
-  action?: 'full' | 'swapMeal' | 'regenerateDay' | 'adjustMacros' | 'swapExercise';
-  swapMeal?: { dayIndex: number; slot: string; note?: string };
+  weekStartHint?: string;
+  action?: 'full' | 'regenerateDay' | 'adjustMacros' | 'swapExercise';
   regenerateDay?: { dayIndex: number };
   adjustMacros?: {
     calories: number;
@@ -23,60 +27,150 @@ export type GeneratePlanBody = {
   currentPlan?: WeekPlan | null;
 };
 
+export type GenerateWeekPlanResult =
+  | { ok: true; plan: WeekPlan }
+  | { ok: false; error: string };
+
+let fullWeekPlanInFlight: Promise<GenerateWeekPlanResult> | null = null;
+
 export async function generateWeekPlan(
   body: GeneratePlanBody
-): Promise<{ ok: true; plan: WeekPlan } | { ok: false; error: string }> {
+): Promise<GenerateWeekPlanResult> {
+  const isFull = body.action == null || body.action === 'full';
+  if (isFull && fullWeekPlanInFlight) return fullWeekPlanInFlight;
+
+  const run = runGenerate(body);
+  if (isFull) {
+    fullWeekPlanInFlight = run.finally(() => {
+      fullWeekPlanInFlight = null;
+    });
+    return fullWeekPlanInFlight;
+  }
+  return run;
+}
+
+async function runGenerate(
+  body: GeneratePlanBody
+): Promise<GenerateWeekPlanResult> {
   if (!supabaseConfigured || !supabase) {
-    const plan = buildMockWeekPlan(body.onboarding);
-    const merged = applyCustomizationLocal(body, plan);
-    const parsed = weekPlanSchema.safeParse(merged);
-    if (!parsed.success) {
-      return { ok: false, error: parsed.error.message };
-    }
-    return { ok: true, plan: parsed.data };
+    if (__DEV__) console.warn('[generateWeekPlan] Supabase env missing — mock');
+    return mockResult(body);
   }
 
-  const session = await ensureSupabaseSession();
+  try {
+    await bootstrapAnonymousSession();
+  } catch { /* best-effort */ }
+
+  let session: Awaited<ReturnType<typeof ensureFreshSessionForEdge>> = null;
+  try {
+    session = await ensureFreshSessionForEdge();
+  } catch { /* fallback to mock */ }
+
   const token = session?.access_token;
   if (!token) {
-    const anonPlan = buildMockWeekPlan(body.onboarding);
-    const parsed = weekPlanSchema.safeParse(applyCustomizationLocal(body, anonPlan));
-    if (!parsed.success) return { ok: false, error: parsed.error.message };
-    return { ok: true, plan: parsed.data };
+    if (__DEV__) console.warn('[generateWeekPlan] No JWT — mock');
+    return mockResult(body);
   }
 
-  const fnUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-plan`;
+  if (__DEV__) console.log('[generateWeekPlan] invoke generate-plan');
+
   try {
-    const payload = {
-      ...body,
+    const edgePayload: Record<string, unknown> = {
       onboardingSummary: summarizeOnboardingForAI(body.onboarding),
+      action: body.action ?? 'full',
     };
-    const res = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: typeof json?.error === 'string' ? json.error : 'Plan request failed',
-      };
+    if (body.weekStartHint) edgePayload.weekStartHint = body.weekStartHint;
+
+    if (body.action === 'regenerateDay' && body.regenerateDay) {
+      edgePayload.regenerateDay = body.regenerateDay;
+      edgePayload.currentPlan = body.currentPlan;
     }
-    const parsed = weekPlanSchema.safeParse(json.plan ?? json);
+    if (body.action === 'adjustMacros' && body.adjustMacros) {
+      edgePayload.adjustMacros = body.adjustMacros;
+      edgePayload.currentPlan = body.currentPlan;
+    }
+    if (body.action === 'swapExercise' && body.swapExercise) {
+      edgePayload.swapExercise = body.swapExercise;
+      edgePayload.currentPlan = body.currentPlan;
+    }
+
+    const { data: json, error: fnError } = await supabase.functions.invoke(
+      'generate-plan',
+      {
+        body: edgePayload,
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (fnError) {
+      return { ok: false, error: extractFnError(fnError) };
+    }
+
+    const rawPlan =
+      json && typeof json === 'object' && json !== null && 'plan' in json
+        ? (json as { plan: unknown }).plan
+        : json;
+
+    const normalized = normalizeWeekPlanFromAI(rawPlan);
+    const parsed = weekPlanSchema.safeParse(normalized);
     if (!parsed.success) {
-      return { ok: false, error: 'Invalid plan from server' };
+      const issue = parsed.error.issues[0];
+      const hint = issue
+        ? `${issue.path.join('.') || 'plan'}: ${issue.message}`
+        : parsed.error.message;
+      if (__DEV__) console.warn('[generateWeekPlan] Zod:', parsed.error.flatten());
+      return { ok: false, error: `Invalid plan from server — ${hint}` };
     }
+
     return { ok: true, plan: parsed.data };
   } catch (e) {
-    const plan = buildMockWeekPlan(body.onboarding);
-    const parsed = weekPlanSchema.safeParse(applyCustomizationLocal(body, plan));
-    if (!parsed.success) return { ok: false, error: String(e) };
-    return { ok: true, plan: parsed.data };
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error:
+        msg.includes('Network') || msg.includes('fetch')
+          ? `Network error — ${msg}`
+          : msg,
+    };
   }
+}
+
+function mockResult(body: GeneratePlanBody): GenerateWeekPlanResult {
+  const plan = buildMockWeekPlan(body.onboarding);
+  const merged = applyCustomizationLocal(body, plan);
+  const parsed = weekPlanSchema.safeParse(merged);
+  if (!parsed.success) return { ok: false, error: parsed.error.message };
+  return { ok: true, plan: parsed.data };
+}
+
+function extractFnError(fnError: unknown): string {
+  if (fnError instanceof FunctionsHttpError) {
+    const status = fnError.context.status;
+    let msg = `Plan request failed (HTTP ${status})`;
+    try {
+      const bodyText = fnError.context.text
+        ? String(fnError.context.text)
+        : '';
+      if (bodyText) {
+        try {
+          const errBody = JSON.parse(bodyText) as Record<string, unknown>;
+          if (typeof errBody.error === 'string') {
+            msg = `${errBody.error} (HTTP ${status})`;
+            if (typeof errBody.detail === 'string') {
+              msg += ` — ${errBody.detail}`;
+            }
+          } else {
+            msg = `${msg} — ${bodyText.slice(0, 240)}`;
+          }
+        } catch {
+          msg = `${msg} — ${bodyText.slice(0, 240)}`;
+        }
+      }
+    } catch { /* ignore */ }
+    if (__DEV__) console.warn('[generateWeekPlan] HTTP error', msg);
+    return msg;
+  }
+  return fnError instanceof Error ? fnError.message : String(fnError);
 }
 
 function applyCustomizationLocal(
@@ -85,10 +179,7 @@ function applyCustomizationLocal(
 ): WeekPlan {
   let plan = { ...base, mealsByDay: base.mealsByDay.map((d) => [...d]) };
   if (body.action === 'adjustMacros' && body.adjustMacros) {
-    plan = {
-      ...plan,
-      macroTargets: { ...body.adjustMacros },
-    };
+    plan = { ...plan, macroTargets: { ...body.adjustMacros } };
   }
   if (body.action === 'regenerateDay' && body.regenerateDay != null) {
     const i = body.regenerateDay.dayIndex;
@@ -98,27 +189,6 @@ function applyCustomizationLocal(
       ...m,
       id: `m-${i}-${j}-${Date.now()}`,
     }));
-    plan = { ...plan, mealsByDay: nextMeals };
-  }
-  if (body.action === 'swapMeal' && body.swapMeal) {
-    const i = body.swapMeal.dayIndex;
-    const slot = body.swapMeal.slot;
-    const nextMeals = plan.mealsByDay.map((day, di) => {
-      if (di !== i) return day;
-      return day.map((m) =>
-        m.slot === slot
-          ? {
-              ...m,
-              id: `${m.id}-swap-${Date.now()}`,
-              name: 'Fresh swap meal',
-              description:
-                body.swapMeal?.note ||
-                'AI-swapped meal — regenerate for full detail',
-              macros: { ...m.macros, kcal: m.macros.kcal + 20 },
-            }
-          : m
-      );
-    });
     plan = { ...plan, mealsByDay: nextMeals };
   }
   if (body.action === 'swapExercise' && body.swapExercise) {

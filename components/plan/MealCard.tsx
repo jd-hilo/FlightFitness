@@ -8,47 +8,56 @@ type Props = {
   meal: Meal;
   completed: boolean;
   onToggleComplete: () => void;
-  onSwap?: () => void;
+  onEdit?: (meal: Meal) => void;
+  readOnly?: boolean;
 };
 
 export function MealCard({
   meal,
   completed,
   onToggleComplete,
-  onSwap,
+  onEdit,
+  readOnly = false,
 }: Props) {
+  const canEdit = onEdit && !readOnly;
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, readOnly && styles.rowReadOnly]}>
       <View style={styles.textCol}>
         <View style={styles.badgeRow}>
-          <Text style={styles.badge}>{meal.slot}</Text>
-          {onSwap ? (
-            <Pressable onPress={onSwap} hitSlop={8}>
-              <Text style={styles.swap}>Swap</Text>
+          <Text style={[styles.badge, readOnly && styles.badgeMuted]}>{meal.slot}</Text>
+          {canEdit ? (
+            <Pressable onPress={() => onEdit(meal)} hitSlop={8}>
+              <Text style={styles.edit}>Edit</Text>
             </Pressable>
           ) : null}
         </View>
-        <Text style={styles.name}>{meal.name}</Text>
-        <Text style={styles.desc}>{meal.description}</Text>
+        <Text style={[styles.name, readOnly && styles.textMuted]}>{meal.name}</Text>
+        <Text style={[styles.desc, readOnly && styles.descMuted]}>{meal.description}</Text>
         <View style={styles.macros}>
-          <Macro label="Protein" value={`${meal.macros.proteinG}g`} gold />
-          <Macro label="Carbs" value={`${meal.macros.carbsG}g`} gold />
-          <Macro label="Kcal" value={`${meal.macros.kcal}`} gold />
+          <Macro label="Protein" value={`${meal.macros.proteinG}g`} gold={!readOnly} />
+          <Macro label="Carbs" value={`${meal.macros.carbsG}g`} gold={!readOnly} />
+          <Macro label="Fat" value={`${meal.macros.fatG}g`} gold={!readOnly} />
+          <Macro label="Kcal" value={`${meal.macros.kcal}`} gold={!readOnly} />
         </View>
       </View>
       <Pressable
-        onPress={onToggleComplete}
+        onPress={readOnly ? undefined : onToggleComplete}
+        disabled={readOnly}
         style={styles.checkHit}
         hitSlop={12}>
         {completed ? (
           <MaterialIcons
             name="check-circle"
             size={36}
-            color={theme.colors.gold}
+            color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.gold}
           />
         ) : (
-          <View style={styles.addBtn}>
-            <MaterialIcons name="add" size={28} color={theme.colors.onBackground} />
+          <View style={[styles.addBtn, readOnly && styles.addBtnMuted]}>
+            <MaterialIcons
+              name="add"
+              size={28}
+              color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.onBackground}
+            />
           </View>
         )}
       </Pressable>
@@ -83,6 +92,22 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     alignItems: 'flex-start',
   },
+  rowReadOnly: {
+    opacity: 0.55,
+  },
+  textMuted: {
+    color: theme.colors.onSurfaceVariant,
+  },
+  descMuted: {
+    opacity: 0.85,
+  },
+  badgeMuted: {
+    opacity: 0.75,
+  },
+  addBtnMuted: {
+    borderColor: theme.colors.outline,
+    opacity: 0.8,
+  },
   textCol: { flex: 1, paddingRight: 12 },
   badgeRow: {
     flexDirection: 'row',
@@ -102,7 +127,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     overflow: 'hidden',
   },
-  swap: {
+  edit: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
     color: theme.colors.gold,
@@ -126,7 +151,8 @@ const styles = StyleSheet.create({
   },
   macros: {
     flexDirection: 'row',
-    gap: 20,
+    flexWrap: 'wrap',
+    gap: 16,
   },
   mLabel: {
     fontFamily: theme.fonts.label,

@@ -92,4 +92,33 @@ export type OnboardingAnswers = {
   trainingTimePrefs: string[];
   currentWeightLb: number;
   targetWeightLb: number;
+
+  /** For nutrition estimates; inclusive labels in UI. */
+  sex: string;
+  /** Age in years. */
+  ageYears: number;
+  /** Total height in inches (e.g. 68 = 5'8"). */
+  heightInches: number;
+
+  /** Typical strength-session length band. */
+  sessionLengthId: string;
+  /** Multi; injury_none means no issues; mutually exclusive with other ids in UI. */
+  injuryLimitationIds: string[];
+  /** Free text: pain details, doctor limits, movements to avoid. */
+  injuryNotes: string;
+
+  /** Multi; allergy_none = no known allergies. */
+  allergyIds: string[];
+  /** e.g. "mango", "mustard" not in chip list. */
+  allergyOtherNotes: string;
+
+  /** Extra diet rules, cultural foods, or clarify other_flexible. */
+  dietOtherNotes: string;
+
+  /** How aggressively to use calorie deficit/surplus vs target weight. */
+  nutritionPaceId: string;
+  /** Typical daily eating structure. */
+  mealsPerDayId: string;
+  /** Affects recipe complexity and ingredient count. */
+  cookingSkillId: string;
 };

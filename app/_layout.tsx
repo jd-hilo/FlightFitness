@@ -45,6 +45,7 @@ export default function RootLayout() {
         <Stack
           screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }}>
           <Stack.Screen name="index" />
+          <Stack.Screen name="welcome" />
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
@@ -62,6 +63,21 @@ export default function RootLayout() {
             options={{
               presentation: 'modal',
               headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="profile-edit"
+            options={{
+              headerShown: true,
+              title: 'Edit profile',
+              headerStyle: { backgroundColor: '#000' },
+              headerTintColor: '#FFD700',
+              headerBackTitle: '',
+              headerBackTitleVisible: false,
+              headerTitleStyle: {
+                fontFamily: 'Epilogue_700Bold',
+                textTransform: 'uppercase',
+              },
             }}
           />
         </Stack>

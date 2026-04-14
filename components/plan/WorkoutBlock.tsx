@@ -11,6 +11,8 @@ type Props = {
   onToggleComplete: () => void;
   onToggleExercise: (exerciseId: string) => void;
   onSwapExercise?: (index: number) => void;
+  /** Past calendar days: show plan but disable completion / swap. */
+  readOnly?: boolean;
 };
 
 export function WorkoutBlock({
@@ -20,20 +22,28 @@ export function WorkoutBlock({
   onToggleComplete,
   onToggleExercise,
   onSwapExercise,
+  readOnly = false,
 }: Props) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, readOnly && styles.cardReadOnly]}>
       <View style={styles.head}>
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>Training</Text>
-          <Text style={styles.title}>{workout.title}</Text>
+          <Text style={[styles.title, readOnly && styles.textMuted]}>{workout.title}</Text>
         </View>
-        <Pressable onPress={onToggleComplete} hitSlop={12}>
+        <Pressable
+          onPress={readOnly ? undefined : onToggleComplete}
+          disabled={readOnly}
+          hitSlop={12}>
           {completed ? (
-            <MaterialIcons name="check-circle" size={36} color={theme.colors.gold} />
+            <MaterialIcons
+              name="check-circle"
+              size={36}
+              color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.gold}
+            />
           ) : (
-            <View style={styles.completeBtn}>
-              <Text style={styles.completeTxt}>Done</Text>
+            <View style={[styles.completeBtn, readOnly && styles.completeBtnDisabled]}>
+              <Text style={[styles.completeTxt, readOnly && styles.completeTxtMuted]}>Done</Text>
             </View>
           )}
         </Pressable>
@@ -43,8 +53,9 @@ export function WorkoutBlock({
           key={ex.id}
           exercise={ex}
           done={exerciseIdsDone.includes(ex.id)}
+          readOnly={readOnly}
           onToggleCheck={() => onToggleExercise(ex.id)}
-          onSwap={onSwapExercise ? () => onSwapExercise(i) : undefined}
+          onSwap={!readOnly && onSwapExercise ? () => onSwapExercise(i) : undefined}
         />
       ))}
     </View>
@@ -54,36 +65,44 @@ export function WorkoutBlock({
 function ExerciseRow({
   exercise,
   done,
+  readOnly,
   onToggleCheck,
   onSwap,
 }: {
   exercise: Exercise;
   done: boolean;
+  readOnly?: boolean;
   onToggleCheck: () => void;
   onSwap?: () => void;
 }) {
+  const iconColor = done
+    ? readOnly
+      ? theme.colors.onSurfaceVariant
+      : theme.colors.gold
+    : theme.colors.onSurfaceVariant;
   return (
     <View style={styles.exRow}>
       <Pressable
-        onPress={onToggleCheck}
+        onPress={readOnly ? undefined : onToggleCheck}
+        disabled={readOnly}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
         style={styles.exCheckHit}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: done }}
+        accessibilityState={{ checked: done, disabled: readOnly }}
         accessibilityLabel={`${exercise.name}, ${done ? 'completed' : 'not completed'}`}>
         <MaterialIcons
           name={done ? 'check-circle' : 'radio-button-unchecked'}
           size={24}
-          color={done ? theme.colors.gold : theme.colors.onSurfaceVariant}
+          color={iconColor}
         />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={styles.exName}>{exercise.name}</Text>
-        <Text style={styles.exMeta}>
+        <Text style={[styles.exName, readOnly && styles.textMuted]}>{exercise.name}</Text>
+        <Text style={[styles.exMeta, readOnly && styles.metaMuted]}>
           {exercise.sets} × {exercise.reps} · Rest {exercise.restSec}s
         </Text>
         {exercise.notes ? (
-          <Text style={styles.exNotes}>{exercise.notes}</Text>
+          <Text style={[styles.exNotes, readOnly && styles.metaMuted]}>{exercise.notes}</Text>
         ) : null}
       </View>
       {onSwap ? (
@@ -102,6 +121,15 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outlineStrong,
     padding: 20,
     marginBottom: 16,
+  },
+  cardReadOnly: {
+    opacity: 0.55,
+  },
+  textMuted: {
+    color: theme.colors.onSurfaceVariant,
+  },
+  metaMuted: {
+    opacity: 0.85,
   },
   head: {
     flexDirection: 'row',
@@ -129,12 +157,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  completeBtnDisabled: {
+    borderColor: theme.colors.outline,
+  },
   completeTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
     color: theme.colors.gold,
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  completeTxtMuted: {
+    color: theme.colors.onSurfaceVariant,
   },
   exRow: {
     flexDirection: 'row',

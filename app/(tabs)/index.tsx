@@ -17,7 +17,13 @@ import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
 import { getDailyVerse, getTriggerVerse } from '@/lib/verses';
-import { dateKeyForPlanDay, planDayIndexForToday } from '@/lib/weekUtils';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
+import {
+  dateKeyForViewStripDay,
+  mealDayIndexForViewStrip,
+  viewStripIndexForToday,
+  viewWeekStartYmdLocal,
+} from '@/lib/weekUtils';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
 import {
   normalizeDay,
@@ -27,10 +33,16 @@ import { usePlanStore } from '@/stores/planStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 
-const HERO_URI =
+const DEFAULT_HERO_IMAGE_URL =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDCofzYSy3zISF2fFMdsqEj8gknDjybR1icWrXzIgqCmRyH0b-JZwS72QIL5sJESNtwPBxh2ukce1cVYi3sKmWMJpoftKeiuP8lQlGEOVbDgEpOzxmP2dzTICmwEE0Z9ND8XQXsUSEjDt5MctndGz3BbAAo1PfoVQHgugN4qxA115A2EvYeNrTGsrbabzFQjJDU39fJYVFdLus0ZPMIku9N9vIWBy4xNymgiGpedZiOV8RpLEHYZGh8YqUlyajFuhemdzmGhpKiR_Y';
 
 const HERO_H = 400;
+
+function resolveHeroImageUri(remote?: string | null): string {
+  const t = remote?.trim();
+  if (t && (t.startsWith('https://') || t.startsWith('http://'))) return t;
+  return DEFAULT_HERO_IMAGE_URL;
+}
 
 function formatTimeLabel(d: Date) {
   let h = d.getHours();
@@ -75,30 +87,54 @@ export default function HomeScreen() {
   );
   const streak = useCompletionStore((s) => s.streak);
   const showVerse = useVerseModalStore((s) => s.show);
+  const dailyRemote = useDailyContentStore((s) => s.content);
 
-  const dayIndex = weekStart ? planDayIndexForToday(weekStart) : 0;
-  const dateKey = weekStart ? dateKeyForPlanDay(weekStart, dayIndex) : '';
-  const dayMeals = mealsByDay?.[dayIndex] ?? [];
-  const workout = workoutsByDay?.[dayIndex];
+  /** Same mapping as Fuel/Train: calendar week (Mon–Sun) ↔ plan `mealsByDay` / `workoutsByDay` index. */
+  const viewWeekYmd = viewWeekStartYmdLocal();
+  const stripToday = viewStripIndexForToday(viewWeekYmd);
+  const planDayIndex =
+    weekStart != null
+      ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, stripToday)
+      : null;
+  const dateKey = dateKeyForViewStripDay(viewWeekYmd, stripToday);
+  const dayMeals =
+    planDayIndex != null && mealsByDay ? mealsByDay[planDayIndex] ?? [] : [];
+  const workout =
+    planDayIndex != null && workoutsByDay
+      ? workoutsByDay[planDayIndex] ?? null
+      : null;
   const completion = normalizeDay(byDay[dateKey]);
 
   const hasPlan = Boolean(weekStart && macroTargets && mealsByDay);
 
   useEffect(() => {
-    if (weekStart) setSelectedPlanDay(planDayIndexForToday(weekStart));
-  }, [weekStart, setSelectedPlanDay]);
+    if (weekStart) setSelectedPlanDay(stripToday);
+  }, [weekStart, setSelectedPlanDay, stripToday]);
 
   useEffect(() => {
-    if (!weekStart || !workoutsByDay || !dateKey) return;
-    const w = workoutsByDay[dayIndex];
+    if (!weekStart || !workoutsByDay || !dateKey || planDayIndex == null) return;
+    const w = workoutsByDay[planDayIndex];
     if (!w) return;
     backfillExerciseIdsIfWorkoutDone(
       dateKey,
       w.exercises.map((e) => e.id)
     );
-  }, [weekStart, workoutsByDay, dayIndex, dateKey, backfillExerciseIdsIfWorkoutDone]);
+  }, [
+    weekStart,
+    workoutsByDay,
+    planDayIndex,
+    dateKey,
+    backfillExerciseIdsIfWorkoutDone,
+  ]);
 
-  const verse = useMemo(() => getDailyVerse(), []);
+  const verse = useMemo(
+    () => dailyRemote?.verse ?? getDailyVerse(),
+    [dailyRemote]
+  );
+  const heroUri = useMemo(
+    () => resolveHeroImageUri(dailyRemote?.image_url),
+    [dailyRemote?.image_url]
+  );
   const now = useMemo(() => new Date(), []);
   const timeLine = `${formatTimeLabel(now).toUpperCase()} // INTENSITY: ${intensityFromHour(
     now.getHours()
@@ -154,7 +190,7 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.heroWrap}>
-          <Image source={{ uri: HERO_URI }} style={styles.heroImg} />
+          <Image source={{ uri: heroUri }} style={styles.heroImg} />
           <LinearGradient
             colors={['#131313', 'rgba(19,19,19,0.4)', 'rgba(19,19,19,0)']}
             locations={[0, 0.5, 1]}
@@ -254,7 +290,12 @@ export default function HomeScreen() {
               <Text style={styles.section}>Today&apos;s plan</Text>
               <View style={styles.card}>
                 <Text style={styles.cardKicker}>Workout</Text>
-                {workout ? (
+                {planDayIndex == null ? (
+                  <Text style={styles.mutedCard}>
+                    Today isn&apos;t covered by your current plan week. Check Train
+                    after your week syncs.
+                  </Text>
+                ) : workout ? (
                   <>
                     <Text style={styles.cardTitle}>{workout.title}</Text>
                     <Text style={styles.cardMeta}>
@@ -286,27 +327,38 @@ export default function HomeScreen() {
 
               <View style={styles.card}>
                 <Text style={styles.cardKicker}>Meals</Text>
-                {dayMeals.map((m) => {
-                  const done = completion.mealIds.includes(m.id);
-                  return (
-                    <Pressable
-                      key={m.id}
-                      style={styles.mealRow}
-                      onPress={() => onMealToggle(m.id)}>
-                      <MaterialIcons
-                        name={done ? 'check-box' : 'check-box-outline-blank'}
-                        size={22}
-                        color={theme.colors.gold}
-                      />
-                      <View style={styles.mealText}>
-                        <Text style={styles.mealName}>{m.name}</Text>
-                        <Text style={styles.mealMeta}>
-                          {m.macros.kcal} kcal · {m.macros.proteinG}g protein
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                {planDayIndex == null ? (
+                  <Text style={styles.mutedCard}>
+                    Today isn&apos;t covered by your current plan week (plan starts{' '}
+                    {weekStart}). Open Fuel after your week syncs.
+                  </Text>
+                ) : dayMeals.length === 0 ? (
+                  <Text style={styles.mutedCard}>
+                    No meals listed for today in your plan.
+                  </Text>
+                ) : (
+                  dayMeals.map((m) => {
+                    const done = completion.mealIds.includes(m.id);
+                    return (
+                      <Pressable
+                        key={m.id}
+                        style={styles.mealRow}
+                        onPress={() => onMealToggle(m.id)}>
+                        <MaterialIcons
+                          name={done ? 'check-box' : 'check-box-outline-blank'}
+                          size={22}
+                          color={theme.colors.gold}
+                        />
+                        <View style={styles.mealText}>
+                          <Text style={styles.mealName}>{m.name}</Text>
+                          <Text style={styles.mealMeta}>
+                            {m.macros.kcal} kcal · {m.macros.proteinG}g protein
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
               </View>
 
               <View style={styles.actions}>

@@ -1,13 +1,28 @@
 import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { FlightTabBar } from '@/components/FlightTabBar';
 import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
-import { theme } from '@/constants/theme';
-import { useVerseModalStore } from '@/stores/verseModalStore';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { theme } from '@/constants/theme';
+import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
+import { useStoresHydrated } from '@/lib/hydration';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
+import { useVerseModalStore } from '@/stores/verseModalStore';
 
 export default function TabLayout() {
+  const hydrated = useStoresHydrated();
+  const loadDailyContent = useDailyContentStore((s) => s.load);
+  useEffect(() => {
+    void loadDailyContent();
+  }, [loadDailyContent]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void ensureCurrentWeekPlan();
+  }, [hydrated]);
+
   const visible = useVerseModalStore((s) => s.visible);
   const verse = useVerseModalStore((s) => s.verse);
   const reflection = useVerseModalStore((s) => s.reflection);

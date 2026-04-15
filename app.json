@@ -15,6 +15,7 @@
       "backgroundColor": "#000000"
     },
     "ios": {
+      "buildNumber": "4",
       "supportsTablet": false,
       "bundleIdentifier": "com.jdhilo.flightfitness",
       "infoPlist": {

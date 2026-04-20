@@ -8,15 +8,23 @@ import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { theme } from '@/constants/theme';
 import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
 import { useStoresHydrated } from '@/lib/hydration';
-import { useDailyContentStore } from '@/stores/dailyContentStore';
+import { supabaseConfigured } from '@/lib/supabase';
+import { useCoachChatStore } from '@/stores/coachChatStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
+
+function CoachChatRealtimeSync() {
+  const tier = useSubscriptionStore((s) => s.tier);
+  const bindRealtime = useCoachChatStore((s) => s.bindRealtime);
+  useEffect(() => {
+    if (tier !== 'coaching' || !supabaseConfigured) return;
+    return bindRealtime();
+  }, [tier, bindRealtime]);
+  return null;
+}
 
 export default function TabLayout() {
   const hydrated = useStoresHydrated();
-  const loadDailyContent = useDailyContentStore((s) => s.load);
-  useEffect(() => {
-    void loadDailyContent();
-  }, [loadDailyContent]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -30,6 +38,7 @@ export default function TabLayout() {
 
   return (
     <View style={styles.flex}>
+      <CoachChatRealtimeSync />
       <Tabs
         tabBar={(props) => <FlightTabBar {...props} />}
         screenOptions={{

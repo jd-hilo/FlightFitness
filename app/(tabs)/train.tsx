@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
+import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
 import { WeekStrip } from '@/components/WeekStrip';
@@ -33,6 +35,7 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +53,9 @@ export default function TrainScreen() {
   );
   const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
   const showVerse = useVerseModalStore((s) => s.show);
+  const tier = useSubscriptionStore((s) => s.tier);
+  const headerRight =
+    tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
   const [busy, setBusy] = useState(false);
   const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
 
@@ -95,7 +101,8 @@ export default function TrainScreen() {
 
   if (!hasPlanData) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.screen}>
+        <ScreenHeader rightSlot={headerRight} />
         {weekPlanEnsuring ? (
           <View style={styles.generatingBox}>
             <ActivityIndicator color={theme.colors.gold} />
@@ -105,7 +112,9 @@ export default function TrainScreen() {
             </Text>
           </View>
         ) : (
-          <Text style={styles.muted}>No plan loaded.</Text>
+          <View style={styles.generatingBox}>
+            <Text style={styles.muted}>No plan loaded.</Text>
+          </View>
         )}
       </View>
     );
@@ -168,7 +177,7 @@ export default function TrainScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader />
+      <ScreenHeader rightSlot={headerRight} />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,

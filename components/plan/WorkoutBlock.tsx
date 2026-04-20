@@ -13,6 +13,8 @@ type Props = {
   onSwapExercise?: (index: number) => void;
   /** Past calendar days: show plan but disable completion / swap. */
   readOnly?: boolean;
+  /** Tighter layout for welcome / marketing slides. */
+  compact?: boolean;
 };
 
 export function WorkoutBlock({
@@ -23,13 +25,24 @@ export function WorkoutBlock({
   onToggleExercise,
   onSwapExercise,
   readOnly = false,
+  compact = false,
 }: Props) {
+  const doneIconSize = compact ? 22 : 36;
+  const rowIconSize = compact ? 17 : 24;
+
   return (
-    <View style={[styles.card, readOnly && styles.cardReadOnly]}>
-      <View style={styles.head}>
+    <View style={[styles.card, readOnly && styles.cardReadOnly, compact && styles.cardCompact]}>
+      <View style={[styles.head, compact && styles.headCompact]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.kicker}>Training</Text>
-          <Text style={[styles.title, readOnly && styles.textMuted]}>{workout.title}</Text>
+          <Text style={[styles.kicker, compact && styles.kickerCompact]}>Training</Text>
+          <Text
+            style={[
+              styles.title,
+              compact && styles.titleCompact,
+              readOnly && styles.textMuted,
+            ]}>
+            {workout.title}
+          </Text>
         </View>
         <Pressable
           onPress={readOnly ? undefined : onToggleComplete}
@@ -38,12 +51,24 @@ export function WorkoutBlock({
           {completed ? (
             <MaterialIcons
               name="check-circle"
-              size={36}
+              size={doneIconSize}
               color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.gold}
             />
           ) : (
-            <View style={[styles.completeBtn, readOnly && styles.completeBtnDisabled]}>
-              <Text style={[styles.completeTxt, readOnly && styles.completeTxtMuted]}>Done</Text>
+            <View
+              style={[
+                styles.completeBtn,
+                compact && styles.completeBtnCompact,
+                readOnly && styles.completeBtnDisabled,
+              ]}>
+              <Text
+                style={[
+                  styles.completeTxt,
+                  compact && styles.completeTxtCompact,
+                  readOnly && styles.completeTxtMuted,
+                ]}>
+                Done
+              </Text>
             </View>
           )}
         </Pressable>
@@ -51,6 +76,8 @@ export function WorkoutBlock({
       {workout.exercises.map((ex, i) => (
         <ExerciseRow
           key={ex.id}
+          compact={compact}
+          rowIconSize={rowIconSize}
           exercise={ex}
           done={exerciseIdsDone.includes(ex.id)}
           readOnly={readOnly}
@@ -63,12 +90,16 @@ export function WorkoutBlock({
 }
 
 function ExerciseRow({
+  compact,
+  rowIconSize,
   exercise,
   done,
   readOnly,
   onToggleCheck,
   onSwap,
 }: {
+  compact: boolean;
+  rowIconSize: number;
   exercise: Exercise;
   done: boolean;
   readOnly?: boolean;
@@ -81,7 +112,7 @@ function ExerciseRow({
       : theme.colors.gold
     : theme.colors.onSurfaceVariant;
   return (
-    <View style={styles.exRow}>
+    <View style={[styles.exRow, compact && styles.exRowCompact]}>
       <Pressable
         onPress={readOnly ? undefined : onToggleCheck}
         disabled={readOnly}
@@ -92,22 +123,27 @@ function ExerciseRow({
         accessibilityLabel={`${exercise.name}, ${done ? 'completed' : 'not completed'}`}>
         <MaterialIcons
           name={done ? 'check-circle' : 'radio-button-unchecked'}
-          size={24}
+          size={rowIconSize}
           color={iconColor}
         />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.exName, readOnly && styles.textMuted]}>{exercise.name}</Text>
-        <Text style={[styles.exMeta, readOnly && styles.metaMuted]}>
+        <Text style={[styles.exName, compact && styles.exNameCompact, readOnly && styles.textMuted]}>
+          {exercise.name}
+        </Text>
+        <Text style={[styles.exMeta, compact && styles.exMetaCompact, readOnly && styles.metaMuted]}>
           {exercise.sets} × {exercise.reps} · Rest {exercise.restSec}s
         </Text>
         {exercise.notes ? (
-          <Text style={[styles.exNotes, readOnly && styles.metaMuted]}>{exercise.notes}</Text>
+          <Text
+            style={[styles.exNotes, compact && styles.exNotesCompact, readOnly && styles.metaMuted]}>
+            {exercise.notes}
+          </Text>
         ) : null}
       </View>
       {onSwap ? (
         <Pressable onPress={onSwap} hitSlop={8}>
-          <Text style={styles.swap}>Swap</Text>
+          <Text style={[styles.swap, compact && styles.swapCompact]}>Swap</Text>
         </Pressable>
       ) : null}
     </View>
@@ -206,5 +242,48 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: theme.colors.gold,
     textTransform: 'uppercase',
+  },
+  cardCompact: {
+    padding: 8,
+    marginBottom: 6,
+  },
+  headCompact: {
+    marginBottom: 8,
+    gap: 6,
+  },
+  kickerCompact: {
+    fontSize: 8,
+    marginBottom: 1,
+    letterSpacing: 1.5,
+  },
+  titleCompact: {
+    fontSize: 14,
+  },
+  completeBtnCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  completeTxtCompact: {
+    fontSize: 8,
+    letterSpacing: 0.5,
+  },
+  exRowCompact: {
+    paddingTop: 8,
+    marginTop: 8,
+    gap: 6,
+  },
+  exNameCompact: {
+    fontSize: 11,
+  },
+  exMetaCompact: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  exNotesCompact: {
+    fontSize: 10,
+    marginTop: 3,
+  },
+  swapCompact: {
+    fontSize: 8,
   },
 });

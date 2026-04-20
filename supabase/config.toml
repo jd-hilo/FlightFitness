@@ -355,6 +355,8 @@ verify_jwt = false
 
 [functions.daily-content]
 verify_jwt = false
+# Bundled with deploy so Deno.readFile(import.meta.url) can load the style reference PNG.
+static_files = [ "./functions/daily-content/style-reference.png" ]
 
 [edge_runtime]
 enabled = true

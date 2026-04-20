@@ -79,11 +79,11 @@ export type OnboardingAnswers = {
   equipment: string[];
   /** Exactly one base eating pattern (omnivore, vegan, etc.). */
   dietPattern: string;
-  /** Add-on modifiers; max 5 in UI (protein, halal, GF, etc.). */
+  /** Add-on modifiers; max 5 in UI (protein, halal, kosher, GF, etc.). */
   dietModifiers: string[];
   /** Dislikes & cuisine lean; max 5 in UI. */
   foodPreferences: string[];
-  /** Single: 2–3 / 4 / 5 / 6 training days per week. */
+  /** Single: training days per week option id (see TRAINING_DAYS_OPTIONS). */
   trainingDaysPerWeek: string;
   /**
    * Time prefs: max 2 of morning/midday/evening, OR flexible_training alone.

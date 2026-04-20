@@ -13,7 +13,8 @@ import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
-import { navigationDarkTheme } from '@/constants/theme';
+import { navigationDarkTheme, theme } from '@/constants/theme';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -33,7 +34,22 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
+    if (!loaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await useDailyContentStore.getState().load();
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) {
+          await SplashScreen.hideAsync();
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loaded]);
 
   if (!loaded) return null;
@@ -73,10 +89,23 @@ export default function RootLayout() {
               headerStyle: { backgroundColor: '#000' },
               headerTintColor: '#FFD700',
               headerBackTitle: '',
-              headerBackTitleVisible: false,
               headerTitleStyle: {
                 fontFamily: 'Epilogue_700Bold',
-                textTransform: 'uppercase',
+              },
+            }}
+          />
+          <Stack.Screen
+            name="coach-chat"
+            options={{
+              headerShown: true,
+              title: 'Coach Jude',
+              headerStyle: { backgroundColor: theme.colors.background },
+              headerTintColor: theme.colors.gold,
+              headerBackTitle: '',
+              /** iOS: chevron only, no label beside the back button */
+              headerBackButtonDisplayMode: 'minimal',
+              headerTitleStyle: {
+                fontFamily: 'Epilogue_700Bold',
               },
             }}
           />

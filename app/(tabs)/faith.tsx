@@ -187,8 +187,8 @@ export default function FaithScreen() {
             <View style={styles.taskHeaderText}>
               <Text style={styles.taskHeaderTitle}>Read today&apos;s study</Text>
               <Text style={styles.taskHeaderSub}>
-                Multi-verse WEB passage loads automatically—tap the check when you&apos;ve
-                read it and the reflection below
+                The full passage loads automatically—tap the check when you&apos;ve read
+                it and the reflection below
               </Text>
             </View>
           </Pressable>
@@ -199,9 +199,7 @@ export default function FaithScreen() {
             {apiLoading ? (
               <View style={styles.passageLoading}>
                 <ActivityIndicator color={theme.colors.gold} />
-                <Text style={styles.passageLoadingTxt}>
-                  Loading passage (WEB)…
-                </Text>
+                <Text style={styles.passageLoadingTxt}>Loading passage…</Text>
               </View>
             ) : (
               <>
@@ -223,9 +221,8 @@ export default function FaithScreen() {
               <Text style={styles.promptText}>{reading.studyPrompt}</Text>
             </View>
             <Text style={styles.apiNote}>
-              Passage from{' '}
-              <Text style={styles.apiNoteEm}>bible-api.com</Text> (World English Bible,
-              public domain).
+              Passage from <Text style={styles.apiNoteEm}>bible-api.com</Text> (public
+              domain).
             </Text>
           </View>
         </View>

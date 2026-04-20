@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -152,27 +153,33 @@ export default function PaywallScreen() {
           </View>
 
           <View style={[styles.planCard, styles.planCardCoaching]}>
-            <View style={styles.coachPremiumRow}>
-              <View style={styles.profileOval}>
-                <Image
-                  source={{ uri: MOCK_COACH_JUDE_URI }}
-                  style={styles.profileOvalImage}
-                  accessibilityLabel="Coach Jude profile preview"
-                />
-              </View>
-              <View style={styles.coachPremiumRight}>
-                {coachingActive ? (
-                  <View style={[styles.activePill, styles.activePillInRow]}>
-                    <Text style={styles.activePillTxt}>Current plan</Text>
+            <View style={styles.coachingBadgeShell}>
+              <LinearGradient
+                colors={['#030303', '#121216', '#26262c']}
+                locations={[0, 0.42, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.coachingBadgeGradient}>
+                <View style={styles.coachingBadgeRow}>
+                  <View style={styles.coachPhotoCircle}>
+                    <Image
+                      source={{ uri: MOCK_COACH_JUDE_URI }}
+                      style={styles.coachPhotoCircleImage}
+                      accessibilityLabel="Coach Jude profile photo"
+                    />
                   </View>
-                ) : (
-                  <View style={styles.premiumBadgeOval}>
-                    <Text style={styles.premiumBadgeTxt}>
-                      Unlock Custom Plans from Coach Jude
+                  <View style={styles.coachingHeaderTextCol}>
+                    {coachingActive ? (
+                      <Text style={styles.coachingBadgeEyebrow}>Current plan</Text>
+                    ) : null}
+                    <Text style={styles.coachingBadgeHeadline}>
+                      {coachingActive
+                        ? 'Coaching with Jude'
+                        : 'Unlock custom plans from Coach Jude'}
                     </Text>
                   </View>
-                )}
-              </View>
+                </View>
+              </LinearGradient>
             </View>
             <Text style={styles.planName}>Coaching</Text>
             <Text style={styles.planPrice}>
@@ -271,53 +278,67 @@ const styles = StyleSheet.create({
   planCardCoaching: {
     paddingTop: 18,
   },
-  coachPremiumRow: {
+  coachingBadgeShell: {
+    marginBottom: 18,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.55,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 12,
+      },
+      default: {},
+    }),
+  },
+  coachingBadgeGradient: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  coachingBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18,
     gap: 14,
   },
-  profileOval: {
-    width: 86,
-    height: 108,
-    borderRadius: 43,
+  coachPhotoCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: theme.colors.gold,
-    backgroundColor: theme.colors.surfaceVariant,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  profileOvalImage: {
+  coachPhotoCircleImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  coachPremiumRight: {
+  coachingHeaderTextCol: {
     flex: 1,
     minWidth: 0,
     justifyContent: 'center',
   },
-  premiumBadgeOval: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.55)',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    borderRadius: 9999,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-  },
-  premiumBadgeTxt: {
+  coachingBadgeEyebrow: {
     fontFamily: theme.fonts.label,
-    fontSize: 12,
-    letterSpacing: 0.4,
+    fontSize: 9,
+    letterSpacing: 2,
     color: theme.colors.gold,
-    textAlign: 'center',
-    lineHeight: 17,
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
-  activePillInRow: {
-    alignSelf: 'stretch',
-    marginBottom: 0,
-    alignItems: 'center',
-    borderRadius: 9999,
-    paddingVertical: 12,
+  coachingBadgeHeadline: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 15,
+    color: '#f2f2f4',
+    lineHeight: 21,
+    letterSpacing: 0.2,
   },
   badge: {
     alignSelf: 'flex-start',

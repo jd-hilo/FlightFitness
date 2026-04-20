@@ -1,8 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
+  Animated,
   Image,
   Pressable,
   ScrollView,
@@ -13,9 +14,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
+import { supabaseConfigured } from '@/lib/supabase';
 import { getDailyVerse, getTriggerVerse } from '@/lib/verses';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import {
@@ -31,18 +34,12 @@ import {
 } from '@/stores/completionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 
-const DEFAULT_HERO_IMAGE_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDCofzYSy3zISF2fFMdsqEj8gknDjybR1icWrXzIgqCmRyH0b-JZwS72QIL5sJESNtwPBxh2ukce1cVYi3sKmWMJpoftKeiuP8lQlGEOVbDgEpOzxmP2dzTICmwEE0Z9ND8XQXsUSEjDt5MctndGz3BbAAo1PfoVQHgugN4qxA115A2EvYeNrTGsrbabzFQjJDU39fJYVFdLus0ZPMIku9N9vIWBy4xNymgiGpedZiOV8RpLEHYZGh8YqUlyajFuhemdzmGhpKiR_Y';
+const HOME_HERO_SOURCE = require('@/assets/images/home-hero.png');
 
 const HERO_H = 400;
-
-function resolveHeroImageUri(remote?: string | null): string {
-  const t = remote?.trim();
-  if (t && (t.startsWith('https://') || t.startsWith('http://'))) return t;
-  return DEFAULT_HERO_IMAGE_URL;
-}
 
 function formatTimeLabel(d: Date) {
   let h = d.getHours();
@@ -88,6 +85,15 @@ export default function HomeScreen() {
   const streak = useCompletionStore((s) => s.streak);
   const showVerse = useVerseModalStore((s) => s.show);
   const dailyRemote = useDailyContentStore((s) => s.content);
+  const dailyLoading = useDailyContentStore((s) => s.loading);
+  const dailyFetchSettled = useDailyContentStore((s) => s.dailyFetchSettled);
+  const tier = useSubscriptionStore((s) => s.tier);
+  const remoteHeroUrl = dailyRemote?.image_url;
+  const heroFadeOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    heroFadeOpacity.setValue(0);
+  }, [remoteHeroUrl, heroFadeOpacity]);
 
   /** Same mapping as Fuel/Train: calendar week (Mon–Sun) ↔ plan `mealsByDay` / `workoutsByDay` index. */
   const viewWeekYmd = viewWeekStartYmdLocal();
@@ -131,9 +137,14 @@ export default function HomeScreen() {
     () => dailyRemote?.verse ?? getDailyVerse(),
     [dailyRemote]
   );
-  const heroUri = useMemo(
-    () => resolveHeroImageUri(dailyRemote?.image_url),
-    [dailyRemote?.image_url]
+  const hasRemoteHero = Boolean(dailyRemote?.image_url);
+  /** Don’t flash bundled hero while waiting for today’s remote image from Supabase. */
+  const showHeroPlaceholder = useMemo(
+    () =>
+      supabaseConfigured &&
+      !hasRemoteHero &&
+      (!dailyFetchSettled || dailyLoading),
+    [hasRemoteHero, dailyFetchSettled, dailyLoading]
   );
   const now = useMemo(() => new Date(), []);
   const timeLine = `${formatTimeLabel(now).toUpperCase()} // INTENSITY: ${intensityFromHour(
@@ -182,7 +193,9 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader />
+      <ScreenHeader
+        rightSlot={tier === 'coaching' ? <CoachChatHeaderButton /> : undefined}
+      />
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -190,7 +203,36 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.heroWrap}>
-          <Image source={{ uri: heroUri }} style={styles.heroImg} />
+          {hasRemoteHero && dailyRemote?.image_url ? (
+            <Animated.Image
+              key={dailyRemote.image_url}
+              source={{ uri: dailyRemote.image_url }}
+              style={[styles.heroImg, { opacity: heroFadeOpacity }]}
+              resizeMode="cover"
+              onLoad={() => {
+                Animated.timing(heroFadeOpacity, {
+                  toValue: 0.85,
+                  duration: 520,
+                  useNativeDriver: true,
+                }).start();
+              }}
+              onError={() => {
+                Animated.timing(heroFadeOpacity, {
+                  toValue: 0.85,
+                  duration: 280,
+                  useNativeDriver: true,
+                }).start();
+              }}
+            />
+          ) : showHeroPlaceholder ? (
+            <View style={[styles.heroImg, styles.heroPlaceholder]} />
+          ) : (
+            <Image
+              source={HOME_HERO_SOURCE}
+              style={[styles.heroImg, styles.heroOp]}
+              resizeMode="cover"
+            />
+          )}
           <LinearGradient
             colors={['#131313', 'rgba(19,19,19,0.4)', 'rgba(19,19,19,0)']}
             locations={[0, 0.5, 1]}
@@ -235,7 +277,7 @@ export default function HomeScreen() {
             <View style={styles.faithTeaserText}>
               <Text style={styles.faithTeaserTitle}>Faith &amp; Bible study</Text>
               <Text style={styles.faithTeaserSub}>
-                Daily reading, WEB passage lookup, and habit check-ins
+                Daily reading, full passages, and habit check-ins
               </Text>
             </View>
             <MaterialIcons
@@ -399,7 +441,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
+  },
+  heroOp: {
     opacity: 0.85,
+  },
+  heroPlaceholder: {
+    opacity: 1,
+    backgroundColor: theme.colors.surfaceContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heroGrad: {
     ...StyleSheet.absoluteFillObject,

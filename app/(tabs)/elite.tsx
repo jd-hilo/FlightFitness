@@ -1,6 +1,5 @@
-import * as Linking from 'expo-linking';
 import { router, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,9 +12,33 @@ import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import {
+  type SubscriptionTier,
+  useSubscriptionStore,
+} from '@/stores/subscriptionStore';
 
-const WAITLIST_URL = 'https://example.com/flight-fitness-coaching';
+const TIER_ORDER: SubscriptionTier[] = ['free', 'essentials', 'coaching'];
+
+const PLAN_META: Record<
+  SubscriptionTier,
+  { name: string; price: string; body: string }
+> = {
+  free: {
+    name: 'Free',
+    price: '$0',
+    body: 'Core tracking and limited plan previews to get started.',
+  },
+  essentials: {
+    name: 'Essentials',
+    price: '$9.99/mo',
+    body: 'Unlimited AI meal & workout plans, customization, grocery lists.',
+  },
+  coaching: {
+    name: 'Coaching',
+    price: '$199/mo',
+    body: 'Jude: custom programming plus 1:1 messaging. Limited seats.',
+  },
+};
 
 export default function EliteScreen() {
   const insets = useSafeAreaInsets();
@@ -29,9 +52,10 @@ export default function EliteScreen() {
 
   const profileSections = getProfileSectionSummaries(answers);
 
-  const openWaitlist = () => {
-    Linking.openURL(WAITLIST_URL).catch(() => {});
-  };
+  const otherPlanIds = useMemo(
+    () => TIER_ORDER.filter((id) => id !== tier),
+    [tier]
+  );
 
   const onSignOut = () => {
     Alert.alert(
@@ -77,7 +101,6 @@ export default function EliteScreen() {
           </View>
           <View style={styles.profileText}>
             <Text style={styles.displayName}>Your profile</Text>
-            <Text style={styles.wellbeingLine}>Upgrade your wellbeing</Text>
           </View>
         </View>
         <Text style={styles.lead}>
@@ -122,24 +145,46 @@ export default function EliteScreen() {
         </View>
 
         <Text style={styles.sectionLabel}>Membership</Text>
-        <Pressable style={styles.cardGold} onPress={() => router.push('/paywall')}>
-          <Text style={styles.cardTitle}>Essentials — $9.99/mo</Text>
-          <Text style={styles.cardBody}>
-            Unlimited AI meal & workout plans, customization, grocery lists.
+        <View style={styles.currentPlanCard}>
+          <Text style={styles.currentBadge}>Your plan</Text>
+          <Text style={styles.currentPlanTitle}>
+            {PLAN_META[tier].name} — {PLAN_META[tier].price}
           </Text>
-          <Text style={styles.cardCta}>View upgrade</Text>
-        </Pressable>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitleDark}>Coaching — $199/mo</Text>
-          <Text style={styles.cardBodyDark}>
-            Jude: custom programming plus 1:1 messaging. Limited seats. Billing can
-            plug in via RevenueCat.
-          </Text>
-          <Pressable style={styles.outlineBtn} onPress={openWaitlist}>
-            <Text style={styles.outlineTxt}>Join waitlist</Text>
+          <Text style={styles.currentPlanBody}>{PLAN_META[tier].body}</Text>
+          <Pressable
+            onPress={() => router.push('/paywall' as Href)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Manage or change plan">
+            <Text style={styles.currentPlanLink}>Manage or change plan</Text>
           </Pressable>
         </View>
+
+        <Text style={styles.otherPlansLabel}>Also available</Text>
+        {otherPlanIds.map((planId, idx) => {
+          const meta = PLAN_META[planId];
+          const isLast = idx === otherPlanIds.length - 1;
+          const mb = isLast ? styles.upgradeCardLast : styles.upgradeCardSpacer;
+          const cta = planId === 'free' ? 'View plan' : 'Upgrade';
+          return (
+            <Pressable
+              key={planId}
+              style={[styles.card, mb]}
+              onPress={() => router.push('/paywall' as Href)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                planId === 'free'
+                  ? `View ${meta.name} plan`
+                  : `Upgrade to ${meta.name}`
+              }>
+              <Text style={styles.cardTitleDark}>
+                {meta.name} — {meta.price}
+              </Text>
+              <Text style={styles.cardBodyDark}>{meta.body}</Text>
+              <Text style={styles.upgradeRowCta}>{cta}</Text>
+            </Pressable>
+          );
+        })}
 
         <Text style={styles.sectionLabel}>Account</Text>
         <Pressable
@@ -199,13 +244,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  wellbeingLine: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 14,
-    fontStyle: 'italic',
-    color: theme.colors.gold,
-    letterSpacing: 0.5,
-  },
   lead: {
     fontFamily: theme.fonts.body,
     fontSize: 14,
@@ -249,6 +287,60 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 10,
   },
+  currentPlanCard: {
+    borderWidth: 2,
+    borderColor: theme.colors.gold,
+    padding: 20,
+    marginBottom: 20,
+    backgroundColor: theme.colors.surfaceContainerLow,
+  },
+  currentBadge: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  currentPlanTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 20,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  currentPlanBody: {
+    fontFamily: theme.fonts.body,
+    fontSize: 14,
+    color: theme.colors.onSurfaceVariant,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  currentPlanLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  otherPlansLabel: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  upgradeCardSpacer: { marginBottom: 16 },
+  upgradeCardLast: { marginBottom: 32 },
+  upgradeRowCta: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
   editProfileBtn: {
     borderWidth: 1,
     borderColor: theme.colors.gold,
@@ -286,39 +378,10 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginBottom: 4,
   },
-  cardGold: {
-    backgroundColor: theme.colors.gold,
-    padding: 24,
-    marginBottom: 16,
-    borderLeftWidth: 8,
-    borderLeftColor: '#000',
-  },
-  cardTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 22,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  cardBody: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
-    color: theme.colors.onGold,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  cardCta: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
-  },
   card: {
     borderWidth: 1,
     borderColor: theme.colors.outline,
     padding: 24,
-    marginBottom: 32,
     backgroundColor: theme.colors.surfaceContainerLow,
   },
   cardTitleDark: {
@@ -334,19 +397,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     lineHeight: 20,
     marginBottom: 16,
-  },
-  outlineBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  outlineTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
   },
   signOutBtn: {
     borderWidth: 1,

@@ -35,14 +35,26 @@ function utcYmd(d = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Prompt for GPT Image edits: reference image is attached as style guide. */
 function imagePromptForVerse(v: VerseEntry): string {
   const themes = v.tags.join(', ');
   return [
-    'Wide cinematic fitness app hero image, abstract and inspirational, no text or letters.',
-    'Soft golden sunrise light, athletic silhouette or motion blur, calm strength, premium minimal aesthetic.',
-    `Emotional tone aligned with themes: ${themes}.`,
-    'No religious figures, no identifiable people, no logos, no watermark.',
-  ].join(' ');
+    // Style lock — match the attached reference PNG precisely.
+    'STYLE REFERENCE: The attached PNG shows the exact art style to match. It is a stylized semi-3D illustrated portrait in a graphic-novel / animated-film look: thick confident line art, bold cel-shaded volumes with soft painterly highlights and shadows (sculpted, slightly 3D feel — not flat vector, not photoreal, not anime, not pixel art, not watercolor). Warm earthy skin tones, red/cream/brown robe palette, cinematic rim lighting, subtle film grain. Characters are centered, chest-up or waist-up, looking heroic, calm, and reverent. The background is solid pure black (#000000) with ZERO scenery, props, or texture behind the figures — only the characters are painted. Replicate this style exactly: brushwork, shading, lighting, saturation, line weight, and the pitch-black backdrop.',
+    // Subject — pull characters from the actual verse passage.
+    `SUBJECT: Depict one to three biblical character(s) drawn from the passage ${v.reference} ("${v.text}"). Choose people who naturally appear in that book or story (e.g., Paul for a Pauline epistle, David for a Psalm, Solomon for Proverbs, Moses for Exodus, etc.). Render them in period-appropriate first-century or Old-Testament clothing consistent with the reference PNG (tunics, robes, head wraps, simple wooden staff if fitting). Respectful, dignified, no halos, no text, no captions, no speech bubbles.`,
+    // Emotional tone from tags.
+    `EMOTIONAL TONE (from today's themes, not literal words): ${themes}. Expression and posture should quietly convey this tone.`,
+    // Output specs.
+    'OUTPUT: Wide landscape composition. Keep the background pure black — do NOT make it transparent, do NOT add scenery, gradients, sky, clouds, sand, architecture, or decorative particles. The result must look like a direct continuation of the reference image\'s style and framing. No logos, no watermarks, no written text of any kind.',
+  ].join('\n\n');
+}
+
+function decodeBase64Png(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 async function generateAndStoreDaily(args: {
@@ -55,40 +67,61 @@ async function generateAndStoreDaily(args: {
   const { day, verse, supabaseUrl, serviceKey, openaiKey } = args;
   const admin = createClient(supabaseUrl, serviceKey);
 
-  const imgRes = await fetch('https://api.openai.com/v1/images/generations', {
+  const styleRefPath = new URL('./style-reference.png', import.meta.url);
+  let styleRefBytes: Uint8Array;
+  try {
+    styleRefBytes = await Deno.readFile(styleRefPath);
+  } catch (e) {
+    return {
+      error: `Missing style-reference.png next to index.ts (copy from assets/images/home-hero.png): ${String(e)}`,
+      status: 500,
+    };
+  }
+
+  const imageModel =
+    Deno.env.get('OPENAI_IMAGE_MODEL')?.trim() || 'gpt-image-1.5';
+
+  const form = new FormData();
+  form.append('model', imageModel);
+  form.append('prompt', imagePromptForVerse(verse));
+  form.append(
+    'image[]',
+    new Blob([styleRefBytes], { type: 'image/png' }),
+    'style-reference.png'
+  );
+  form.append('background', 'opaque');
+  form.append('size', '1536x1024');
+  form.append('quality', 'high');
+  form.append('output_format', 'png');
+  form.append('input_fidelity', 'high');
+
+  const imgRes = await fetch('https://api.openai.com/v1/images/edits', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${openaiKey}`,
-      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt: imagePromptForVerse(verse),
-      n: 1,
-      size: '1792x1024',
-      response_format: 'url',
-      quality: 'standard',
-    }),
+    body: form,
   });
 
   if (!imgRes.ok) {
-    const detail = (await imgRes.text()).slice(0, 500);
-    return { error: `OpenAI images error: ${detail}`, status: 502 };
+    const detail = (await imgRes.text()).slice(0, 800);
+    return { error: `OpenAI images/edits error: ${detail}`, status: 502 };
   }
 
   const imgJson = (await imgRes.json()) as {
-    data?: { url?: string }[];
+    data?: { b64_json?: string }[];
   };
-  const remoteUrl = imgJson.data?.[0]?.url;
-  if (!remoteUrl) {
-    return { error: 'OpenAI returned no image URL', status: 502 };
+  const b64 = imgJson.data?.[0]?.b64_json;
+  if (!b64) {
+    return { error: 'OpenAI returned no image data', status: 502 };
   }
 
-  const binRes = await fetch(remoteUrl);
-  if (!binRes.ok) {
-    return { error: 'Failed to download generated image', status: 502 };
+  let buf: Uint8Array;
+  try {
+    buf = decodeBase64Png(b64);
+  } catch {
+    return { error: 'Failed to decode OpenAI image base64', status: 502 };
   }
-  const buf = new Uint8Array(await binRes.arrayBuffer());
   const path = `${day}.png`;
 
   const { error: upErr } = await admin.storage.from('daily-hero').upload(path, buf, {
@@ -133,36 +166,53 @@ serve(async (req) => {
   }
 
   try {
-    const jwt = parseBearerJwt(req.headers.get('Authorization'));
-    if (!jwt) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    const serviceKey = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
+    // Hosted Edge Functions inject SUPABASE_SERVICE_ROLE_KEY; some setups use SERVICE_ROLE_KEY.
+    const serviceKey =
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ??
+      Deno.env.get('SERVICE_ROLE_KEY') ??
+      '';
     const openaiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+    const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
 
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const {
-      data: { user },
-      error: userErr,
-    } = await userClient.auth.getUser(jwt);
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Caller can be either:
+    //   1) A signed-in user (Authorization: Bearer <access_token>), or
+    //   2) The scheduler calling with header x-cron-secret matching CRON_SECRET.
+    const headerCronSecret = req.headers.get('x-cron-secret') ?? '';
+    const isCronCall =
+      cronSecret.length > 0 && headerCronSecret === cronSecret;
+
+    if (!isCronCall) {
+      const jwt = parseBearerJwt(req.headers.get('Authorization'));
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
       });
+      const {
+        data: { user },
+        error: userErr,
+      } = await userClient.auth.getUser(jwt);
+      if (userErr || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     if (!serviceKey) {
       return new Response(
-        JSON.stringify({ error: 'Server missing SERVICE_ROLE_KEY secret' }),
+        JSON.stringify({
+          error:
+            'Server missing service role key (SUPABASE_SERVICE_ROLE_KEY or SERVICE_ROLE_KEY)',
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

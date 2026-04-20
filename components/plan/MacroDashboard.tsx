@@ -10,6 +10,8 @@ type Props = {
   loggedProtein?: number;
   loggedCarbs?: number;
   loggedFat?: number;
+  /** Tighter layout and type for welcome / marketing slides. */
+  compact?: boolean;
 };
 
 export function MacroDashboard({
@@ -18,6 +20,7 @@ export function MacroDashboard({
   loggedProtein = 0,
   loggedCarbs = 0,
   loggedFat = 0,
+  compact = false,
 }: Props) {
   const kcalPct = Math.min(1, loggedKcal / targets.calories);
   const pPct = Math.min(1, loggedProtein / targets.proteinG);
@@ -26,25 +29,31 @@ export function MacroDashboard({
   const deficit = Math.max(0, targets.calories - loggedKcal);
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.hero}>
+    <View style={[styles.wrap, compact && styles.wrapCompact]}>
+      <View style={[styles.hero, compact && styles.heroCompact]}>
         <View>
-          <Text style={styles.heroKicker}>Energy quota</Text>
-          <View style={styles.heroRow}>
-            <Text style={styles.heroNum}>
+          <Text style={[styles.heroKicker, compact && styles.heroKickerCompact]}>
+            Energy quota
+          </Text>
+          <View style={[styles.heroRow, compact && styles.heroRowCompact]}>
+            <Text style={[styles.heroNum, compact && styles.heroNumCompact]}>
               {targets.calories.toLocaleString()}
             </Text>
-            <Text style={styles.heroUnit}>KCAL</Text>
+            <Text style={[styles.heroUnit, compact && styles.heroUnitCompact]}>
+              KCAL
+            </Text>
           </View>
         </View>
-        <View style={styles.heroBarCol}>
-          <View style={styles.heroMeta}>
-            <Text style={styles.metaMuted}>
+        <View style={[styles.heroBarCol, compact && styles.heroBarColCompact]}>
+          <View style={[styles.heroMeta, compact && styles.heroMetaCompact]}>
+            <Text style={[styles.metaMuted, compact && styles.metaCompact]}>
               LOGGED: {loggedKcal.toLocaleString()}
             </Text>
-            <Text style={styles.metaGold}>LEFT: {deficit.toLocaleString()}</Text>
+            <Text style={[styles.metaGold, compact && styles.metaCompact]}>
+              LEFT: {deficit.toLocaleString()}
+            </Text>
           </View>
-          <View style={styles.barTrack}>
+          <View style={[styles.barTrack, compact && styles.barTrackCompact]}>
             <LinearGradient
               colors={[theme.colors.gold, theme.colors.orange]}
               start={{ x: 0, y: 0 }}
@@ -54,20 +63,23 @@ export function MacroDashboard({
           </View>
         </View>
       </View>
-      <View style={styles.grid}>
+      <View style={[styles.grid, compact && styles.gridCompact]}>
         <MacroTile
+          compact={compact}
           label="Protein target"
           current={loggedProtein}
           target={targets.proteinG}
           pct={pPct}
         />
         <MacroTile
+          compact={compact}
           label="Carbs target"
           current={loggedCarbs}
           target={targets.carbsG}
           pct={cPct}
         />
         <MacroTile
+          compact={compact}
           label="Fats target"
           current={loggedFat}
           target={targets.fatG}
@@ -79,24 +91,30 @@ export function MacroDashboard({
 }
 
 function MacroTile({
+  compact,
   label,
   current,
   target,
   pct,
 }: {
+  compact: boolean;
   label: string;
   current: number;
   target: number;
   pct: number;
 }) {
   return (
-    <View style={styles.tile}>
-      <Text style={styles.tileLabel}>{label}</Text>
-      <View style={styles.tileRow}>
-        <Text style={styles.tileNum}>{Math.round(current)}</Text>
-        <Text style={styles.tileSlash}>/ {target}G</Text>
+    <View style={[styles.tile, compact && styles.tileCompact]}>
+      <Text style={[styles.tileLabel, compact && styles.tileLabelCompact]}>{label}</Text>
+      <View style={[styles.tileRow, compact && styles.tileRowCompact]}>
+        <Text style={[styles.tileNum, compact && styles.tileNumCompact]}>
+          {Math.round(current)}
+        </Text>
+        <Text style={[styles.tileSlash, compact && styles.tileSlashCompact]}>
+          / {target}G
+        </Text>
       </View>
-      <View style={styles.thinTrack}>
+      <View style={[styles.thinTrack, compact && styles.thinTrackCompact]}>
         <View style={[styles.thinFill, { width: `${pct * 100}%` }]} />
       </View>
     </View>
@@ -201,4 +219,24 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: theme.colors.gold,
   },
+  wrapCompact: { marginBottom: 6, gap: 1 },
+  heroCompact: {
+    padding: 10,
+    gap: 8,
+  },
+  heroRowCompact: { gap: 4 },
+  heroKickerCompact: { fontSize: 8, marginBottom: 1, letterSpacing: 1.5 },
+  heroNumCompact: { fontSize: 26 },
+  heroUnitCompact: { fontSize: 11 },
+  heroBarColCompact: { minWidth: 96 },
+  heroMetaCompact: { marginBottom: 4 },
+  metaCompact: { fontSize: 8, letterSpacing: 0.5 },
+  barTrackCompact: { height: 5 },
+  gridCompact: { gap: 2 },
+  tileCompact: { padding: 8, minWidth: 72 },
+  tileLabelCompact: { fontSize: 8, marginBottom: 5, letterSpacing: 1 },
+  tileRowCompact: { marginBottom: 6, gap: 2 },
+  tileNumCompact: { fontSize: 17 },
+  tileSlashCompact: { fontSize: 9 },
+  thinTrackCompact: { height: 2 },
 });

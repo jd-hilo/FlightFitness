@@ -84,6 +84,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   rightSlot: {
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

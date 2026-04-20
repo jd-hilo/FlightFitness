@@ -212,7 +212,7 @@ const STEPS: Step[] = [
     variant: 'dietModifiers',
     title: 'Food rules & macros',
     subtitle:
-      'Optional — up to 5. Halal/Kosher stack on your base pattern from the last step.',
+      'Optional — up to 5. Pick Halal, Kosher, or other rules that stack on your base eating pattern.',
     max: 5,
     options: DIET_MODIFIER_OPTIONS,
   },
@@ -333,12 +333,21 @@ export default function OnboardingScreen() {
     (id) => id !== ALLERGY_NONE_ID
   ).length;
 
+  const totalSteps = STEPS.length;
+  const progressRatio =
+    totalSteps > 0 ? Math.min(1, (step + 1) / totalSteps) : 0;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
       <Text style={styles.brand}>FLIGHT FITNESS</Text>
-      <Text style={styles.stepLabel}>
-        Step {step + 1} / {STEPS.length}
-      </Text>
+      <View
+        style={styles.progressTrack}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={`Onboarding progress, step ${step + 1} of ${totalSteps}`}
+        accessibilityValue={{ min: 0, max: totalSteps, now: step + 1 }}>
+        <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
+      </View>
 
       {current.kind === 'single' ? (
         <>
@@ -758,13 +767,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
   },
-  stepLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    marginBottom: 8,
+  progressTrack: {
+    height: 5,
+    width: '100%',
+    backgroundColor: theme.colors.surfaceVariant,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.gold,
+    borderRadius: 2,
   },
   title: {
     fontFamily: theme.fonts.headlineBold,

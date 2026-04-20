@@ -227,6 +227,12 @@ export const useOnboardingStore = create<OnboardingState>()(
         if (!merged.nutritionPaceId) merged.nutritionPaceId = 'pace_sustainable';
         if (!merged.mealsPerDayId) merged.mealsPerDayId = 'meals_3_snack';
         if (!merged.cookingSkillId) merged.cookingSkillId = 'cook_comfortable';
+        if (!merged.allergyIds?.length) merged.allergyIds = [ALLERGY_NONE_ID];
+        if (merged.dietModifiers?.includes('halal_kosher')) {
+          merged.dietModifiers = merged.dietModifiers.map((id) =>
+            id === 'halal_kosher' ? 'halal' : id
+          );
+        }
         return {
           ...current,
           completedAt: p.completedAt ?? current.completedAt,
@@ -269,7 +275,7 @@ export function isStepComplete(
     case 'dietOtherNotes':
       return true;
     case 'allergies':
-      return true;
+      return answers.allergyIds.length > 0;
     case 'trainingDays':
       return answers.trainingDaysPerWeek.length > 0;
     case 'trainingTimes':

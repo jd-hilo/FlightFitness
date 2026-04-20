@@ -28,8 +28,8 @@ export const GOAL_OPTIONS = [
   },
   {
     id: 'more_energy',
-    label: 'More energy & habits',
-    ai: 'Focus on sleep-friendly nutrition, consistent meal timing, and manageable training load.',
+    label: 'Energy & daily routine',
+    ai: 'Emphasize sustainable energy: sleep-friendly nutrition, meal timing, and a training load that fits a busy schedule.',
   },
 ] as const;
 
@@ -42,7 +42,7 @@ export const EXPERIENCE_OPTIONS = [
   },
   {
     id: 'lt_six_months',
-    label: 'Under 6 months',
+    label: 'Under 6 months of training',
     ai: 'Novice–early intermediate progression; moderate volume.',
   },
   {
@@ -74,7 +74,11 @@ export const EQUIPMENT_OPTIONS = [
   { id: 'kettlebells', label: 'Kettlebells', ai: 'KB swings, goblet squats, carries.' },
   { id: 'bands', label: 'Resistance bands', ai: 'Band presses, rows, pull-aparts, hinge patterns.' },
   { id: 'bodyweight', label: 'Bodyweight only', ai: 'Push-up / pull-up / squat / lunge progressions.' },
-  { id: 'cardio_equipment', label: 'Cardio equipment', ai: 'Bike, treadmill, or rower for conditioning.' },
+  {
+    id: 'cardio_equipment',
+    label: 'Cardio machines (bike, rower, treadmill)',
+    ai: 'Bike, treadmill, or rower available for conditioning; pair with other selections if you also lift.',
+  },
   { id: 'minimal_home', label: 'Minimal home (1–2 tools)', ai: 'Very limited equipment; creative supersets.' },
 ] as const;
 
@@ -100,7 +104,16 @@ export const DIET_PATTERN_OPTIONS = [
 export const DIET_MODIFIER_OPTIONS = [
   { id: 'high_protein', label: 'Extra protein priority', ai: 'Emphasize lean protein at each meal.' },
   { id: 'low_carb_pref', label: 'Lower-carb preference', ai: 'Favor protein/fats; moderate carbs around training.' },
-  { id: 'halal_kosher', label: 'Halal / Kosher style', ai: 'Respect protein sourcing and preparation constraints.' },
+  {
+    id: 'halal',
+    label: 'Halal',
+    ai: 'Islamic dietary law: permitted proteins, no pork or alcohol in ingredients; avoid cross-contamination where relevant.',
+  },
+  {
+    id: 'kosher',
+    label: 'Kosher',
+    ai: 'Kosher dietary law: respect meat/dairy separation and permitted species; note user may add detail in diet notes.',
+  },
   { id: 'dairy_free', label: 'Dairy-free', ai: 'Avoid whey/dairy; use alternatives.' },
   { id: 'gluten_free', label: 'Gluten-free', ai: 'No wheat/barley/rye; GF carb sources.' },
 ] as const;
@@ -117,8 +130,8 @@ export const FOOD_PREFERENCE_OPTIONS = [
   { id: 'cuisine_mediterranean', label: 'Love Mediterranean', ai: 'Olive oil, yogurt, legumes, grilled meats/fish.' },
   {
     id: 'cuisine_american',
-    label: 'Simple / American comfort',
-    ai: 'Grilled proteins, potatoes, salads, straightforward prep.',
+    label: 'Simple classics & comfort food',
+    ai: 'Grilled proteins, potatoes, salads, straightforward prep without assuming a specific region.',
   },
   { id: 'quick_meals', label: 'Quick meals (≤20 min)', ai: 'Prioritize short cook times and minimal steps.' },
   { id: 'meal_prep', label: 'Meal-prep friendly', ai: 'Batch-cook friendly recipes and repeat lunches.' },
@@ -126,6 +139,11 @@ export const FOOD_PREFERENCE_OPTIONS = [
 
 /** Single — training days per week. */
 export const TRAINING_DAYS_OPTIONS = [
+  {
+    id: 'one_two_sessions',
+    label: '1–2 days / week',
+    ai: 'Low frequency; full-body or minimal split; prioritize compounds and recovery between sessions.',
+  },
   {
     id: 'two_three_sessions',
     label: '2–3 days / week',

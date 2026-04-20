@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {
   ActivityIndicator,
   Dimensions,
@@ -27,6 +28,8 @@ import { theme } from '@/constants/theme';
 import { bootstrapAnonymousSession, supabaseConfigured } from '@/lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const WELCOME_SLIDE_COUNT = 4;
 
 const DUMMY_VERSE = {
   id: 'prov35',
@@ -63,6 +66,8 @@ const DUMMY_WORKOUT = {
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const [getStartedBusy, setGetStartedBusy] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const canGetStarted = carouselIndex >= WELCOME_SLIDE_COUNT - 1;
 
   const ctaOp = useSharedValue(0);
   const ctaScale = useSharedValue(0.94);
@@ -100,8 +105,16 @@ export default function WelcomeScreen() {
     opacity: swipePulse.value,
   }));
 
+  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / SCREEN_WIDTH);
+    setCarouselIndex(
+      Math.min(WELCOME_SLIDE_COUNT - 1, Math.max(0, idx))
+    );
+  };
+
   const onGetStarted = async () => {
-    if (getStartedBusy) return;
+    if (getStartedBusy || !canGetStarted) return;
     setGetStartedBusy(true);
     try {
       if (supabaseConfigured) {
@@ -145,6 +158,7 @@ export default function WelcomeScreen() {
             showsHorizontalScrollIndicator={false}
             snapToInterval={SCREEN_WIDTH}
             decelerationRate="fast"
+            onMomentumScrollEnd={onMomentumScrollEnd}
             contentContainerStyle={styles.carouselContent}>
             <View style={styles.carouselItem}>
               <View style={styles.heroSlide}>
@@ -188,6 +202,7 @@ export default function WelcomeScreen() {
                   </Text>
                 </View>
                 <MacroDashboard
+                  compact
                   targets={DUMMY_MACROS}
                   loggedKcal={1500}
                   loggedProtein={140}
@@ -206,6 +221,7 @@ export default function WelcomeScreen() {
                   </Text>
                 </View>
                 <WorkoutBlock
+                  compact
                   workout={DUMMY_WORKOUT}
                   completed={false}
                   exerciseIdsDone={['ex1']}
@@ -222,19 +238,37 @@ export default function WelcomeScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.primary,
-              pressed && styles.primaryPressed,
+              pressed && canGetStarted && styles.primaryPressed,
               getStartedBusy && styles.primaryDisabled,
+              !canGetStarted && !getStartedBusy && styles.primaryLocked,
             ]}
             onPress={onGetStarted}
-            disabled={getStartedBusy}
+            disabled={getStartedBusy || !canGetStarted}
             accessibilityRole="button"
-            accessibilityLabel="Get started and continue to onboarding">
+            accessibilityState={{ disabled: getStartedBusy || !canGetStarted }}
+            accessibilityLabel="Get started and continue to onboarding"
+            accessibilityHint={
+              canGetStarted
+                ? undefined
+                : 'Swipe through all welcome slides to the end to enable this button.'
+            }>
             {getStartedBusy ? (
               <ActivityIndicator color={theme.colors.onGold} />
             ) : (
-              <Text style={styles.primaryTxt}>Get started</Text>
+              <Text
+                style={[
+                  styles.primaryTxt,
+                  !canGetStarted && styles.primaryLockedTxt,
+                ]}>
+                Get started
+              </Text>
             )}
           </Pressable>
+          {!canGetStarted && !getStartedBusy ? (
+            <Text style={styles.ctaHint}>
+              Swipe through each screen to unlock continue.
+            </Text>
+          ) : null}
         </Animated.View>
       </View>
     </View>
@@ -264,15 +298,15 @@ const styles = StyleSheet.create({
   },
   heroSlide: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 360,
     alignItems: 'center',
     paddingTop: 48,
     paddingBottom: 16,
   },
   heroTagline: {
     fontFamily: theme.fonts.headline,
-    fontSize: 36,
-    lineHeight: 42,
+    fontSize: 42,
+    lineHeight: 48,
     color: theme.colors.onBackground,
     textAlign: 'center',
     textTransform: 'uppercase',
@@ -281,44 +315,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     marginTop: 36,
   },
   heroSwipeLabel: {
     fontFamily: theme.fonts.label,
-    fontSize: 12,
-    letterSpacing: 6,
+    fontSize: 10,
+    letterSpacing: 5,
     color: theme.colors.gold,
     textTransform: 'uppercase',
   },
   heroSwipeChevron: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 22,
+    fontSize: 18,
     color: theme.colors.gold,
     opacity: 0.85,
   },
   cardWrapper: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 360,
+    flexDirection: 'column',
+    gap: 16,
   },
   uiHeader: {
     width: '100%',
-    marginBottom: 14,
+    marginBottom: 0,
     gap: 10,
   },
   uiHeaderRule: {
-    width: 36,
-    height: 3,
+    width: 44,
+    height: 4,
     backgroundColor: theme.colors.gold,
   },
   uiHeaderText: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: 14,
-    lineHeight: 20,
-    color: theme.colors.onSurfaceVariant,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
   },
   ctaWrapper: {
     paddingHorizontal: 28,
+    gap: 10,
+  },
+  ctaHint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
   },
   primary: {
     backgroundColor: theme.colors.gold,
@@ -334,6 +379,10 @@ const styles = StyleSheet.create({
   primaryDisabled: {
     opacity: 0.85,
   },
+  primaryLocked: {
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderColor: theme.colors.outline,
+  },
   primaryTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
@@ -341,51 +390,54 @@ const styles = StyleSheet.create({
     color: theme.colors.onGold,
     textTransform: 'uppercase',
   },
+  primaryLockedTxt: {
+    color: theme.colors.onSurfaceVariant,
+  },
   wordCard: {
     backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 32,
+    padding: 12,
     overflow: 'hidden',
   },
   wordBgRef: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 4,
+    right: 4,
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 48,
+    fontSize: 26,
     color: theme.colors.onBackground,
     opacity: 0.08,
     textTransform: 'uppercase',
   },
   wordQuote: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 14,
+    lineHeight: 18,
     color: theme.colors.onBackground,
     fontStyle: 'italic',
-    marginBottom: 16,
+    marginBottom: 6,
   },
   wordRef: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 3,
+    fontSize: 8,
+    letterSpacing: 1.5,
     color: '#737373',
     textTransform: 'uppercase',
   },
   wordBtns: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
-    marginTop: 32,
+    gap: 8,
+    marginTop: 10,
   },
   btnGold: {
     backgroundColor: theme.colors.gold,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   btnGoldTxt: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontSize: 8,
+    letterSpacing: 0.5,
     color: theme.colors.onGold,
     textTransform: 'uppercase',
   },

@@ -2,15 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import {
-  ActivityIndicator,
-  Dimensions,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -25,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
-import { bootstrapAnonymousSession, supabaseConfigured } from '@/lib/supabase';
+import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -65,7 +57,7 @@ const DUMMY_WORKOUT = {
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const [getStartedBusy, setGetStartedBusy] = useState(false);
+  const { ready: authReady, registered } = useRegisteredAuth();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const canGetStarted = carouselIndex >= WELCOME_SLIDE_COUNT - 1;
 
@@ -73,6 +65,11 @@ export default function WelcomeScreen() {
   const ctaScale = useSharedValue(0.94);
   const swipeNudge = useSharedValue(0);
   const swipePulse = useSharedValue(0.55);
+
+  useEffect(() => {
+    if (!authReady || !registered) return;
+    router.replace('/' as Href);
+  }, [authReady, registered]);
 
   useEffect(() => {
     ctaOp.value = withDelay(400, withTiming(1, { duration: 480 }));
@@ -113,26 +110,9 @@ export default function WelcomeScreen() {
     );
   };
 
-  const onGetStarted = async () => {
-    if (getStartedBusy || !canGetStarted) return;
-    setGetStartedBusy(true);
-    try {
-      if (supabaseConfigured) {
-        const session = await bootstrapAnonymousSession();
-        if (__DEV__) {
-          if (session?.access_token) {
-            console.log('[Get started] Anonymous session ready for Edge Functions');
-          } else {
-            console.warn(
-              '[Get started] Still no JWT after retries — enable Anonymous under Authentication → Providers in Supabase. Onboarding will try again when the plan generates.'
-            );
-          }
-        }
-      }
-    } catch (e) {
-      if (__DEV__) console.warn('[Get started] bootstrapAnonymousSession:', e);
-    }
-    router.replace('/(onboarding)' as Href);
+  const onGetStarted = () => {
+    if (!canGetStarted) return;
+    router.push('/email-sign-in' as Href);
   };
 
   return (
@@ -239,32 +219,27 @@ export default function WelcomeScreen() {
             style={({ pressed }) => [
               styles.primary,
               pressed && canGetStarted && styles.primaryPressed,
-              getStartedBusy && styles.primaryDisabled,
-              !canGetStarted && !getStartedBusy && styles.primaryLocked,
+              !canGetStarted && styles.primaryLocked,
             ]}
             onPress={onGetStarted}
-            disabled={getStartedBusy || !canGetStarted}
+            disabled={!canGetStarted}
             accessibilityRole="button"
-            accessibilityState={{ disabled: getStartedBusy || !canGetStarted }}
-            accessibilityLabel="Get started and continue to onboarding"
+            accessibilityState={{ disabled: !canGetStarted }}
+            accessibilityLabel="Get started: verify email with a one-time code"
             accessibilityHint={
               canGetStarted
                 ? undefined
                 : 'Swipe through all welcome slides to the end to enable this button.'
             }>
-            {getStartedBusy ? (
-              <ActivityIndicator color={theme.colors.onGold} />
-            ) : (
-              <Text
-                style={[
-                  styles.primaryTxt,
-                  !canGetStarted && styles.primaryLockedTxt,
-                ]}>
-                Get started
-              </Text>
-            )}
+            <Text
+              style={[
+                styles.primaryTxt,
+                !canGetStarted && styles.primaryLockedTxt,
+              ]}>
+              Get started
+            </Text>
           </Pressable>
-          {!canGetStarted && !getStartedBusy ? (
+          {!canGetStarted ? (
             <Text style={styles.ctaHint}>
               Swipe through each screen to unlock continue.
             </Text>
@@ -375,9 +350,6 @@ const styles = StyleSheet.create({
   primaryPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.98 }],
-  },
-  primaryDisabled: {
-    opacity: 0.85,
   },
   primaryLocked: {
     backgroundColor: theme.colors.surfaceContainerHigh,

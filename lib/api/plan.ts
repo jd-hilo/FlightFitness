@@ -103,7 +103,7 @@ async function runGenerate(
     );
 
     if (fnError) {
-      return { ok: false, error: extractFnError(fnError) };
+      return { ok: false, error: await extractFnError(fnError) };
     }
 
     const rawPlan =
@@ -143,30 +143,49 @@ function mockResult(body: GeneratePlanBody): GenerateWeekPlanResult {
   return { ok: true, plan: parsed.data };
 }
 
-function extractFnError(fnError: unknown): string {
+/**
+ * `FunctionsHttpError.context` is a Fetch `Response`. `.text` is a method — do not
+ * `String(response.text)` (Hermes shows `function () { [bytecode] }`).
+ */
+async function extractFnError(fnError: unknown): Promise<string> {
   if (fnError instanceof FunctionsHttpError) {
-    const status = fnError.context.status;
+    const ctx = fnError.context as Response | undefined;
+    const status = ctx?.status ?? 0;
     let msg = `Plan request failed (HTTP ${status})`;
+
+    let bodyText = '';
     try {
-      const bodyText = fnError.context.text
-        ? String(fnError.context.text)
-        : '';
-      if (bodyText) {
-        try {
-          const errBody = JSON.parse(bodyText) as Record<string, unknown>;
-          if (typeof errBody.error === 'string') {
-            msg = `${errBody.error} (HTTP ${status})`;
-            if (typeof errBody.detail === 'string') {
-              msg += ` — ${errBody.detail}`;
-            }
-          } else {
-            msg = `${msg} — ${bodyText.slice(0, 240)}`;
-          }
-        } catch {
-          msg = `${msg} — ${bodyText.slice(0, 240)}`;
-        }
+      if (ctx && typeof ctx.text === 'function') {
+        bodyText = await ctx.clone().text();
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
+
+    const trimmed = bodyText.trim();
+    if (trimmed) {
+      try {
+        const errBody = JSON.parse(trimmed) as Record<string, unknown>;
+        if (typeof errBody.error === 'string') {
+          msg = `${errBody.error} (HTTP ${status})`;
+          const detail = errBody.detail;
+          if (typeof detail === 'string') {
+            msg += ` — ${detail}`;
+          } else if (detail != null) {
+            try {
+              msg += ` — ${JSON.stringify(detail).slice(0, 500)}`;
+            } catch {
+              msg += ` — ${String(detail).slice(0, 240)}`;
+            }
+          }
+        } else {
+          msg = `${msg} — ${trimmed.slice(0, 240)}`;
+        }
+      } catch {
+        msg = `${msg} — ${trimmed.slice(0, 240)}`;
+      }
+    }
+
     if (__DEV__) console.warn('[generateWeekPlan] HTTP error', msg);
     return msg;
   }

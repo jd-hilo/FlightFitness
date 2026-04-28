@@ -10,6 +10,10 @@ import { normalizeWeekPlanFromAI } from '@/lib/weekPlanAINormalize';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
+import {
+  shouldAllowAiFullWeekGeneration,
+  useSubscriptionStore,
+} from '@/stores/subscriptionStore';
 import { weekPlanSchema, type OnboardingAnswers, type WeekPlan } from '@/types/plan';
 
 export type EnsureResult =
@@ -17,6 +21,7 @@ export type EnsureResult =
   | 'restored_remote'
   | 'generated'
   | 'skipped_no_session'
+  | 'skipped_ai_not_entitled'
   | 'generate_failed';
 
 let ensureInFlight: Promise<EnsureResult> | null = null;
@@ -76,6 +81,15 @@ async function runEnsure(): Promise<EnsureResult> {
       return 'local_ok';
     }
 
+    if (!shouldAllowAiFullWeekGeneration()) {
+      if (__DEV__) {
+        console.warn(
+          '[ensureCurrentWeekPlan] skip AI full-week gen (tier / free trial)'
+        );
+      }
+      return 'skipped_ai_not_entitled';
+    }
+
     const onboarding = useOnboardingStore.getState().answers as OnboardingAnswers;
     const res = await generateWeekPlan({
       onboarding,
@@ -89,6 +103,7 @@ async function runEnsure(): Promise<EnsureResult> {
     }
 
     usePlanStore.getState().setFromWeekPlan(res.plan);
+    useSubscriptionStore.getState().consumeFreeAiWeekAfterFullGenerateIfNeeded();
     return 'generated';
   } finally {
     setEnsuring(false);

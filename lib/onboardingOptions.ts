@@ -68,19 +68,65 @@ export const EXPERIENCE_OPTIONS = [
 ] as const;
 
 export const EQUIPMENT_OPTIONS = [
-  { id: 'full_commercial_gym', label: 'Full commercial gym', ai: 'All machines, cables, free weights.' },
-  { id: 'home_barbell_rack', label: 'Home barbell + rack', ai: 'Squat rack, barbell, adjustable bench.' },
-  { id: 'dumbbells_only', label: 'Dumbbells only', ai: 'Substitute barbell lifts with dumbbell equivalents.' },
-  { id: 'kettlebells', label: 'Kettlebells', ai: 'KB swings, goblet squats, carries.' },
-  { id: 'bands', label: 'Resistance bands', ai: 'Band presses, rows, pull-aparts, hinge patterns.' },
-  { id: 'bodyweight', label: 'Bodyweight only', ai: 'Push-up / pull-up / squat / lunge progressions.' },
+  {
+    id: 'full_commercial_gym',
+    label: 'Gym access',
+    ai: 'Full commercial gym available: machines, cables, barbells, dumbbells, benches, and cardio equipment.',
+  },
+  {
+    id: 'home_barbell_rack',
+    label: 'Home gym: barbell + rack',
+    ai: 'Home strength setup with squat rack, barbell, plates, and bench.',
+  },
+  {
+    id: 'dumbbells_only',
+    label: 'Dumbbells / adjustable bench',
+    ai: 'Dumbbells available, with or without an adjustable bench; substitute barbell lifts with dumbbell equivalents.',
+  },
+  {
+    id: 'kettlebells',
+    label: 'Kettlebells',
+    ai: 'Kettlebells available for swings, goblet squats, presses, carries, and conditioning.',
+  },
+  {
+    id: 'bands',
+    label: 'Bands / suspension trainer',
+    ai: 'Resistance bands and/or suspension trainer available for rows, presses, pull-aparts, assisted work, and hinge patterns.',
+  },
+  {
+    id: 'bodyweight',
+    label: 'No equipment / bodyweight only',
+    ai: 'No reliable training equipment; use bodyweight progressions and household-friendly movements.',
+  },
   {
     id: 'cardio_equipment',
-    label: 'Cardio machines (bike, rower, treadmill)',
-    ai: 'Bike, treadmill, or rower available for conditioning; pair with other selections if you also lift.',
+    label: 'Cardio machine access',
+    ai: 'Bike, treadmill, rower, stair machine, or similar available for conditioning.',
   },
-  { id: 'minimal_home', label: 'Minimal home (1–2 tools)', ai: 'Very limited equipment; creative supersets.' },
+  {
+    id: 'minimal_home',
+    label: 'Small home setup / limited gear',
+    ai: 'Limited home setup with one or two small tools; keep programming flexible and avoid assuming a full rack or full dumbbell set.',
+  },
 ] as const;
+
+const BODYWEIGHT_ONLY_EQUIPMENT_ID = 'bodyweight';
+
+export function isEquipmentOptionDisabled(
+  selectedIds: readonly string[],
+  optionId: string
+): boolean {
+  if (selectedIds.includes(optionId)) return false;
+
+  const hasBodyweightOnly = selectedIds.includes(BODYWEIGHT_ONLY_EQUIPMENT_ID);
+  if (hasBodyweightOnly) return true;
+
+  if (optionId === BODYWEIGHT_ONLY_EQUIPMENT_ID) {
+    return selectedIds.length > 0;
+  }
+
+  return false;
+}
 
 /** Exactly one — base eating style (mutually exclusive in UI). */
 export const DIET_PATTERN_OPTIONS = [
@@ -102,8 +148,21 @@ export const DIET_PATTERN_OPTIONS = [
 
 /** Multi, max 5 — stacks on top of diet pattern. */
 export const DIET_MODIFIER_OPTIONS = [
-  { id: 'high_protein', label: 'Extra protein priority', ai: 'Emphasize lean protein at each meal.' },
-  { id: 'low_carb_pref', label: 'Lower-carb preference', ai: 'Favor protein/fats; moderate carbs around training.' },
+  {
+    id: 'high_protein',
+    label: 'High-protein meals',
+    ai: 'Prioritize protein at each meal and snack; use lean proteins and protein-rich swaps.',
+  },
+  {
+    id: 'low_carb_pref',
+    label: 'Lower-carb preference',
+    ai: 'Prefer lower-carb meals with carbs kept moderate and placed around training when useful.',
+  },
+  {
+    id: 'workout_carbs',
+    label: 'More carbs around workouts',
+    ai: 'Use carbs strategically before and after training to support performance and recovery.',
+  },
   {
     id: 'halal',
     label: 'Halal',
@@ -118,24 +177,76 @@ export const DIET_MODIFIER_OPTIONS = [
   { id: 'gluten_free', label: 'Gluten-free', ai: 'No wheat/barley/rye; GF carb sources.' },
 ] as const;
 
-/** Multi, max 5 — dislikes & cuisine lean for meal variety. */
+const LOWER_CARB_DIET_MODIFIER_ID = 'low_carb_pref';
+const WORKOUT_CARBS_DIET_MODIFIER_ID = 'workout_carbs';
+
+export function isDietModifierOptionDisabled(
+  selectedIds: readonly string[],
+  optionId: string
+): boolean {
+  if (selectedIds.includes(optionId)) return false;
+  if (
+    optionId === LOWER_CARB_DIET_MODIFIER_ID &&
+    selectedIds.includes(WORKOUT_CARBS_DIET_MODIFIER_ID)
+  ) {
+    return true;
+  }
+  if (
+    optionId === WORKOUT_CARBS_DIET_MODIFIER_ID &&
+    selectedIds.includes(LOWER_CARB_DIET_MODIFIER_ID)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Multi-select meal style & prep preferences (see `MAX_FOOD_PREFERENCE_SELECTIONS`). */
+export const MAX_FOOD_PREFERENCE_SELECTIONS = 6;
+
 export const FOOD_PREFERENCE_OPTIONS = [
-  { id: 'dislike_fish', label: 'Avoid fish / seafood', ai: 'No fish or shellfish in meal ideas.' },
-  { id: 'dislike_red_meat', label: 'Avoid red meat', ai: 'Prefer poultry, fish, or plant proteins.' },
-  { id: 'dislike_spicy', label: 'Mild / no spicy', ai: 'Keep heat low; avoid hot peppers and heavy spice.' },
-  { id: 'dislike_mushrooms', label: 'No mushrooms', ai: 'Exclude mushrooms from recipes.' },
-  { id: 'dislike_cilantro', label: 'No cilantro', ai: 'Avoid cilantro as garnish or ingredient.' },
-  { id: 'cuisine_mexican', label: 'Love Mexican / Latin', ai: 'Lean on beans, rice, salsas, grilled proteins.' },
-  { id: 'cuisine_asian', label: 'Love Asian flavors', ai: 'Stir-fry, rice/noodle bowls, soy-ginger profiles.' },
-  { id: 'cuisine_mediterranean', label: 'Love Mediterranean', ai: 'Olive oil, yogurt, legumes, grilled meats/fish.' },
   {
-    id: 'cuisine_american',
-    label: 'Simple classics & comfort food',
-    ai: 'Grilled proteins, potatoes, salads, straightforward prep without assuming a specific region.',
+    id: 'pref_simple_familiar',
+    label: 'Simple & familiar',
+    ai: 'Prefer straightforward recipes and familiar flavors; avoid “chef-y” or exotic ingredients by default.',
   },
-  { id: 'quick_meals', label: 'Quick meals (≤20 min)', ai: 'Prioritize short cook times and minimal steps.' },
-  { id: 'meal_prep', label: 'Meal-prep friendly', ai: 'Batch-cook friendly recipes and repeat lunches.' },
+  {
+    id: 'pref_spice_ok',
+    label: 'Bold & spicy OK',
+    ai: 'Heat, strong spices, and punchy flavors are welcome when they fit the diet pattern.',
+  },
+  {
+    id: 'pref_quick_prep',
+    label: 'Quick & easy prep',
+    ai: 'Prioritize shorter cook times, fewer steps, and minimal cleanup.',
+  },
+  {
+    id: 'pref_meal_prep',
+    label: 'Meal-prep friendly',
+    ai: 'Batch-cook friendly templates; leftovers and repeatable lunches are a plus.',
+  },
+  {
+    id: 'pref_bowls_salads',
+    label: 'Bowls, salads & lighter plates',
+    ai: 'Lean on grain bowls, big salads, and lighter plate-style meals when appropriate.',
+  },
+  {
+    id: 'pref_family_portions',
+    label: 'Family-style portions',
+    ai: 'Favor shared mains, simple sides, and portions that work for households or bigger eaters.',
+  },
 ] as const;
+
+const FOOD_PREFERENCE_ID_SET: Set<string> = new Set(
+  FOOD_PREFERENCE_OPTIONS.map((o) => o.id)
+);
+
+/** Drops unknown legacy ids after option list changes. */
+export function sanitizeFoodPreferenceIds(ids: string[] | undefined | null): string[] {
+  if (!ids?.length) return [];
+  return ids
+    .filter((id) => FOOD_PREFERENCE_ID_SET.has(id))
+    .slice(0, MAX_FOOD_PREFERENCE_SELECTIONS);
+}
 
 /** Single — training days per week. */
 export const TRAINING_DAYS_OPTIONS = [

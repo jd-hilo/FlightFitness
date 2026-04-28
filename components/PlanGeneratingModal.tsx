@@ -1,21 +1,15 @@
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { theme } from '@/constants/theme';
 
 type Props = {
   visible: boolean;
-  /** Optional — continues with a local sample week instead of waiting for AI. */
-  onSkipSample?: () => void;
+  /** Load a local sample week and leave this screen (AI may still finish in background). */
+  onUseSampleWeek?: () => void;
 };
 
-export function PlanGeneratingModal({ visible, onSkipSample }: Props) {
+export function PlanGeneratingModal({ visible, onUseSampleWeek }: Props) {
   return (
     <Modal
       visible={visible}
@@ -28,22 +22,23 @@ export function PlanGeneratingModal({ visible, onSkipSample }: Props) {
           <Text style={styles.kicker}>Flight Fitness</Text>
           <Text style={styles.title}>Building your week</Text>
           <Text style={styles.sub}>
-            AI is creating meals, workouts, and your grocery list. This can take up to a
-            minute.
+            We are creating your personalized meals, workouts, and grocery list from your
+            answers. Most finish within a minute.
           </Text>
-          <ActivityIndicator
-            size="large"
-            color={theme.colors.gold}
-            style={styles.spinner}
-          />
-          {onSkipSample ? (
+          <Text style={styles.sampleHint}>
+            While you wait, you can open the app with a sample week and regenerate your
+            personalized week anytime from Fuel or Train.
+          </Text>
+          <View style={styles.spinner}>
+            <AppLoadingCross size="large" />
+          </View>
+          {onUseSampleWeek ? (
             <Pressable
-              onPress={onSkipSample}
-              hitSlop={12}
-              style={styles.skipHit}
+              onPress={onUseSampleWeek}
+              style={styles.sampleBtn}
               accessibilityRole="button"
-              accessibilityLabel="Skip AI and use a sample plan">
-              <Text style={styles.skipTxt}>Not now — use sample plan</Text>
+              accessibilityLabel="Continue with sample week">
+              <Text style={styles.sampleBtnTxt}>Continue with sample week</Text>
             </Pressable>
           ) : null}
         </View>
@@ -87,14 +82,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.onSurfaceVariant,
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 12,
   },
-  spinner: { marginBottom: 28 },
-  skipHit: { alignSelf: 'center', paddingVertical: 8 },
-  skipTxt: {
+  sampleHint: {
     fontFamily: theme.fonts.body,
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    textDecorationLine: 'underline',
+    lineHeight: 20,
+    marginBottom: 24,
+    opacity: 0.92,
+  },
+  spinner: {
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sampleBtn: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  sampleBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
 });

@@ -1,5 +1,7 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useRef } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +22,7 @@ import {
   EQUIPMENT_OPTIONS,
   EXPERIENCE_OPTIONS,
   FOOD_PREFERENCE_OPTIONS,
+  MAX_FOOD_PREFERENCE_SELECTIONS,
   GOAL_OPTIONS,
   INJURY_LIMITATION_OPTIONS,
   INJURY_NONE_ID,
@@ -34,17 +37,19 @@ import {
   ageValues,
   formatHeightInchesLabel,
   heightInchesValues,
+  isDietModifierOptionDisabled,
+  isEquipmentOptionDisabled,
 } from '@/lib/onboardingOptions';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 
 const MAX_MODIFIERS = 5;
-const MAX_FOOD_PREFS = 5;
-
 const AGE_VALUES = ageValues();
 const HEIGHT_VALUES = heightInchesValues();
 
 export function ProfileAnswersForm() {
+  const scrollRef = useRef<ScrollView | null>(null);
   const answers = useOnboardingStore((s) => s.answers);
+  const toggleGoal = useOnboardingStore((s) => s.toggleGoal);
   const setSingle = useOnboardingStore((s) => s.setSingle);
   const toggleEquipment = useOnboardingStore((s) => s.toggleEquipment);
   const toggleDietModifier = useOnboardingStore((s) => s.toggleDietModifier);
@@ -63,26 +68,40 @@ export function ProfileAnswersForm() {
     (id) => id !== ALLERGY_NONE_ID
   ).length;
 
+  const scrollNotesIntoView = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 120);
+  };
+
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scroll}>
+    <KeyboardAvoidingView
+      style={styles.kavRoot}
+      behavior={Platform.OS === 'ios' ? 'height' : undefined}>
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}>
       <Text style={styles.lead}>
         Changes save automatically. Regenerate your week plan in Fuel or onboarding
         when you want AI to reflect updates.
       </Text>
 
       <Section title="Main goal">
+        <Text style={styles.subLabel}>Select up to 2</Text>
         <ChipGrid>
           {GOAL_OPTIONS.map((opt) => {
-            const selected = answers.goal === opt.id;
+            const selected = answers.goal.includes(opt.id);
+            const atCap = answers.goal.length >= 2 && !selected;
             return (
               <Chip
                 key={opt.id}
                 label={opt.label}
                 selected={selected}
-                onPress={() => setSingle('goal', opt.id)}
+                disabled={atCap}
+                onPress={() => toggleGoal(opt.id)}
               />
             );
           })}
@@ -142,11 +161,13 @@ export function ProfileAnswersForm() {
         <ChipGrid>
           {EQUIPMENT_OPTIONS.map((opt) => {
             const selected = answers.equipment.includes(opt.id);
+            const disabled = isEquipmentOptionDisabled(answers.equipment, opt.id);
             return (
               <Chip
                 key={opt.id}
                 label={opt.label}
                 selected={selected}
+                disabled={disabled}
                 onPress={() => toggleEquipment(opt.id)}
               />
             );
@@ -196,8 +217,11 @@ export function ProfileAnswersForm() {
           placeholder="Pain, doctor limits, movements to avoid…"
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
+          returnKeyType="done"
+          blurOnSubmit
           value={answers.injuryNotes}
           onChangeText={(t) => setNotes('injuryNotes', t)}
+          onFocus={scrollNotesIntoView}
           maxLength={500}
         />
       </Section>
@@ -219,20 +243,25 @@ export function ProfileAnswersForm() {
       </Section>
 
       <Section
-        title="Food rules & macros"
+        title="Diet rules & macro style"
         subtitle={`Up to ${MAX_MODIFIERS} — optional.`}>
         <Text style={styles.capHint}>{answers.dietModifiers.length} / {MAX_MODIFIERS}</Text>
         <ChipGrid>
           {DIET_MODIFIER_OPTIONS.map((opt) => {
             const selected = answers.dietModifiers.includes(opt.id);
+            const ruleDisabled = isDietModifierOptionDisabled(
+              answers.dietModifiers,
+              opt.id
+            );
             const atCap =
               answers.dietModifiers.length >= MAX_MODIFIERS && !selected;
+            const disabled = atCap || ruleDisabled;
             return (
               <Chip
                 key={opt.id}
                 label={opt.label}
                 selected={selected}
-                disabled={atCap}
+                disabled={disabled}
                 onPress={() => toggleDietModifier(opt.id)}
               />
             );
@@ -242,15 +271,16 @@ export function ProfileAnswersForm() {
 
       <Section
         title="Tastes & meal style"
-        subtitle={`Up to ${MAX_FOOD_PREFS} — optional.`}>
+        subtitle={`Pick what fits you — up to ${MAX_FOOD_PREFERENCE_SELECTIONS}. Add dislikes or cuisines in “Anything else about food?” below.`}>
         <Text style={styles.capHint}>
-          {answers.foodPreferences.length} / {MAX_FOOD_PREFS}
+          {answers.foodPreferences.length} / {MAX_FOOD_PREFERENCE_SELECTIONS}
         </Text>
         <ChipGrid>
           {FOOD_PREFERENCE_OPTIONS.map((opt) => {
             const selected = answers.foodPreferences.includes(opt.id);
             const atCap =
-              answers.foodPreferences.length >= MAX_FOOD_PREFS && !selected;
+              answers.foodPreferences.length >= MAX_FOOD_PREFERENCE_SELECTIONS &&
+              !selected;
             return (
               <Chip
                 key={opt.id}
@@ -270,8 +300,11 @@ export function ProfileAnswersForm() {
           placeholder="Cultural foods, fasting, details for “other / flexible”…"
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
+          returnKeyType="done"
+          blurOnSubmit
           value={answers.dietOtherNotes}
           onChangeText={(t) => setNotes('dietOtherNotes', t)}
+          onFocus={scrollNotesIntoView}
           maxLength={600}
         />
       </Section>
@@ -303,8 +336,11 @@ export function ProfileAnswersForm() {
           placeholder="e.g. Mango, mustard…"
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
+          returnKeyType="done"
+          blurOnSubmit
           value={answers.allergyOtherNotes}
           onChangeText={(t) => setNotes('allergyOtherNotes', t)}
+          onFocus={scrollNotesIntoView}
           maxLength={300}
         />
       </Section>
@@ -407,7 +443,8 @@ export function ProfileAnswersForm() {
       </Section>
 
       <View style={{ height: 32 }} />
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -466,6 +503,10 @@ function Chip({
 }
 
 const styles = StyleSheet.create({
+  kavRoot: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   scroll: {
     paddingHorizontal: 24,
     paddingTop: 8,

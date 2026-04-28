@@ -2,18 +2,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
+import { PlanStripEmptyHint } from '@/components/PlanStripEmptyHint';
 import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
@@ -90,10 +84,10 @@ export default function FuelScreen() {
   const viewWeekYmd = viewWeekStartYmdLocal();
   const isPastDay = isViewStripDayBeforeToday(viewWeekYmd, selectedPlanDay);
 
-  const selectedCalendarDate = useMemo(() => {
-    if (!weekStart) return null;
-    return weekDatesFromStart(viewWeekYmd)[selectedPlanDay] ?? null;
-  }, [weekStart, viewWeekYmd, selectedPlanDay]);
+  const selectedCalendarDate = useMemo(
+    () => weekDatesFromStart(viewWeekYmd)[selectedPlanDay] ?? null,
+    [viewWeekYmd, selectedPlanDay]
+  );
 
   const selectedDateLong = selectedCalendarDate
     ? selectedCalendarDate.toLocaleDateString('en-US', {
@@ -105,7 +99,6 @@ export default function FuelScreen() {
     : '';
 
   useEffect(() => {
-    if (!weekStart) return;
     setSelectedPlanDay(viewStripIndexForToday(viewWeekStartYmdLocal()));
   }, [weekStart, setSelectedPlanDay]);
 
@@ -129,27 +122,6 @@ export default function FuelScreen() {
     const done = dayMeals.filter((m) => completion.mealIds.includes(m.id));
     return sumMacrosForMeals(done);
   }, [dayMeals, completion.mealIds]);
-
-  if (!hasPlanData) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader rightSlot={headerRight} />
-        {weekPlanEnsuring ? (
-          <View style={styles.generatingBox}>
-            <ActivityIndicator color={theme.colors.gold} />
-            <Text style={styles.generatingTitle}>Generating your custom plan</Text>
-            <Text style={styles.muted}>
-              Your personalized meals for this week are on the way…
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.generatingBox}>
-            <Text style={styles.muted}>No plan loaded.</Text>
-          </View>
-        )}
-      </View>
-    );
-  }
 
   const onMealToggle = (mealId: string) => {
     if (isPastDay) return;
@@ -179,6 +151,7 @@ export default function FuelScreen() {
   };
 
   const onRegenerateDay = () => {
+    if (!weekStart) return;
     const viewY = viewWeekStartYmdLocal();
     const idx = mealDayIndexForViewStrip(weekStart, viewY, selectedPlanDay);
     if (idx == null) {
@@ -203,6 +176,7 @@ export default function FuelScreen() {
   };
 
   const onAdjustMacros = () => {
+    if (!macroTargets) return;
     const t = macroTargets;
     runCustomize('adjustMacros', {
       adjustMacros: {
@@ -220,13 +194,13 @@ export default function FuelScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader rightSlot={headerRight} />
+      <ScreenHeader />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
           { paddingBottom: insets.bottom + 120 },
         ]}>
-        <TabScreenHeading title="Fuel" />
+        <TabScreenHeading title="Fuel" rightSlot={headerRight} />
         <WeekStrip
           weekStartYmd={viewWeekYmd}
           selectedIndex={selectedPlanDay}
@@ -235,71 +209,91 @@ export default function FuelScreen() {
         {isPastDay ? (
           <Text style={styles.pastHint}>Past day — view only</Text>
         ) : null}
-        {selectedDateLong ? (
-          <Text style={styles.selectedDateCaption}>{selectedDateLong}</Text>
-        ) : null}
-        <MacroDashboard
-          targets={macroTargets}
-          loggedKcal={logged.kcal}
-          loggedProtein={logged.proteinG}
-          loggedCarbs={logged.carbsG}
-          loggedFat={logged.fatG}
-        />
-        <View style={[styles.toolbar, isPastDay && styles.toolbarMuted]}>
-          <Pressable
-            style={styles.toolBtn}
-            onPress={onRegenerateDay}
-            disabled={isPastDay}>
-            <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
-              Regenerate day
-            </Text>
-          </Pressable>
-          <Pressable
-            style={styles.toolBtn}
-            onPress={onAdjustMacros}
-            disabled={isPastDay}>
-            <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
-              +5% calories
-            </Text>
-          </Pressable>
-        </View>
-        {busy ? (
-          <ActivityIndicator color={theme.colors.gold} style={{ marginBottom: 16 }} />
-        ) : null}
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Daily log</Text>
-          <Pressable onPress={() => router.push('/grocery')}>
-            <Text style={styles.link}>Grocery</Text>
-          </Pressable>
-        </View>
-        {planMealIndex == null ? (
+        {!hasPlanData ? (
           weekPlanEnsuring ? (
-            <View style={styles.generatingInline}>
-              <ActivityIndicator color={theme.colors.gold} />
-              <Text style={styles.generatingInlineTitle}>
-                Generating your custom plan
-              </Text>
-              <Text style={styles.outsidePlanHint}>
-                Your daily log will fill in here as soon as your week is ready…
+            <View style={styles.generatingBox}>
+              <View style={{ marginBottom: 16, alignItems: 'center' }}>
+                <AppLoadingCross size="medium" />
+              </View>
+              <Text style={styles.generatingTitle}>Generating your custom plan</Text>
+              <Text style={styles.muted}>
+                Your personalized meals for this week are on the way…
               </Text>
             </View>
           ) : (
-            <Text style={styles.outsidePlanHint}>
-              No meals for this date — it falls outside your saved plan week (plan
-              starts {weekStart}).
-            </Text>
+            <PlanStripEmptyHint variant="fuel" />
           )
-        ) : null}
-        {dayMeals.map((meal) => (
-          <MealCard
-            key={meal.id}
-            meal={meal}
-            completed={completion.mealIds.includes(meal.id)}
-            onToggleComplete={() => onMealToggle(meal.id)}
-            onEdit={setMealEditing}
-            readOnly={isPastDay}
-          />
-        ))}
+        ) : (
+          <>
+            {selectedDateLong ? (
+              <Text style={styles.selectedDateCaption}>{selectedDateLong}</Text>
+            ) : null}
+            <MacroDashboard
+              targets={macroTargets!}
+              loggedKcal={logged.kcal}
+              loggedProtein={logged.proteinG}
+              loggedCarbs={logged.carbsG}
+              loggedFat={logged.fatG}
+            />
+            <View style={[styles.toolbar, isPastDay && styles.toolbarMuted]}>
+              <Pressable
+                style={styles.toolBtn}
+                onPress={onRegenerateDay}
+                disabled={isPastDay}>
+                <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
+                  Regenerate day
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.toolBtn}
+                onPress={onAdjustMacros}
+                disabled={isPastDay}>
+                <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
+                  +5% calories
+                </Text>
+              </Pressable>
+            </View>
+            {busy ? (
+              <View style={{ marginBottom: 16, alignItems: 'center' }}>
+                <AppLoadingCross size="medium" />
+              </View>
+            ) : null}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Daily log</Text>
+              <Pressable onPress={() => router.push('/grocery')}>
+                <Text style={styles.link}>Grocery</Text>
+              </Pressable>
+            </View>
+            {planMealIndex == null ? (
+              weekPlanEnsuring ? (
+                <View style={styles.generatingInline}>
+                  <AppLoadingCross size="medium" />
+                  <Text style={styles.generatingInlineTitle}>
+                    Generating your custom plan
+                  </Text>
+                  <Text style={styles.outsidePlanHint}>
+                    Your daily log will fill in here as soon as your week is ready…
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.outsidePlanHint}>
+                  No meals for this date — it falls outside your saved plan week (plan
+                  starts {weekStart}).
+                </Text>
+              )
+            ) : null}
+            {dayMeals.map((meal) => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                completed={completion.mealIds.includes(meal.id)}
+                onToggleComplete={() => onMealToggle(meal.id)}
+                onEdit={setMealEditing}
+                readOnly={isPastDay}
+              />
+            ))}
+          </>
+        )}
         <Text style={styles.energySectionTitle}>Energy</Text>
         <Text style={styles.energyLead}>
           Pre-workout picks from{' '}
@@ -355,6 +349,10 @@ export default function FuelScreen() {
         meal={mealEditing}
         onClose={() => setMealEditing(null)}
         onSave={(updated) => {
+          if (!weekStart) {
+            setMealEditing(null);
+            return;
+          }
           const idx = mealDayIndexForViewStrip(
             weekStart,
             viewWeekYmd,

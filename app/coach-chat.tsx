@@ -4,7 +4,6 @@ import type { Href } from 'expo-router';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -17,7 +16,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { theme } from '@/constants/theme';
+import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import {
   fetchCoachMessages,
   getCoachChatUserId,
@@ -31,6 +32,7 @@ import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 export default function CoachChatScreen() {
   const insets = useSafeAreaInsets();
+  const keyboardOffset = useKeyboardOffset();
   const tier = useSubscriptionStore((s) => s.tier);
   const markThreadReadAndRefresh = useCoachChatStore((s) => s.markThreadReadAndRefresh);
 
@@ -118,13 +120,13 @@ export default function CoachChatScreen() {
 
   const emptyHint = useMemo(() => {
     if (!supabaseConfigured) return 'Connect the app to Supabase to message your coach.';
-    return 'Say hi to Jude — replies appear here when your coach responds.';
+    return 'Say hi to Jude — replies and daily reflections from your coach show up here.';
   }, []);
 
   if (!coaching) {
     return (
       <View style={[styles.screen, styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={theme.colors.gold} />
+        <AppLoadingCross size="large" />
       </View>
     );
   }
@@ -132,11 +134,11 @@ export default function CoachChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 52 : 0}>
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={insets.top + 52}>
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.gold} />
+          <AppLoadingCross size="large" />
         </View>
       ) : (
         <FlatList
@@ -145,9 +147,11 @@ export default function CoachChatScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: 8 },
+            { paddingBottom: 8 + keyboardOffset },
             messages.length === 0 && styles.listEmpty,
           ]}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
           onContentSizeChange={() =>
             listRef.current?.scrollToEnd({ animated: false })
           }
@@ -168,6 +172,8 @@ export default function CoachChatScreen() {
           value={input}
           onChangeText={setInput}
           multiline
+          returnKeyType="done"
+          blurOnSubmit
           maxLength={4000}
           editable={!sending && supabaseConfigured}
         />
@@ -178,7 +184,7 @@ export default function CoachChatScreen() {
           accessibilityRole="button"
           accessibilityLabel="Send message">
           {sending ? (
-            <ActivityIndicator size="small" color={theme.colors.onGold} />
+            <AppLoadingCross size="small" />
           ) : (
             <MaterialIcons name="send" size={22} color={theme.colors.onGold} />
           )}

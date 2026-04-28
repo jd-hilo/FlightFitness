@@ -1,7 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   InputAccessoryView,
   Keyboard,
   KeyboardAvoidingView,
@@ -15,11 +14,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { VerseCard } from '@/components/VerseCard';
 import { theme } from '@/constants/theme';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
+import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { getDailyVerse } from '@/lib/verses';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
@@ -59,7 +60,7 @@ export default function FaithScreen() {
   );
 
   const scrollRef = useRef<ScrollView>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardOffset();
 
   const day = byDay[dateKey] ?? {
     verseRead: false,
@@ -92,19 +93,6 @@ export default function FaithScreen() {
     void loadFromApi();
   }, [loadFromApi]);
 
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvt, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hide = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
   const onJournalDone = useCallback(() => {
     Keyboard.dismiss();
     markJournalReflectionComplete(dateKey);
@@ -116,29 +104,28 @@ export default function FaithScreen() {
     }, 280);
   }, []);
 
-  const kavOffset = insets.top + (Platform.OS === 'ios' ? 52 : 0);
+  const kavOffset = insets.top + 52;
 
   return (
     <View style={styles.screen}>
       <ScreenHeader />
       <KeyboardAvoidingView
         style={styles.kav}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         keyboardVerticalOffset={kavOffset}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={[
             styles.scroll,
             {
-              paddingBottom:
-                insets.bottom +
-                120 +
-                (Platform.OS === 'android' && keyboardHeight > 0 ? 52 : 0),
+              paddingBottom: insets.bottom + 120 + keyboardHeight,
             },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive">
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        >
         <Text style={styles.head}>Faith</Text>
         <Text style={styles.lead}>
           Bible study, daily reading, and small habits that anchor your training in
@@ -198,7 +185,7 @@ export default function FaithScreen() {
             <Text style={styles.readingRef}>{reading.reference}</Text>
             {apiLoading ? (
               <View style={styles.passageLoading}>
-                <ActivityIndicator color={theme.colors.gold} />
+                <AppLoadingCross size="small" />
                 <Text style={styles.passageLoadingTxt}>Loading passage…</Text>
               </View>
             ) : (
@@ -250,6 +237,8 @@ export default function FaithScreen() {
             value={day.journalLine}
             onChangeText={(t) => setJournalLine(dateKey, t)}
             multiline
+            returnKeyType="done"
+            blurOnSubmit
             maxLength={280}
             textAlignVertical="top"
             inputAccessoryViewID={

@@ -55,7 +55,7 @@ export function getProfileSectionSummaries(
   return [
     {
       title: 'Main goal',
-      lines: [labelFor(GOAL_OPTIONS, answers.goal)],
+      lines: labelsFor(GOAL_OPTIONS, answers.goal),
     },
     {
       title: 'About you',

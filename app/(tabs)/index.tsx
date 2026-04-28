@@ -152,11 +152,6 @@ export default function HomeScreen() {
   )}`;
   const watermark = verseWatermark(verse.reference);
 
-  const recentKeys = useMemo(
-    () => Object.keys(byDay).sort().slice(-7),
-    [byDay]
-  );
-
   const logged = useMemo(() => {
     const done = dayMeals.filter((m) => completion.mealIds.includes(m.id));
     return sumMacrosForMeals(done);
@@ -306,28 +301,6 @@ export default function HomeScreen() {
                 loggedCarbs={logged.carbsG}
                 loggedFat={logged.fatG}
               />
-
-              <Text style={styles.section}>Recent activity</Text>
-              {recentKeys.length === 0 ? (
-                <Text style={styles.mutedInline}>
-                  Complete meals or workouts to see history here.
-                </Text>
-              ) : (
-                recentKeys.map((k) => {
-                  const d = byDay[k]!;
-                  const parts: string[] = [];
-                  if (d.mealIds.length) parts.push(`${d.mealIds.length} meals`);
-                  if (d.workoutDone) parts.push('workout');
-                  return (
-                    <View key={k} style={styles.activityRow}>
-                      <Text style={styles.activityDate}>{k}</Text>
-                      <Text style={styles.activityMeta}>
-                        {parts.join(' · ') || '—'}
-                      </Text>
-                    </View>
-                  );
-                })
-              )}
 
               <Text style={styles.section}>Today&apos;s plan</Text>
               <View style={styles.card}>
@@ -680,23 +653,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
     marginTop: 2,
-  },
-  activityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.outlineStrong,
-  },
-  activityDate: {
-    fontFamily: theme.fonts.label,
-    fontSize: 13,
-    color: theme.colors.onBackground,
-  },
-  activityMeta: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
   },
   mutedInline: {
     fontFamily: theme.fonts.body,

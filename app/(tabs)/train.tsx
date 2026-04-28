@@ -1,23 +1,17 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
+import { PlanStripEmptyHint } from '@/components/PlanStripEmptyHint';
 import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
 import { WeekStrip } from '@/components/WeekStrip';
+import { EditExerciseModal } from '@/components/plan/EditExerciseModal';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
-import { generateWeekPlan } from '@/lib/api/plan';
 import {
   dateKeyForViewStripDay,
   isViewStripDayBeforeToday,
@@ -25,13 +19,11 @@ import {
   viewStripIndexForToday,
   viewWeekStartYmdLocal,
 } from '@/lib/weekUtils';
-import { getWeekPlanFromStore } from '@/lib/planFromStore';
 import { getTriggerVerse } from '@/lib/verses';
 import {
   normalizeDay,
   useCompletionStore,
 } from '@/stores/completionStore';
-import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -41,7 +33,6 @@ export default function TrainScreen() {
   const insets = useSafeAreaInsets();
   const weekStart = usePlanStore((s) => s.weekStart);
   const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
-  const answers = useOnboardingStore((s) => s.answers);
   const selectedPlanDay = useUiStore((s) => s.selectedPlanDay);
   const setSelectedPlanDay = useUiStore((s) => s.setSelectedPlanDay);
   const byDay = useCompletionStore((s) => s.byDay);
@@ -51,12 +42,12 @@ export default function TrainScreen() {
   const backfillExerciseIdsIfWorkoutDone = useCompletionStore(
     (s) => s.backfillExerciseIdsIfWorkoutDone
   );
-  const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
+  const updateExercise = usePlanStore((s) => s.updateExercise);
   const showVerse = useVerseModalStore((s) => s.show);
   const tier = useSubscriptionStore((s) => s.tier);
   const headerRight =
     tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
-  const [busy, setBusy] = useState(false);
+  const [exerciseEditIndex, setExerciseEditIndex] = useState<number | null>(null);
   const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
 
   const viewWeekYmd = viewWeekStartYmdLocal();
@@ -75,10 +66,18 @@ export default function TrainScreen() {
       : null;
   const completion = normalizeDay(byDay[dateKey]);
 
+  const exerciseBeingEdited =
+    exerciseEditIndex != null && workout?.exercises[exerciseEditIndex]
+      ? workout.exercises[exerciseEditIndex]!
+      : null;
+
   useEffect(() => {
-    if (!weekStart) return;
     setSelectedPlanDay(viewStripIndexForToday(viewWeekStartYmdLocal()));
   }, [weekStart, setSelectedPlanDay]);
+
+  useEffect(() => {
+    setExerciseEditIndex(null);
+  }, [selectedPlanDay, planWorkoutIndex]);
 
   useEffect(() => {
     if (!weekStart || !workoutsByDay) return;
@@ -98,27 +97,6 @@ export default function TrainScreen() {
     viewWeekYmd,
     backfillExerciseIdsIfWorkoutDone,
   ]);
-
-  if (!hasPlanData) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader rightSlot={headerRight} />
-        {weekPlanEnsuring ? (
-          <View style={styles.generatingBox}>
-            <ActivityIndicator color={theme.colors.gold} />
-            <Text style={styles.generatingTitle}>Generating your week</Text>
-            <Text style={styles.muted}>
-              Syncing your plan for this calendar week…
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.generatingBox}>
-            <Text style={styles.muted}>No plan loaded.</Text>
-          </View>
-        )}
-      </View>
-    );
-  }
 
   const onToggleWorkout = () => {
     if (isPastDay) return;
@@ -147,43 +125,15 @@ export default function TrainScreen() {
     }
   };
 
-  const onSwapExercise = async (exerciseIndex: number) => {
-    if (isPastDay) return;
-    const idx = mealDayIndexForViewStrip(
-      weekStart,
-      viewWeekYmd,
-      selectedPlanDay
-    );
-    if (idx == null) {
-      Alert.alert(
-        'Outside plan week',
-        'This calendar day is not in your current 7-day plan.'
-      );
-      return;
-    }
-    const current = getWeekPlanFromStore();
-    if (!current) return;
-    setBusy(true);
-    const res = await generateWeekPlan({
-      onboarding: answers,
-      action: 'swapExercise',
-      swapExercise: { dayIndex: idx, exerciseIndex },
-      currentPlan: current,
-    });
-    setBusy(false);
-    if (res.ok) setFromWeekPlan(res.plan);
-    else Alert.alert('Could not swap', res.error);
-  };
-
   return (
     <View style={styles.screen}>
-      <ScreenHeader rightSlot={headerRight} />
+      <ScreenHeader />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
           { paddingBottom: insets.bottom + 120 },
         ]}>
-        <TabScreenHeading title="Train" />
+        <TabScreenHeading title="Train" rightSlot={headerRight} />
         <WeekStrip
           weekStartYmd={viewWeekYmd}
           selectedIndex={selectedPlanDay}
@@ -192,14 +142,27 @@ export default function TrainScreen() {
         {isPastDay ? (
           <Text style={styles.pastHint}>Past day — view only</Text>
         ) : null}
-        {busy ? (
-          <ActivityIndicator color={theme.colors.gold} style={{ marginVertical: 24 }} />
-        ) : null}
-        {planWorkoutIndex == null ? (
+        {!hasPlanData ? (
+          weekPlanEnsuring ? (
+            <View style={styles.rest}>
+              <View style={{ marginBottom: 16, alignItems: 'center' }}>
+                <AppLoadingCross size="medium" />
+              </View>
+              <Text style={styles.restTitle}>Generating your week</Text>
+              <Text style={styles.muted}>
+                Syncing your plan for this calendar week…
+              </Text>
+            </View>
+          ) : (
+            <PlanStripEmptyHint variant="train" />
+          )
+        ) : planWorkoutIndex == null ? (
           <View style={styles.rest}>
             {weekPlanEnsuring ? (
               <>
-                <ActivityIndicator color={theme.colors.gold} style={{ marginBottom: 16 }} />
+                <View style={{ marginBottom: 16, alignItems: 'center' }}>
+                <AppLoadingCross size="medium" />
+              </View>
                 <Text style={styles.restTitle}>Generating your week</Text>
                 <Text style={styles.muted}>
                   Building your plan for this calendar week…
@@ -222,7 +185,13 @@ export default function TrainScreen() {
             exerciseIdsDone={completion.exerciseIdsDone}
             onToggleComplete={onToggleWorkout}
             onToggleExercise={onToggleExercise}
-            onSwapExercise={onSwapExercise}
+            onEditExercise={
+              isPastDay
+                ? undefined
+                : (i) => {
+                    setExerciseEditIndex(i);
+                  }
+            }
             readOnly={isPastDay}
           />
         ) : (
@@ -234,6 +203,22 @@ export default function TrainScreen() {
           </View>
         )}
       </ScrollView>
+      <EditExerciseModal
+        visible={exerciseEditIndex != null && exerciseBeingEdited != null}
+        exercise={exerciseBeingEdited}
+        onClose={() => setExerciseEditIndex(null)}
+        onSave={(updated) => {
+          const idx = mealDayIndexForViewStrip(
+            weekStart!,
+            viewWeekYmd,
+            selectedPlanDay
+          );
+          if (idx != null && exerciseEditIndex != null) {
+            updateExercise(idx, exerciseEditIndex, updated);
+          }
+          setExerciseEditIndex(null);
+        }}
+      />
     </View>
   );
 }

@@ -14,7 +14,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { navigationDarkTheme, theme } from '@/constants/theme';
-import { useDailyContentStore } from '@/stores/dailyContentStore';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -35,21 +34,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!loaded) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        await useDailyContentStore.getState().load();
-      } catch {
-        /* ignore */
-      } finally {
-        if (!cancelled) {
-          await SplashScreen.hideAsync();
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void SplashScreen.hideAsync();
   }, [loaded]);
 
   if (!loaded) return null;
@@ -62,6 +47,7 @@ export default function RootLayout() {
           screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="welcome" />
+          <Stack.Screen name="email-sign-in" />
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen

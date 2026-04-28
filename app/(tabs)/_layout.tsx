@@ -1,14 +1,17 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { FlightTabBar } from '@/components/FlightTabBar';
 import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { theme } from '@/constants/theme';
 import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
 import { useStoresHydrated } from '@/lib/hydration';
+import { PlanRemoteRealtimeSync } from '@/lib/planRemoteRealtime';
 import { supabaseConfigured } from '@/lib/supabase';
+import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 import { useCoachChatStore } from '@/stores/coachChatStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
@@ -25,6 +28,7 @@ function CoachChatRealtimeSync() {
 
 export default function TabLayout() {
   const hydrated = useStoresHydrated();
+  const { ready: authReady, registered } = useRegisteredAuth();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -36,9 +40,22 @@ export default function TabLayout() {
   const reflection = useVerseModalStore((s) => s.reflection);
   const hide = useVerseModalStore((s) => s.hide);
 
+  if (!authReady) {
+    return (
+      <View style={styles.authGate}>
+        <AppLoadingCross size="large" />
+      </View>
+    );
+  }
+
+  if (!registered) {
+    return <Redirect href="/welcome" />;
+  }
+
   return (
     <View style={styles.flex}>
       <CoachChatRealtimeSync />
+      {supabaseConfigured ? <PlanRemoteRealtimeSync /> : null}
       <Tabs
         tabBar={(props) => <FlightTabBar {...props} />}
         screenOptions={{
@@ -62,4 +79,10 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: theme.colors.background },
+  authGate: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

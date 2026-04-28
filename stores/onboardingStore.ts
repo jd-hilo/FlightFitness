@@ -6,17 +6,20 @@ import {
   ALLERGY_NONE_ID,
   INJURY_NONE_ID,
   MAX_ALLERGY_SELECTIONS,
+  MAX_FOOD_PREFERENCE_SELECTIONS,
   MAX_INJURY_SELECTIONS,
+  isDietModifierOptionDisabled,
+  isEquipmentOptionDisabled,
   isTrainingTimeWindowId,
+  sanitizeFoodPreferenceIds,
 } from '@/lib/onboardingOptions';
 import type { OnboardingAnswers } from '@/types/plan';
 
 const MAX_MODIFIERS = 5;
-const MAX_FOOD_PREFS = 5;
 const MAX_TIME_WINDOWS = 2;
 
 const defaultAnswers: OnboardingAnswers = {
-  goal: '',
+  goal: [],
   experience: '',
   equipment: [],
   dietPattern: '',
@@ -41,7 +44,6 @@ const defaultAnswers: OnboardingAnswers = {
 };
 
 type SingleStringKey =
-  | 'goal'
   | 'experience'
   | 'dietPattern'
   | 'trainingDaysPerWeek'
@@ -56,6 +58,7 @@ type NotesKey = 'injuryNotes' | 'dietOtherNotes' | 'allergyOtherNotes';
 type OnboardingState = {
   answers: OnboardingAnswers;
   completedAt: string | null;
+  toggleGoal: (optionId: string) => void;
   setSingle: (key: SingleStringKey, value: string) => void;
   toggleEquipment: (optionId: string) => void;
   toggleDietModifier: (optionId: string) => void;
@@ -70,11 +73,20 @@ type OnboardingState = {
   reset: () => void;
 };
 
-function toggleCapped(list: string[], id: string, max: number): string[] {
-  const has = list.includes(id);
-  if (has) return list.filter((x) => x !== id);
-  if (list.length >= max) return list;
-  return [...list, id];
+function normalizeStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.length > 0);
+  }
+  if (typeof value === 'string' && value.length > 0) return [value];
+  return [];
+}
+
+function toggleCapped(list: unknown, id: string, max: number): string[] {
+  const normalized = normalizeStringList(list);
+  const has = normalized.includes(id);
+  if (has) return normalized.filter((x) => x !== id);
+  if (normalized.length >= max) return normalized;
+  return [...normalized, id];
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
@@ -82,6 +94,13 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set) => ({
       answers: { ...defaultAnswers },
       completedAt: null,
+      toggleGoal: (optionId) =>
+        set((s) => ({
+          answers: {
+            ...s.answers,
+            goal: toggleCapped(s.answers.goal, optionId, 2),
+          },
+        })),
       setSingle: (key, value) =>
         set((s) => ({
           answers: { ...s.answers, [key]: value },
@@ -90,22 +109,31 @@ export const useOnboardingStore = create<OnboardingState>()(
         set((s) => {
           const cur = s.answers.equipment;
           const has = cur.includes(optionId);
+          if (!has && isEquipmentOptionDisabled(cur, optionId)) return s;
           const next = has
             ? cur.filter((id) => id !== optionId)
             : [...cur, optionId];
           return { answers: { ...s.answers, equipment: next } };
         }),
       toggleDietModifier: (optionId) =>
-        set((s) => ({
-          answers: {
-            ...s.answers,
-            dietModifiers: toggleCapped(
-              s.answers.dietModifiers,
-              optionId,
-              MAX_MODIFIERS
-            ),
-          },
-        })),
+        set((s) => {
+          if (
+            !s.answers.dietModifiers.includes(optionId) &&
+            isDietModifierOptionDisabled(s.answers.dietModifiers, optionId)
+          ) {
+            return s;
+          }
+          return {
+            answers: {
+              ...s.answers,
+              dietModifiers: toggleCapped(
+                s.answers.dietModifiers,
+                optionId,
+                MAX_MODIFIERS
+              ),
+            },
+          };
+        }),
       toggleFoodPreference: (optionId) =>
         set((s) => ({
           answers: {
@@ -113,7 +141,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             foodPreferences: toggleCapped(
               s.answers.foodPreferences,
               optionId,
-              MAX_FOOD_PREFS
+              MAX_FOOD_PREFERENCE_SELECTIONS
             ),
           },
         })),
@@ -222,6 +250,7 @@ export const useOnboardingStore = create<OnboardingState>()(
           ...defaultAnswers,
           ...(p.answers ?? {}),
         };
+        merged.goal = normalizeStringList((p.answers as { goal?: unknown } | undefined)?.goal).slice(0, 2);
         if (!merged.sex) merged.sex = 'sex_prefer_not';
         if (!merged.sessionLengthId) merged.sessionLengthId = 'session_45';
         if (!merged.nutritionPaceId) merged.nutritionPaceId = 'pace_sustainable';
@@ -233,6 +262,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             id === 'halal_kosher' ? 'halal' : id
           );
         }
+        merged.foodPreferences = sanitizeFoodPreferenceIds(merged.foodPreferences);
         return {
           ...current,
           completedAt: p.completedAt ?? current.completedAt,

@@ -46,7 +46,7 @@ export function buildOnboardingProfileJson(
   const allergyNotes = a.allergyOtherNotes.trim();
 
   return {
-    goal: a.goal || undefined,
+    goals: a.goal.length ? a.goal : undefined,
     experience: a.experience || undefined,
     equipment: a.equipment.length ? a.equipment : undefined,
     diet: {
@@ -84,7 +84,9 @@ export function buildOnboardingProfileJson(
 /** Rich text block for the AI (and optional server logs). */
 export function summarizeOnboardingForAI(a: OnboardingAnswers): string {
   const delta = a.targetWeightLb - a.currentWeightLb;
-  const goal = labelFor(GOAL_OPTIONS, a.goal);
+  const goals = a.goal
+    .map((id) => labelFor(GOAL_OPTIONS, id))
+    .filter(Boolean);
   const exp = labelFor(EXPERIENCE_OPTIONS, a.experience);
   const pattern = labelFor(DIET_PATTERN_OPTIONS, a.dietPattern);
   const days = labelFor(TRAINING_DAYS_OPTIONS, a.trainingDaysPerWeek);
@@ -110,10 +112,10 @@ export function summarizeOnboardingForAI(a: OnboardingAnswers): string {
     'Sex (for energy estimates only; keep copy inclusive):',
     sex ? `- ${sex.label}: ${sex.ai}` : '- (not specified)',
     '',
-    'Primary goal (single):',
-    goal
-      ? `- ${goal.label}: ${goal.ai}`
-      : '- (not specified)',
+    'Primary goals (up to 2; first selected is highest priority):',
+    ...(goals.length
+      ? goals.map((goal) => `- ${goal!.label}: ${goal!.ai}`)
+      : ['- (not specified)']),
     '',
     'Nutrition pace vs scale (single):',
     pace
@@ -171,7 +173,7 @@ export function summarizeOnboardingForAI(a: OnboardingAnswers): string {
       ? linesForIds(DIET_MODIFIER_OPTIONS, a.dietModifiers)
       : ['- None']),
     '',
-    'Food preferences / dislikes / cuisines (multi, optional):',
+    'Meal style & prep preferences (multi, optional):',
     ...(a.foodPreferences.length
       ? linesForIds(FOOD_PREFERENCE_OPTIONS, a.foodPreferences)
       : ['- None specified']),

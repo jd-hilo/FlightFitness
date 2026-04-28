@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +24,7 @@ import {
   EQUIPMENT_OPTIONS,
   EXPERIENCE_OPTIONS,
   FOOD_PREFERENCE_OPTIONS,
+  MAX_FOOD_PREFERENCE_SELECTIONS,
   GOAL_OPTIONS,
   INJURY_LIMITATION_OPTIONS,
   INJURY_NONE_ID,
@@ -36,11 +39,13 @@ import {
   ageValues,
   formatHeightInchesLabel,
   heightInchesValues,
+  isDietModifierOptionDisabled,
+  isEquipmentOptionDisabled,
 } from '@/lib/onboardingOptions';
+import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { isStepComplete, useOnboardingStore } from '@/stores/onboardingStore';
 
 type SingleField =
-  | 'goal'
   | 'experience'
   | 'dietPattern'
   | 'trainingDaysPerWeek'
@@ -53,6 +58,14 @@ type SingleStep = {
   title: string;
   subtitle: string;
   options: readonly { id: string; label: string }[];
+};
+
+type GoalStep = {
+  kind: 'goal';
+  stepId: 'goal';
+  title: string;
+  subtitle: string;
+  max: number;
 };
 
 type MultiStep = {
@@ -127,6 +140,7 @@ type PaceKitchenStep = {
 };
 
 type Step =
+  | GoalStep
   | SingleStep
   | MultiStep
   | CappedStep
@@ -140,13 +154,12 @@ type Step =
 
 const STEPS: Step[] = [
   {
-    kind: 'single',
+    kind: 'goal',
     stepId: 'goal',
-    field: 'goal',
     title: 'Main goal',
     subtitle:
-      'Pick one primary focus. We’ll match calories, training style, and recovery to it—recomposition is slower than a pure cut or bulk.',
-    options: GOAL_OPTIONS,
+      'Pick up to 2 priorities. We’ll match calories, training style, and recovery to them—recomposition is slower than a pure cut or bulk.',
+    max: 2,
   },
   {
     kind: 'single',
@@ -210,9 +223,9 @@ const STEPS: Step[] = [
     kind: 'capped',
     stepId: 'dietModifiers',
     variant: 'dietModifiers',
-    title: 'Food rules & macros',
+    title: 'Diet rules & macro style',
     subtitle:
-      'Optional — up to 5. Pick Halal, Kosher, or other rules that stack on your base eating pattern.',
+      'Optional — up to 5. Pick religious or medical food rules, plus how you prefer carbs and protein handled.',
     max: 5,
     options: DIET_MODIFIER_OPTIONS,
   },
@@ -222,8 +235,8 @@ const STEPS: Step[] = [
     variant: 'foodPreferences',
     title: 'Tastes & meal style',
     subtitle:
-      'Optional — up to 5. Dislikes and cuisines help us vary meals without guessing.',
-    max: 5,
+      'Optional — pick how you like to eat and cook. Use the next screen for dislikes, cuisines, or cultural details.',
+    max: MAX_FOOD_PREFERENCE_SELECTIONS,
     options: FOOD_PREFERENCE_OPTIONS,
   },
   {
@@ -286,7 +299,9 @@ const HEIGHT_VALUES = heightInchesValues();
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
+  const keyboardOffset = useKeyboardOffset();
   const answers = useOnboardingStore((s) => s.answers);
+  const toggleGoal = useOnboardingStore((s) => s.toggleGoal);
   const setSingle = useOnboardingStore((s) => s.setSingle);
   const toggleEquipment = useOnboardingStore((s) => s.toggleEquipment);
   const toggleDietModifier = useOnboardingStore((s) => s.toggleDietModifier);
@@ -299,6 +314,7 @@ export default function OnboardingScreen() {
   const setWeight = useOnboardingStore((s) => s.setWeight);
   const complete = useOnboardingStore((s) => s.complete);
   const [step, setStep] = useState(0);
+  const notesScrollRef = useRef<ScrollView | null>(null);
 
   const current = STEPS[step]!;
   const isLast = step === STEPS.length - 1;
@@ -308,7 +324,7 @@ export default function OnboardingScreen() {
   const next = () => {
     if (isLast) {
       complete();
-      router.replace('/(onboarding)/generate');
+      router.replace('/(onboarding)/upgrade-offer');
     } else {
       setStep((s) => s + 1);
     }
@@ -325,6 +341,7 @@ export default function OnboardingScreen() {
         ? answers.dietModifiers.length
         : answers.foodPreferences.length
       : 0;
+  const goalCount = answers.goal.length;
 
   const injuryRealCount = answers.injuryLimitationIds.filter(
     (id) => id !== INJURY_NONE_ID
@@ -336,9 +353,23 @@ export default function OnboardingScreen() {
   const totalSteps = STEPS.length;
   const progressRatio =
     totalSteps > 0 ? Math.min(1, (step + 1) / totalSteps) : 0;
+  const shouldHideFooterForKeyboard =
+    keyboardOffset > 0 &&
+    (current.kind === 'sessionInjury' ||
+      current.kind === 'textNotes' ||
+      current.kind === 'allergies');
+
+  const scrollNotesToEnd = () => {
+    setTimeout(() => {
+      notesScrollRef.current?.scrollToEnd({ animated: true });
+    }, 120);
+  };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
+    <KeyboardAvoidingView
+      style={styles.kavRoot}
+      behavior={Platform.OS === 'ios' ? 'height' : undefined}>
+      <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
       <Text style={styles.brand}>FLIGHT FITNESS</Text>
       <View
         style={styles.progressTrack}
@@ -366,6 +397,47 @@ export default function OnboardingScreen() {
                     style={[styles.chip, selected && styles.chipSelected]}>
                     <Text
                       style={[styles.chipText, selected && styles.chipTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </>
+      ) : null}
+
+      {current.kind === 'goal' ? (
+        <>
+          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.subtitle}>{current.subtitle}</Text>
+          <Text style={styles.capHint}>
+            Selected {goalCount} / {current.max}
+            {goalCount >= current.max ? ' — remove one to add another' : ''}
+          </Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.chipsScroll}>
+            <View style={styles.chipGrid}>
+              {GOAL_OPTIONS.map((opt) => {
+                const selected = answers.goal.includes(opt.id);
+                const atCap = goalCount >= current.max && !selected;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => toggleGoal(opt.id)}
+                    disabled={atCap}
+                    style={[
+                      styles.chip,
+                      selected && styles.chipSelected,
+                      atCap && styles.chipDisabled,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextSelected,
+                        atCap && styles.chipTextDisabled,
+                      ]}>
                       {opt.label}
                     </Text>
                   </Pressable>
@@ -406,7 +478,10 @@ export default function OnboardingScreen() {
 
       {current.kind === 'sessionInjury' ? (
         <ScrollView
+          ref={notesScrollRef}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           contentContainerStyle={styles.chipsScroll}>
           <Text style={styles.title}>{current.title}</Text>
           <Text style={styles.subtitle}>{current.subtitle}</Text>
@@ -474,8 +549,11 @@ export default function OnboardingScreen() {
             placeholder="e.g. Doctor said no overhead pressing; mild right knee pain on lunges…"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
+            returnKeyType="done"
+            blurOnSubmit
             value={answers.injuryNotes}
             onChangeText={(t) => setNotes('injuryNotes', t)}
+            onFocus={scrollNotesToEnd}
             maxLength={500}
           />
         </ScrollView>
@@ -491,13 +569,23 @@ export default function OnboardingScreen() {
             <View style={styles.chipGrid}>
               {current.options.map((opt) => {
                 const selected = answers.equipment.includes(opt.id);
+                const disabled = isEquipmentOptionDisabled(answers.equipment, opt.id);
                 return (
                   <Pressable
                     key={opt.id}
                     onPress={() => toggleEquipment(opt.id)}
-                    style={[styles.chip, selected && styles.chipSelected]}>
+                    disabled={disabled}
+                    style={[
+                      styles.chip,
+                      selected && styles.chipSelected,
+                      disabled && styles.chipDisabled,
+                    ]}>
                     <Text
-                      style={[styles.chipText, selected && styles.chipTextSelected]}>
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextSelected,
+                        disabled && styles.chipTextDisabled,
+                      ]}>
                       {opt.label}
                     </Text>
                   </Pressable>
@@ -526,7 +614,11 @@ export default function OnboardingScreen() {
                     ? answers.dietModifiers
                     : answers.foodPreferences;
                 const selected = list.includes(opt.id);
+                const ruleDisabled =
+                  current.variant === 'dietModifiers' &&
+                  isDietModifierOptionDisabled(list, opt.id);
                 const atCap = list.length >= current.max && !selected;
+                const disabled = atCap || ruleDisabled;
                 return (
                   <Pressable
                     key={opt.id}
@@ -535,17 +627,17 @@ export default function OnboardingScreen() {
                         ? toggleDietModifier(opt.id)
                         : toggleFoodPreference(opt.id)
                     }
-                    disabled={atCap}
+                    disabled={disabled}
                     style={[
                       styles.chip,
                       selected && styles.chipSelected,
-                      atCap && styles.chipDisabled,
+                      disabled && styles.chipDisabled,
                     ]}>
                     <Text
                       style={[
                         styles.chipText,
                         selected && styles.chipTextSelected,
-                        atCap && styles.chipTextDisabled,
+                        disabled && styles.chipTextDisabled,
                       ]}>
                       {opt.label}
                     </Text>
@@ -586,7 +678,10 @@ export default function OnboardingScreen() {
 
       {current.kind === 'textNotes' ? (
         <ScrollView
+          ref={notesScrollRef}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           contentContainerStyle={styles.chipsScroll}>
           <Text style={styles.title}>{current.title}</Text>
           <Text style={styles.subtitle}>{current.subtitle}</Text>
@@ -595,8 +690,11 @@ export default function OnboardingScreen() {
             placeholder={current.placeholder}
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
+            returnKeyType="done"
+            blurOnSubmit
             value={answers.dietOtherNotes}
             onChangeText={(t) => setNotes('dietOtherNotes', t)}
+            onFocus={scrollNotesToEnd}
             maxLength={600}
           />
         </ScrollView>
@@ -604,7 +702,10 @@ export default function OnboardingScreen() {
 
       {current.kind === 'allergies' ? (
         <ScrollView
+          ref={notesScrollRef}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           contentContainerStyle={styles.chipsScroll}>
           <Text style={styles.title}>{current.title}</Text>
           <Text style={styles.subtitle}>{current.subtitle}</Text>
@@ -652,8 +753,11 @@ export default function OnboardingScreen() {
             placeholder="e.g. Mango, mustard, celery…"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
+            returnKeyType="done"
+            blurOnSubmit
             value={answers.allergyOtherNotes}
             onChangeText={(t) => setNotes('allergyOtherNotes', t)}
+            onFocus={scrollNotesToEnd}
             maxLength={300}
           />
         </ScrollView>
@@ -737,24 +841,31 @@ export default function OnboardingScreen() {
         </>
       ) : null}
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <Pressable onPress={back} style={styles.secondary} disabled={step === 0}>
-          <Text style={[styles.secondaryTxt, step === 0 && styles.disabled]}>
-            Back
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={next}
-          style={[styles.primary, !canNext && styles.primaryDisabled]}
-          disabled={!canNext}>
-          <Text style={styles.primaryTxt}>{isLast ? 'Build my plan' : 'Next'}</Text>
-        </Pressable>
+      {!shouldHideFooterForKeyboard ? (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+          <Pressable onPress={back} style={styles.secondary} disabled={step === 0}>
+            <Text style={[styles.secondaryTxt, step === 0 && styles.disabled]}>
+              Back
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={next}
+            style={[styles.primary, !canNext && styles.primaryDisabled]}
+            disabled={!canNext}>
+            <Text style={styles.primaryTxt}>{isLast ? 'Build my plan' : 'Next'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,

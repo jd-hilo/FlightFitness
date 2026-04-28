@@ -10,8 +10,9 @@ type Props = {
   exerciseIdsDone: string[];
   onToggleComplete: () => void;
   onToggleExercise: (exerciseId: string) => void;
-  onSwapExercise?: (index: number) => void;
-  /** Past calendar days: show plan but disable completion / swap. */
+  /** Open editor for this exercise index (Fuel-style local edit). */
+  onEditExercise?: (index: number) => void;
+  /** Past calendar days: show plan but disable completion / edit. */
   readOnly?: boolean;
   /** Tighter layout for welcome / marketing slides. */
   compact?: boolean;
@@ -23,7 +24,7 @@ export function WorkoutBlock({
   exerciseIdsDone,
   onToggleComplete,
   onToggleExercise,
-  onSwapExercise,
+  onEditExercise,
   readOnly = false,
   compact = false,
 }: Props) {
@@ -82,7 +83,9 @@ export function WorkoutBlock({
           done={exerciseIdsDone.includes(ex.id)}
           readOnly={readOnly}
           onToggleCheck={() => onToggleExercise(ex.id)}
-          onSwap={!readOnly && onSwapExercise ? () => onSwapExercise(i) : undefined}
+          onEdit={
+            !readOnly && onEditExercise ? () => onEditExercise(i) : undefined
+          }
         />
       ))}
     </View>
@@ -96,7 +99,7 @@ function ExerciseRow({
   done,
   readOnly,
   onToggleCheck,
-  onSwap,
+  onEdit,
 }: {
   compact: boolean;
   rowIconSize: number;
@@ -104,8 +107,9 @@ function ExerciseRow({
   done: boolean;
   readOnly?: boolean;
   onToggleCheck: () => void;
-  onSwap?: () => void;
+  onEdit?: () => void;
 }) {
+  const canEdit = onEdit && !readOnly;
   const iconColor = done
     ? readOnly
       ? theme.colors.onSurfaceVariant
@@ -128,9 +132,24 @@ function ExerciseRow({
         />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.exName, compact && styles.exNameCompact, readOnly && styles.textMuted]}>
-          {exercise.name}
-        </Text>
+        <View style={styles.exTitleRow}>
+          <Text
+            style={[
+              styles.exName,
+              compact && styles.exNameCompact,
+              readOnly && styles.textMuted,
+            ]}
+            numberOfLines={3}>
+            {exercise.name}
+          </Text>
+          {canEdit ? (
+            <Pressable onPress={onEdit} hitSlop={8}>
+              <Text style={[styles.editLink, compact && styles.editLinkCompact]}>
+                Edit
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
         <Text style={[styles.exMeta, compact && styles.exMetaCompact, readOnly && styles.metaMuted]}>
           {exercise.sets} × {exercise.reps} · Rest {exercise.restSec}s
         </Text>
@@ -141,11 +160,6 @@ function ExerciseRow({
           </Text>
         ) : null}
       </View>
-      {onSwap ? (
-        <Pressable onPress={onSwap} hitSlop={8}>
-          <Text style={[styles.swap, compact && styles.swapCompact]}>Swap</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -218,11 +232,27 @@ const styles = StyleSheet.create({
   exCheckHit: {
     paddingTop: 2,
   },
+  exTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 2,
+  },
   exName: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 16,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
+    flex: 1,
+    flexShrink: 1,
+  },
+  editLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   exMeta: {
     fontFamily: theme.fonts.body,
@@ -236,12 +266,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     marginTop: 6,
     fontStyle: 'italic',
-  },
-  swap: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
   },
   cardCompact: {
     padding: 8,
@@ -283,7 +307,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 3,
   },
-  swapCompact: {
+  editLinkCompact: {
     fontSize: 8,
+    letterSpacing: 0.5,
   },
 });

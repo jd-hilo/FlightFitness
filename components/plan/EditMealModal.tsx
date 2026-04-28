@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { theme } from '@/constants/theme';
 import { mealSchema } from '@/types/plan';
 import type { Meal } from '@/types/plan';
@@ -34,6 +35,7 @@ type Props = {
 
 export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
   const insets = useSafeAreaInsets();
+  const keyboardOffset = useKeyboardOffset();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [proteinS, setProteinS] = useState('');
@@ -110,7 +112,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
       onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={[styles.sheet, { paddingTop: insets.top + 8 }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 52 : 0}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Text style={styles.headerBtn}>Cancel</Text>
@@ -122,10 +125,15 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
         </View>
 
         <ScrollView
+          style={styles.scrollFlex}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={[
             styles.body,
-            { paddingBottom: insets.bottom + 24 },
+            {
+              paddingBottom: insets.bottom + 24 + keyboardOffset,
+            },
           ]}>
           <View style={styles.slotPill}>
             <Text style={styles.slotTxt}>{meal.slot}</Text>
@@ -138,6 +146,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
             onChangeText={setName}
             placeholder="Meal name"
             placeholderTextColor={theme.colors.onSurfaceVariant}
+            returnKeyType="done"
+            blurOnSubmit
           />
 
           <Text style={styles.label}>Description</Text>
@@ -148,6 +158,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
             placeholder="What’s in it, prep notes…"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
+            returnKeyType="done"
+            blurOnSubmit
           />
 
           <Text style={styles.label}>Macros</Text>
@@ -162,6 +174,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
                   if (!kcalManual) setKcalS(String(kcalFromMacros(parseNum(t, 0), c, f)));
                 }}
                 keyboardType="decimal-pad"
+                returnKeyType="done"
+                blurOnSubmit
               />
             </View>
             <View style={styles.macroField}>
@@ -174,6 +188,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
                   if (!kcalManual) setKcalS(String(kcalFromMacros(p, parseNum(t, 0), f)));
                 }}
                 keyboardType="decimal-pad"
+                returnKeyType="done"
+                blurOnSubmit
               />
             </View>
           </View>
@@ -188,6 +204,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
                   if (!kcalManual) setKcalS(String(kcalFromMacros(p, c, parseNum(t, 0))));
                 }}
                 keyboardType="decimal-pad"
+                returnKeyType="done"
+                blurOnSubmit
               />
             </View>
             <View style={styles.macroField}>
@@ -200,6 +218,8 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
                   setKcalS(t);
                 }}
                 keyboardType="number-pad"
+                returnKeyType="done"
+                blurOnSubmit
               />
             </View>
           </View>
@@ -224,6 +244,7 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
 
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: theme.colors.background },
+  scrollFlex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

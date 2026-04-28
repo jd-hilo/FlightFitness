@@ -1,3 +1,4 @@
+import { reconcileMealMacrosToTargetsInPlan } from '@/lib/reconcileMealMacrosToTargets';
 import { formatYmdLocal } from '@/lib/weekUtils';
 import type { OnboardingAnswers } from '@/types/plan';
 import type { WeekPlan } from '@/types/plan';
@@ -79,14 +80,16 @@ function equipmentHint(ids: string[]) {
 
 export function buildMockWeekPlan(answers: OnboardingAnswers): WeekPlan {
   const weekStart = mondayOfWeek(new Date());
-  const g = answers.goal;
+  const goals = answers.goal;
   const deltaLb = answers.targetWeightLb - answers.currentWeightLb;
 
   const maintenance = estimateMaintenanceKcal(answers);
   let calories = maintenance;
-  const wantsLose = g === 'lose_fat' || (deltaLb < -8 && g !== 'build_muscle');
-  const wantsGain = g === 'build_muscle' && deltaLb > 8;
-  const recomp = g === 'recomp';
+  const wantsLose =
+    goals.includes('lose_fat') ||
+    (deltaLb < -8 && !goals.includes('build_muscle'));
+  const wantsGain = goals.includes('build_muscle') && deltaLb > 8;
+  const recomp = goals.includes('recomp');
 
   if (wantsLose && !wantsGain) {
     calories = maintenance - deficitForPace(answers);
@@ -96,10 +99,10 @@ export function buildMockWeekPlan(answers: OnboardingAnswers): WeekPlan {
   } else if (recomp) {
     calories = maintenance - 120;
   }
-  if (g === 'general_health') {
+  if (goals.includes('general_health')) {
     calories = Math.min(calories, maintenance + 50);
   }
-  if (g === 'performance') calories += 120;
+  if (goals.includes('performance')) calories += 120;
   calories = Math.max(1500, Math.min(4000, Math.round(calories)));
 
   const proteinG = Math.round((calories * 0.3) / 4);
@@ -267,7 +270,7 @@ export function buildMockWeekPlan(answers: OnboardingAnswers): WeekPlan {
     };
   }
 
-  return {
+  const plan: WeekPlan = {
     weekStart,
     macroTargets: {
       calories,
@@ -287,4 +290,6 @@ export function buildMockWeekPlan(answers: OnboardingAnswers): WeekPlan {
       { name: 'Olive oil', quantity: '1 bottle', category: 'Pantry' },
     ],
   };
+  reconcileMealMacrosToTargetsInPlan(plan as unknown as Record<string, unknown>);
+  return plan;
 }

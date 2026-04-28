@@ -76,6 +76,10 @@ NUTRITION GUIDELINES:
 • Provide diverse, appetizing food — rotate cuisines, avoid repetitive "bro food" (chicken-rice-broccoli every day).
 • Snacks should be functional: pre-workout fuel, post-workout recovery, or macro-filler — not filler junk.
 
+DAILY MACRO ACCURACY (critical):
+• For EACH calendar day, the sum of all that day's meal.macros must match macroTargets for that week: sum(proteinG) ≈ macroTargets.proteinG, sum(carbsG) ≈ macroTargets.carbsG, sum(fatG) ≈ macroTargets.fatG, sum(kcal) ≈ macroTargets.calories (within a few grams / ~50 kcal rounding).
+• Every meal.macros.kcal should be consistent with its proteinG, carbsG, fatG (approximately 4·P + 4·C + 9·F kcal).
+
 GROCERY LIST:
 • Consolidate all ingredients across the 7 days into one list.
 • Group by category (produce, protein/meat, dairy, grains/pantry, oils/condiments, frozen).

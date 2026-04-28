@@ -1,3 +1,5 @@
+import { reconcileMealMacrosToTargetsInPlan } from '@/lib/reconcileMealMacrosToTargets';
+
 /**
  * Coerce common OpenAI JSON slips before strict Zod parsing (reps as number, slot casing, etc.).
  */
@@ -140,6 +142,8 @@ export function normalizeWeekPlanFromAI(raw: unknown): unknown {
         return row;
       });
   }
+
+  reconcileMealMacrosToTargetsInPlan(out as Record<string, unknown>);
 
   return out;
 }

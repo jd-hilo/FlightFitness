@@ -1,3 +1,5 @@
+import { reconcileMealMacrosToTargetsInPlan } from './reconcileMealMacrosToTargets.ts';
+
 /** Same rules as lib/weekPlanAINormalize.ts (kept in sync for Edge). */
 export function normalizeWeekPlanFromAI(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
@@ -134,6 +136,8 @@ export function normalizeWeekPlanFromAI(raw: unknown): unknown {
         return row;
       });
   }
+
+  reconcileMealMacrosToTargetsInPlan(out as Record<string, unknown>);
 
   return out;
 }

@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,7 +7,10 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
+import { deleteAccount } from '@/lib/api/deleteAccount';
+import { COACHING_DESCRIPTION } from '@/lib/coachingPlanCopy';
 import { getProfileSectionSummaries } from '@/lib/profileSectionSummaries';
+import { resetLocalAppStateForSignOut } from '@/lib/signOutReset';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
@@ -30,22 +33,21 @@ const PLAN_META: Record<
   },
   essentials: {
     name: 'Essentials',
-    price: '$9.99/mo',
-    body: 'Unlimited AI meal & workout plans, customization, grocery lists.',
+    price: '$2.99/week',
+    body: 'Unlimited AI meal & workout plans, grocery lists, plus daily faith study and reflections.',
   },
   coaching: {
-    name: 'Coaching',
-    price: '$199/mo',
-    body: 'Jude: custom programming plus 1:1 messaging. Limited seats.',
+    name: 'FF Custom Coaching',
+    price: '$199/month (waitlist)',
+    body: `${COACHING_DESCRIPTION} Join the waitlist from Upgrade; we email you when a seat opens.`,
   },
 };
 
 export default function EliteScreen() {
   const insets = useSafeAreaInsets();
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const tier = useSubscriptionStore((s) => s.tier);
-  const setTier = useSubscriptionStore((s) => s.setTier);
-  const resetDev = useSubscriptionStore((s) => s.resetDev);
   const answers = useOnboardingStore((s) => s.answers);
   const trainingStreak = useCompletionStore((s) => s.streak);
   const faithStreak = useFaithDailyStore((s) => s.faithStreak);
@@ -61,8 +63,8 @@ export default function EliteScreen() {
     Alert.alert(
       'Sign out',
       supabaseConfigured
-        ? 'Clears your cloud session on this device (anonymous sign-in). Your plan and onboarding answers stay on this phone until you reset them.'
-        : 'Cloud session is not configured. You can still return to the welcome screen.',
+        ? 'Clears your saved plan, onboarding answers, streaks, and subscription test state from this device, then ends your cloud session. Next time you open the app you start from the welcome flow.'
+        : 'Clears your saved plan, onboarding answers, streaks, and subscription test state from this device. Cloud auth is not configured; you return to the welcome screen.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -71,6 +73,7 @@ export default function EliteScreen() {
           onPress: async () => {
             setSigningOut(true);
             try {
+              resetLocalAppStateForSignOut();
               if (supabase) {
                 const { error } = await supabase.auth.signOut({ scope: 'local' });
                 if (__DEV__ && error) {
@@ -86,6 +89,39 @@ export default function EliteScreen() {
       ]
     );
   };
+
+  const onDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your Flight Fitness account and cloud data. You cannot undo this.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setDeletingAccount(true);
+              const res = await deleteAccount();
+              setDeletingAccount(false);
+              if (!res.ok) {
+                Alert.alert('Could not delete account', res.error);
+                return;
+              }
+              resetLocalAppStateForSignOut();
+              if (supabase) {
+                const { error } = await supabase.auth.signOut({ scope: 'local' });
+                if (__DEV__ && error) {
+                  console.warn('[deleteAccount] signOut after delete:', error.message);
+                }
+              }
+              router.replace('/welcome' as Href);
+            })();
+          },
+        },
+      ]
+    );
+  }, []);
 
   return (
     <View style={styles.screen}>
@@ -188,29 +224,26 @@ export default function EliteScreen() {
 
         <Text style={styles.sectionLabel}>Account</Text>
         <Pressable
-          style={[styles.signOutBtn, signingOut && styles.signOutBtnDisabled]}
+          style={[
+            styles.signOutBtn,
+            (signingOut || deletingAccount) && styles.signOutBtnDisabled,
+          ]}
           onPress={onSignOut}
-          disabled={signingOut}>
+          disabled={signingOut || deletingAccount}>
           <Text style={styles.signOutTxt}>
             {signingOut ? 'Signing out…' : 'Sign out'}
           </Text>
         </Pressable>
-
-        <Text style={styles.devLabel}>Developer</Text>
-        <Text style={styles.devHint}>Simulate subscription tier for testing:</Text>
-        <View style={styles.devRow}>
-          <Pressable style={styles.devBtn} onPress={() => setTier('free')}>
-            <Text style={styles.devBtnTxt}>Free</Text>
-          </Pressable>
-          <Pressable style={styles.devBtn} onPress={() => setTier('essentials')}>
-            <Text style={styles.devBtnTxt}>Essentials</Text>
-          </Pressable>
-          <Pressable style={styles.devBtn} onPress={() => setTier('coaching')}>
-            <Text style={styles.devBtnTxt}>Coaching</Text>
-          </Pressable>
-        </View>
-        <Pressable onPress={resetDev}>
-          <Text style={styles.resetTxt}>Reset subscription + free plan flag</Text>
+        <Pressable
+          style={[
+            styles.deleteAccountBtn,
+            deletingAccount && styles.deleteAccountBtnDisabled,
+          ]}
+          onPress={onDeleteAccount}
+          disabled={signingOut || deletingAccount}>
+          <Text style={styles.deleteAccountTxt}>
+            {deletingAccount ? 'Deleting account…' : 'Delete account'}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -403,7 +436,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.error,
     paddingVertical: 14,
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 12,
   },
   signOutBtnDisabled: { opacity: 0.5 },
   signOutTxt: {
@@ -413,40 +446,19 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     textTransform: 'uppercase',
   },
-  devLabel: {
+  deleteAccountBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  deleteAccountBtnDisabled: { opacity: 0.5 },
+  deleteAccountTxt: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 2,
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  devHint: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
-    marginBottom: 12,
-  },
-  devRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  devBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    alignItems: 'center',
-  },
-  devBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-  },
-  resetTxt: {
-    fontFamily: theme.fonts.body,
-    fontSize: 12,
-    color: theme.colors.error,
-    textDecorationLine: 'underline',
-    marginBottom: 24,
   },
 });

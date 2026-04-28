@@ -8,8 +8,8 @@ import { theme } from '@/constants/theme';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 /**
- * Upgrade pill for the app bar (Train / Fuel). Hidden only on Coaching.
- * Short label so it stays visible next to the logo on small phones.
+ * Upgrade pill beside the Train / Fuel screen title. Hidden only on Coaching.
+ * Short label so it fits on small phones.
  */
 export function PlanUpgradeBadge() {
   const tier = useSubscriptionStore((s) => s.tier);

@@ -72,8 +72,8 @@ export type MacroTargets = z.infer<typeof macroTargetsSchema>;
 export type WeekPlan = z.infer<typeof weekPlanSchema>;
 
 export type OnboardingAnswers = {
-  /** Single primary goal id. */
-  goal: string;
+  /** Up to two primary goal ids. First selected is treated as primary when ranking tradeoffs. */
+  goal: string[];
   /** Single experience tier id. */
   experience: string;
   equipment: string[];
@@ -81,7 +81,7 @@ export type OnboardingAnswers = {
   dietPattern: string;
   /** Add-on modifiers; max 5 in UI (protein, halal, kosher, GF, etc.). */
   dietModifiers: string[];
-  /** Dislikes & cuisine lean; max 5 in UI. */
+  /** Meal style & prep prefs; max 6 in UI (see FOOD_PREFERENCE_OPTIONS). */
   foodPreferences: string[];
   /** Single: training days per week option id (see TRAINING_DAYS_OPTIONS). */
   trainingDaysPerWeek: string;

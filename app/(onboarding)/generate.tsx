@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { buildMockWeekPlan } from '@/lib/mockPlan';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
@@ -24,6 +25,11 @@ export default function GenerateScreen() {
 
   useEffect(() => {
     if (!hydrated) return;
+
+    if (useSubscriptionStore.getState().tier === 'coaching') {
+      router.replace('/(tabs)' as Href);
+      return;
+    }
 
     skipOrDoneRef.current = false;
     const answers = useOnboardingStore.getState().answers;
@@ -50,6 +56,7 @@ export default function GenerateScreen() {
         }
         skipOrDoneRef.current = true;
         setFromWeekPlan(res.plan);
+        useSubscriptionStore.getState().consumeFreeAiWeekAfterFullGenerateIfNeeded();
         router.replace('/(tabs)');
       } catch (e) {
         if (cancelled || skipOrDoneRef.current) return;
@@ -73,10 +80,10 @@ export default function GenerateScreen() {
 
   const retry = () => setAttempt((a) => a + 1);
 
-  /** Testing: skip wait / errors and open main tabs with a mock week. */
-  const notNowToHome = () => {
+  const continueWithSampleWeek = () => {
     skipOrDoneRef.current = true;
-    setFromWeekPlan(buildMockWeekPlan(useOnboardingStore.getState().answers));
+    const answers = useOnboardingStore.getState().answers;
+    setFromWeekPlan(buildMockWeekPlan(answers));
     router.replace('/(tabs)');
   };
 
@@ -84,7 +91,7 @@ export default function GenerateScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 48 }]}>
       <PlanGeneratingModal
         visible={status === 'loading'}
-        onSkipSample={notNowToHome}
+        onUseSampleWeek={continueWithSampleWeek}
       />
       {status === 'err' ? (
         <View style={styles.errBox}>
@@ -93,8 +100,8 @@ export default function GenerateScreen() {
           <Pressable style={styles.btn} onPress={retry}>
             <Text style={styles.btnTxt}>Retry</Text>
           </Pressable>
-          <Pressable style={styles.notNowErr} onPress={notNowToHome} hitSlop={12}>
-            <Text style={styles.notNowTxt}>Use sample plan instead</Text>
+          <Pressable style={styles.sampleErrBtn} onPress={continueWithSampleWeek}>
+            <Text style={styles.sampleErrBtnTxt}>Continue with sample week</Text>
           </Pressable>
         </View>
       ) : null}
@@ -136,15 +143,19 @@ const styles = StyleSheet.create({
     color: theme.colors.onGold,
     textTransform: 'uppercase',
   },
-  notNowErr: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
+  sampleErrBtn: {
+    marginTop: 12,
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  notNowTxt: {
-    fontFamily: theme.fonts.body,
-    fontSize: 15,
-    color: theme.colors.onSurfaceVariant,
-    textDecorationLine: 'underline',
+  sampleErrBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
 });

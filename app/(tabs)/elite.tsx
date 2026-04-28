@@ -34,7 +34,8 @@ const PLAN_META: Record<
   essentials: {
     name: 'Essentials',
     price: '$2.99/week',
-    body: 'Unlimited AI meal & workout plans, grocery lists, plus daily faith study and reflections.',
+    body:
+      'Unlimited AI meal & workout plans, grocery lists, plus daily faith study and reflections. Weekly billing only — there is no monthly or yearly Essentials plan.',
   },
   coaching: {
     name: 'FF Custom Coaching',

@@ -6,7 +6,13 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { PlanFeatureRow } from '@/components/EssentialsPlanFeatureRow';
 import { theme } from '@/constants/theme';
-import { COACHING_FEATURES, ESSENTIALS_FEATURES } from '@/lib/coachingPlanCopy';
+import {
+  COACHING_FEATURES,
+  ESSENTIALS_FEATURES,
+  ESSENTIALS_PAYWALL_LEGAL,
+  ESSENTIALS_RENEWAL_FOOTNOTE,
+  ESSENTIALS_WEEKLY_ONLY_CAPTION,
+} from '@/lib/coachingPlanCopy';
 import type { SubscriptionTier } from '@/stores/subscriptionStore';
 
 type Offer = 'essentials' | 'coaching';
@@ -110,14 +116,16 @@ export function FlightUpgradeOffer({
                 <Text style={styles.offerName} numberOfLines={1} adjustsFontSizeToFit>
                   Essentials
                 </Text>
-                <Text style={styles.offerCaption}>Full app access</Text>
+                <Text style={styles.offerCaption}>{ESSENTIALS_WEEKLY_ONLY_CAPTION}</Text>
               </View>
             </View>
             <View style={styles.offerBottom}>
               <Text style={styles.offerPrice}>$2.99</Text>
               <Text style={styles.offerPeriod}>/week</Text>
             </View>
-            <Text style={styles.offerNote}>{essentialsActive || coachingActive ? 'Included' : 'Auto-renewable'}</Text>
+            <Text style={styles.offerNote}>
+              {essentialsActive || coachingActive ? 'Included' : ESSENTIALS_RENEWAL_FOOTNOTE}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -190,9 +198,7 @@ export function FlightUpgradeOffer({
           </Pressable>
         ) : null}
 
-        <Text style={styles.legal}>
-          Auto-renewable. Cancel anytime in App Store settings.
-        </Text>
+        <Text style={styles.legal}>{ESSENTIALS_PAYWALL_LEGAL}</Text>
 
         <Pressable onPress={onRestore} style={styles.restoreWrap}>
           <Text style={styles.restore}>Restore purchases</Text>

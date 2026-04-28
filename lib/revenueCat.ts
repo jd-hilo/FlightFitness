@@ -5,7 +5,7 @@ import Purchases, {
   type PurchasesOffering,
   type PurchasesPackage,
 } from 'react-native-purchases';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import RevenueCatUI from 'react-native-purchases-ui';
 
 import { isRegisteredAppUser } from '@/lib/useRegisteredAuth';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
@@ -31,6 +31,8 @@ export const REVENUECAT_WEEKLY_PACKAGE_ID =
 
 let configured = false;
 let listenerAttached = false;
+/** Avoid duplicate `logIn` calls for the same Supabase user (can trigger noisy attribute sync). */
+let lastIdentifiedAppUserId: string | null = null;
 
 function getApiKey() {
   if (Platform.OS === 'ios') return IOS_API_KEY;
@@ -91,7 +93,20 @@ export async function identifyRevenueCatUser(appUserID: string) {
   const ready = await configureRevenueCat();
   if (!ready) return null;
 
+  try {
+    const currentId = await Purchases.getAppUserID();
+    if (currentId === appUserID || lastIdentifiedAppUserId === appUserID) {
+      const customerInfo = await Purchases.getCustomerInfo();
+      applyRevenueCatCustomerInfo(customerInfo);
+      lastIdentifiedAppUserId = appUserID;
+      return customerInfo;
+    }
+  } catch {
+    // If getAppUserID fails, fall through to logIn.
+  }
+
   const { customerInfo } = await Purchases.logIn(appUserID);
+  lastIdentifiedAppUserId = appUserID;
   applyRevenueCatCustomerInfo(customerInfo);
   return customerInfo;
 }
@@ -100,6 +115,7 @@ export async function logOutRevenueCatUser() {
   if (!configured) return null;
 
   const customerInfo = await Purchases.logOut();
+  lastIdentifiedAppUserId = null;
   applyRevenueCatCustomerInfo(customerInfo);
   return customerInfo;
 }
@@ -148,20 +164,6 @@ export async function purchaseWeeklyEssentials() {
   return customerInfo;
 }
 
-export async function presentEssentialsPaywallIfNeeded() {
-  const ready = await configureRevenueCat();
-  if (!ready) {
-    throw new Error('RevenueCat is not configured for this platform.');
-  }
-
-  const result = await RevenueCatUI.presentPaywallIfNeeded({
-    requiredEntitlementIdentifier: REVENUECAT_ESSENTIALS_ENTITLEMENT_ID,
-    displayCloseButton: true,
-  });
-  const customerInfo = await refreshRevenueCatCustomerInfo();
-  return { result, customerInfo };
-}
-
 export async function restoreRevenueCatPurchases() {
   const ready = await configureRevenueCat();
   if (!ready) {
@@ -193,14 +195,6 @@ export function revenueCatPurchaseWasCancelled(error: unknown) {
   return Boolean(
     'userCancelled' in error &&
       (error as { userCancelled?: boolean }).userCancelled
-  );
-}
-
-export function revenueCatPaywallCompleted(result: PAYWALL_RESULT) {
-  return (
-    result === PAYWALL_RESULT.PURCHASED ||
-    result === PAYWALL_RESULT.RESTORED ||
-    result === PAYWALL_RESULT.NOT_PRESENTED
   );
 }
 

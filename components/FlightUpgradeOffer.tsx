@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
@@ -34,6 +34,8 @@ type Props = {
   continueBusy?: boolean;
   essentialsBusy?: boolean;
   coachingBusy?: boolean;
+  /** After user joins the coaching waitlist; coaching card is locked, Essentials / free week stay available. */
+  coachingWaitlistJoined?: boolean;
 };
 
 const APP_ICON = require('../assets/images/icon.png');
@@ -52,12 +54,19 @@ export function FlightUpgradeOffer({
   continueBusy,
   essentialsBusy,
   coachingBusy,
+  coachingWaitlistJoined = false,
 }: Props) {
   const [selected, setSelected] = useState<Offer>(
     tier === 'coaching' ? 'coaching' : 'essentials'
   );
   const coachingActive = tier === 'coaching';
   const essentialsActive = tier === 'essentials';
+  const coachingCardLocked = coachingWaitlistJoined && !coachingActive;
+
+  useEffect(() => {
+    if (!coachingWaitlistJoined) return;
+    setSelected((s) => (s === 'coaching' ? 'essentials' : s));
+  }, [coachingWaitlistJoined]);
   const visibleBenefits =
     selected === 'coaching' ? COACHING_FEATURES : ESSENTIALS_FEATURES;
   const selectedBusy =
@@ -139,43 +148,65 @@ export function FlightUpgradeOffer({
           </Pressable>
 
           <Pressable
-            style={[
+            disabled={coachingCardLocked}
+            style={({ pressed }) => [
               styles.offerCard,
-              selected === 'coaching' && styles.offerCardSelected,
+              selected === 'coaching' && !coachingCardLocked && styles.offerCardSelected,
+              coachingCardLocked && styles.offerCardLocked,
+              pressed && !coachingCardLocked && styles.offerCardPressed,
             ]}
             onPress={() => setSelected('coaching')}>
             <MaterialIcons
               name={selected === 'coaching' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
-              color={selected === 'coaching' ? '#FFFFFF' : 'rgba(255,255,255,0.42)'}
+              color={
+                coachingCardLocked
+                  ? 'rgba(255,255,255,0.18)'
+                  : selected === 'coaching'
+                    ? '#FFFFFF'
+                    : 'rgba(255,255,255,0.42)'
+              }
               style={styles.offerCheck}
             />
             <View style={styles.offerTop}>
               <View style={styles.offerTitleCol}>
-                <Text style={styles.offerName} numberOfLines={2}>
+                <Text
+                  style={[
+                    styles.offerName,
+                    coachingCardLocked && styles.offerTextMuted,
+                  ]}
+                  numberOfLines={2}>
                   Custom Coaching
                 </Text>
-                <Text style={styles.offerCaption}>Coach-led plan</Text>
+                <Text
+                  style={[styles.offerCaption, coachingCardLocked && styles.offerCaptionMuted]}
+                  numberOfLines={2}>
+                  Coach-led plan
+                </Text>
               </View>
             </View>
             <View style={[styles.offerBottom, styles.offerBottomTight]}>
               <Text
-                style={styles.offerPrice}
+                style={[styles.offerPrice, coachingCardLocked && styles.offerTextMuted]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.55}>
                 $199
               </Text>
               <Text
-                style={styles.offerPeriod}
+                style={[styles.offerPeriod, coachingCardLocked && styles.offerCaptionMuted]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}>
                 /month
               </Text>
             </View>
-            <Text style={styles.offerNote}>
-              {coachingActive ? "You're in" : 'At capacity — join waitlist'}
+            <Text style={[styles.offerNote, coachingCardLocked && styles.offerNoteMuted]}>
+              {coachingActive
+                ? "You're in"
+                : coachingWaitlistJoined
+                  ? 'Waitlist joined'
+                  : 'At capacity — join waitlist'}
             </Text>
           </Pressable>
         </View>
@@ -329,6 +360,23 @@ const styles = StyleSheet.create({
   offerCardSelected: {
     borderColor: 'rgba(255,255,255,0.82)',
     backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  offerCardLocked: {
+    opacity: 0.38,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  offerCardPressed: {
+    opacity: 0.92,
+  },
+  offerTextMuted: {
+    color: 'rgba(255,255,255,0.35)',
+  },
+  offerCaptionMuted: {
+    color: 'rgba(255,255,255,0.28)',
+  },
+  offerNoteMuted: {
+    color: 'rgba(255,255,255,0.4)',
   },
   offerCheck: {
     position: 'absolute',

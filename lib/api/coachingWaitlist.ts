@@ -53,6 +53,28 @@ export async function submitCoachingWaitlist(emailRaw: string): Promise<SubmitWa
  * Joins the waitlist using the signed-in user's account email (no form).
  * Fails if the session has no email (e.g. phone-only); user should use email sign-in.
  */
+/** True if the current session’s user_id already has a coaching waitlist row (for paywall / upgrade UI). */
+export async function isCurrentUserOnCoachingWaitlist(): Promise<boolean> {
+  if (!supabaseConfigured || !supabase) return false;
+  const session = await ensureFreshSessionForEdge();
+  const uid = session?.user?.id;
+  if (!uid) return false;
+
+  const { data, error } = await supabase
+    .from('coaching_waitlist')
+    .select('id')
+    .eq('user_id', uid)
+    .maybeSingle();
+
+  if (error) {
+    if (__DEV__) {
+      console.warn('[isCurrentUserOnCoachingWaitlist]', error.message, error.code);
+    }
+    return false;
+  }
+  return Boolean(data);
+}
+
 export async function submitCoachingWaitlistFromSession(): Promise<SubmitWaitlistResult> {
   if (!supabaseConfigured || !supabase) {
     return { ok: false, error: 'Cloud is not configured on this device.' };

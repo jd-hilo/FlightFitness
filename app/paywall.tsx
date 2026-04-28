@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
@@ -5,13 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CoachingWaitlistJoinedModal } from '@/components/CoachingWaitlistJoinedModal';
 import { FlightUpgradeOffer } from '@/components/FlightUpgradeOffer';
-import { submitCoachingWaitlistFromSession } from '@/lib/api/coachingWaitlist';
+import {
+  isCurrentUserOnCoachingWaitlist,
+  submitCoachingWaitlistFromSession,
+} from '@/lib/api/coachingWaitlist';
 import {
   REVENUECAT_ESSENTIALS_ENTITLEMENT_ID,
-  presentEssentialsPaywallIfNeeded,
   purchaseWeeklyEssentials,
   restoreRevenueCatPurchases,
-  revenueCatPaywallCompleted,
   revenueCatPurchaseWasCancelled,
 } from '@/lib/revenueCat';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
@@ -21,36 +23,40 @@ export default function PaywallScreen() {
   const [waitlistJoinedOpen, setWaitlistJoinedOpen] = useState(false);
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [essentialsBusy, setEssentialsBusy] = useState(false);
+  const [coachingWaitlistJoined, setCoachingWaitlistJoined] = useState(false);
   const tier = useSubscriptionStore((s) => s.tier);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        const on = await isCurrentUserOnCoachingWaitlist();
+        if (!cancelled && on) setCoachingWaitlistJoined(true);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
 
   const onBuyEssentials = useCallback(async () => {
     setEssentialsBusy(true);
     try {
-      const { result } = await presentEssentialsPaywallIfNeeded();
-      if (revenueCatPaywallCompleted(result)) {
-        router.back();
-      }
-    } catch (paywallError) {
-      if (revenueCatPurchaseWasCancelled(paywallError)) return;
-
-      try {
-        await purchaseWeeklyEssentials();
-        router.back();
-      } catch (purchaseError) {
-        if (revenueCatPurchaseWasCancelled(purchaseError)) return;
-        Alert.alert(
-          'Could not start purchase',
-          purchaseError instanceof Error
-            ? purchaseError.message
-            : 'Please try again in a moment.'
-        );
-      }
+      await purchaseWeeklyEssentials();
+      router.back();
+    } catch (error) {
+      if (revenueCatPurchaseWasCancelled(error)) return;
+      Alert.alert(
+        'Could not start purchase',
+        error instanceof Error ? error.message : 'Please try again in a moment.'
+      );
     } finally {
       setEssentialsBusy(false);
     }
   }, []);
 
   const onJoinWaitlist = useCallback(async () => {
+    if (coachingWaitlistJoined) return;
     setWaitlistBusy(true);
     const res = await submitCoachingWaitlistFromSession();
     setWaitlistBusy(false);
@@ -58,8 +64,9 @@ export default function PaywallScreen() {
       Alert.alert('Could not join waitlist', res.error);
       return;
     }
+    setCoachingWaitlistJoined(true);
     setWaitlistJoinedOpen(true);
-  }, []);
+  }, [coachingWaitlistJoined]);
 
   const onRestore = useCallback(() => {
     void (async () => {
@@ -97,12 +104,12 @@ export default function PaywallScreen() {
         onRestore={onRestore}
         essentialsBusy={essentialsBusy}
         coachingBusy={waitlistBusy}
+        coachingWaitlistJoined={coachingWaitlistJoined}
       />
       <CoachingWaitlistJoinedModal
         visible={waitlistJoinedOpen}
         onDismiss={() => {
           setWaitlistJoinedOpen(false);
-          router.back();
         }}
       />
     </>

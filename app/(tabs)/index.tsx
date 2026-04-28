@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
@@ -57,6 +57,14 @@ function intensityFromHour(h: number) {
   return 'LOW';
 }
 
+/** Local device time; same bands as `intensityFromHour` for consistency. */
+function timeOfDayGreetingWord(d: Date): 'Morning' | 'Afternoon' | 'Evening' {
+  const h = d.getHours();
+  if (h >= 5 && h < 12) return 'Morning';
+  if (h >= 12 && h < 17) return 'Afternoon';
+  return 'Evening';
+}
+
 function verseWatermark(ref: string) {
   const compact = ref.replace(/\s+/g, ' ').trim();
   const book = compact.split(/\d/)[0]?.trim() ?? compact;
@@ -90,10 +98,17 @@ export default function HomeScreen() {
   const tier = useSubscriptionStore((s) => s.tier);
   const remoteHeroUrl = dailyRemote?.image_url;
   const heroFadeOpacity = useRef(new Animated.Value(0)).current;
+  const [, setClockTick] = useState(0);
 
   useEffect(() => {
     heroFadeOpacity.setValue(0);
   }, [remoteHeroUrl, heroFadeOpacity]);
+
+  /** Re-render periodically so greeting / clock stay accurate if the user stays on Home with no other updates. */
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   /** Same mapping as Fuel/Train: calendar week (Mon–Sun) ↔ plan `mealsByDay` / `workoutsByDay` index. */
   const viewWeekYmd = viewWeekStartYmdLocal();
@@ -146,7 +161,8 @@ export default function HomeScreen() {
       (!dailyFetchSettled || dailyLoading),
     [hasRemoteHero, dailyFetchSettled, dailyLoading]
   );
-  const now = useMemo(() => new Date(), []);
+  const now = new Date();
+  const greetingWord = timeOfDayGreetingWord(now);
   const timeLine = `${formatTimeLabel(now).toUpperCase()} // INTENSITY: ${intensityFromHour(
     now.getHours()
   )}`;
@@ -236,7 +252,7 @@ export default function HomeScreen() {
           <View style={styles.heroTextBlock}>
             <Text style={styles.heroKicker}>{timeLine}</Text>
             <Text style={styles.heroTitle}>
-              Morning,{' '}
+              {greetingWord},{' '}
               <Text style={styles.heroName}>Marcus</Text>
             </Text>
           </View>
@@ -442,14 +458,16 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 48,
-    lineHeight: 48,
-    letterSpacing: -2,
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.5,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
   heroName: {
     fontFamily: theme.fonts.headline,
+    fontSize: 40,
+    lineHeight: 44,
     fontStyle: 'italic',
     color: theme.colors.gold,
   },

@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -17,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
+import { FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -244,6 +246,19 @@ export default function WelcomeScreen() {
               Swipe through each screen to unlock continue.
             </Text>
           ) : null}
+          <Text style={styles.terms}>
+            By using Flight Fitness, you agree to our{' '}
+            <Text
+              style={styles.termsLink}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Service"
+              onPress={() =>
+                void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
+              }>
+              Terms of Service
+            </Text>
+            .
+          </Text>
         </Animated.View>
       </View>
     </View>
@@ -339,6 +354,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
+  },
+  terms: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  termsLink: {
+    color: theme.colors.gold,
+    textDecorationLine: 'underline',
   },
   primary: {
     backgroundColor: theme.colors.gold,

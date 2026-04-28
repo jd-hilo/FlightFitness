@@ -10,6 +10,7 @@ import { theme } from '@/constants/theme';
 import { deleteAccount } from '@/lib/api/deleteAccount';
 import { COACHING_DESCRIPTION } from '@/lib/coachingPlanCopy';
 import { getProfileSectionSummaries } from '@/lib/profileSectionSummaries';
+import { presentRevenueCatCustomerCenter } from '@/lib/revenueCat';
 import { resetLocalAppStateForSignOut } from '@/lib/signOutReset';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { useCompletionStore } from '@/stores/completionStore';
@@ -48,6 +49,7 @@ export default function EliteScreen() {
   const insets = useSafeAreaInsets();
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [managingSubscription, setManagingSubscription] = useState(false);
   const tier = useSubscriptionStore((s) => s.tier);
   const answers = useOnboardingStore((s) => s.answers);
   const trainingStreak = useCompletionStore((s) => s.streak);
@@ -124,6 +126,27 @@ export default function EliteScreen() {
     );
   }, []);
 
+  const onManagePlan = useCallback(() => {
+    if (tier === 'free') {
+      router.push('/paywall' as Href);
+      return;
+    }
+
+    void (async () => {
+      setManagingSubscription(true);
+      try {
+        await presentRevenueCatCustomerCenter();
+      } catch (error) {
+        Alert.alert(
+          'Could not open subscription settings',
+          error instanceof Error ? error.message : 'Please try again in a moment.'
+        );
+      } finally {
+        setManagingSubscription(false);
+      }
+    })();
+  }, [tier]);
+
   return (
     <View style={styles.screen}>
       <ScreenHeader />
@@ -189,11 +212,14 @@ export default function EliteScreen() {
           </Text>
           <Text style={styles.currentPlanBody}>{PLAN_META[tier].body}</Text>
           <Pressable
-            onPress={() => router.push('/paywall' as Href)}
+            onPress={onManagePlan}
             hitSlop={8}
+            disabled={managingSubscription}
             accessibilityRole="button"
             accessibilityLabel="Manage or change plan">
-            <Text style={styles.currentPlanLink}>Manage or change plan</Text>
+            <Text style={styles.currentPlanLink}>
+              {managingSubscription ? 'Opening subscriptions…' : 'Manage or change plan'}
+            </Text>
           </Pressable>
         </View>
 

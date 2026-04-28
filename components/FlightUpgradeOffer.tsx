@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -13,6 +14,7 @@ import {
   ESSENTIALS_RENEWAL_FOOTNOTE,
   ESSENTIALS_WEEKLY_ONLY_CAPTION,
 } from '@/lib/coachingPlanCopy';
+import { FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
 import type { SubscriptionTier } from '@/stores/subscriptionStore';
 
 type Offer = 'essentials' | 'coaching';
@@ -30,6 +32,8 @@ type Props = {
   onRestore: () => void;
   /** When true, main CTA shows a spinner (e.g. joining waitlist). */
   continueBusy?: boolean;
+  essentialsBusy?: boolean;
+  coachingBusy?: boolean;
 };
 
 const APP_ICON = require('../assets/images/icon.png');
@@ -46,6 +50,8 @@ export function FlightUpgradeOffer({
   onFreeWeek,
   onRestore,
   continueBusy,
+  essentialsBusy,
+  coachingBusy,
 }: Props) {
   const [selected, setSelected] = useState<Offer>(
     tier === 'coaching' ? 'coaching' : 'essentials'
@@ -54,6 +60,10 @@ export function FlightUpgradeOffer({
   const essentialsActive = tier === 'essentials';
   const visibleBenefits =
     selected === 'coaching' ? COACHING_FEATURES : ESSENTIALS_FEATURES;
+  const selectedBusy =
+    selected === 'coaching'
+      ? Boolean(coachingBusy ?? continueBusy)
+      : Boolean(essentialsBusy);
 
   const onContinue = () => {
     if (selected === 'coaching') {
@@ -173,11 +183,11 @@ export function FlightUpgradeOffer({
         <Pressable
           style={[
             styles.continueBtn,
-            continueBusy && selected === 'coaching' && styles.continueBtnDisabled,
+            selectedBusy && styles.continueBtnDisabled,
           ]}
           onPress={onContinue}
-          disabled={Boolean(continueBusy && selected === 'coaching')}>
-          {continueBusy && selected === 'coaching' ? (
+          disabled={selectedBusy}>
+          {selectedBusy ? (
             <AppLoadingCross size="small" />
           ) : (
             <Text style={styles.continueTxt}>
@@ -199,6 +209,20 @@ export function FlightUpgradeOffer({
         ) : null}
 
         <Text style={styles.legal}>{ESSENTIALS_PAYWALL_LEGAL}</Text>
+
+        <Text style={styles.terms}>
+          By continuing, you agree to our{' '}
+          <Text
+            style={styles.termsLink}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Service"
+            onPress={() =>
+              void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
+            }>
+            Terms of Service
+          </Text>
+          .
+        </Text>
 
         <Pressable onPress={onRestore} style={styles.restoreWrap}>
           <Text style={styles.restore}>Restore purchases</Text>
@@ -419,5 +443,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.48)',
     textAlign: 'center',
     lineHeight: 17,
+  },
+  terms: {
+    marginTop: 10,
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.48)',
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingHorizontal: 6,
+  },
+  termsLink: {
+    color: theme.colors.gold,
+    textDecorationLine: 'underline',
   },
 });

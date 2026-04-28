@@ -14,12 +14,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { navigationDarkTheme, theme } from '@/constants/theme';
+import { useRevenueCatSubscriptionSync } from '@/lib/revenueCat';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  useRevenueCatSubscriptionSync();
+
   const [loaded, error] = useFonts({
     Epilogue_700Bold,
     Epilogue_900Black,

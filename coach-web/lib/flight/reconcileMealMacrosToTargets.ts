@@ -44,11 +44,38 @@ function atwaterKcal(p: number, c: number, f: number): number {
   return Math.round(4 * p + 4 * c + 9 * f);
 }
 
-export function reconcileMealMacrosToTargetsInPlan(plan: Record<string, unknown>): void {
+function normalizeMacroTargets(plan: Record<string, unknown>): MacroRecord | null {
   const mtRaw = plan.macroTargets;
-  if (!mtRaw || typeof mtRaw !== 'object') return;
+  if (!mtRaw || typeof mtRaw !== 'object') return null;
 
-  const mt = mtRaw as MacroRecord;
+  const mt = { ...(mtRaw as MacroRecord) };
+  let calories = Math.round(num(mt.calories));
+  const proteinG = Math.round(num(mt.proteinG));
+  let carbsG = Math.round(num(mt.carbsG));
+  const fatG = Math.round(num(mt.fatG));
+  if (calories < 400 || proteinG < 20 || carbsG < 20 || fatG < 10) return null;
+
+  const kcalFromMacros = atwaterKcal(proteinG, carbsG, fatG);
+  if (Math.abs(kcalFromMacros - calories) > 10) {
+    const carbsFromCalories = Math.round((calories - 4 * proteinG - 9 * fatG) / 4);
+    if (carbsFromCalories >= 20) {
+      carbsG = carbsFromCalories;
+    }
+  }
+
+  calories = atwaterKcal(proteinG, carbsG, fatG);
+  mt.calories = calories;
+  mt.proteinG = proteinG;
+  mt.carbsG = carbsG;
+  mt.fatG = fatG;
+  plan.macroTargets = mt;
+  return mt;
+}
+
+export function reconcileMealMacrosToTargetsInPlan(plan: Record<string, unknown>): void {
+  const mt = normalizeMacroTargets(plan);
+  if (!mt) return;
+
   const Tk = num(mt.calories);
   const Tp = num(mt.proteinG);
   const Tc = num(mt.carbsG);
@@ -102,25 +129,6 @@ export function reconcileMealMacrosToTargetsInPlan(plan: Record<string, unknown>
         },
       };
     });
-
-    const sumK = updated.reduce((s, mealUnknown) => {
-      if (!mealUnknown || typeof mealUnknown !== 'object') return s;
-      const mealRow = mealUnknown as MacroRecord;
-      if (!mealRow.macros || typeof mealRow.macros !== 'object') return s;
-      const k = num((mealRow.macros as MacroRecord).kcal);
-      return s + k;
-    }, 0);
-
-    if (sumK > 0 && Math.abs(sumK - Tk) > 3) {
-      const factor = Tk / sumK;
-      return updated.map((meal) => {
-        if (!meal || typeof meal !== 'object' || !(meal as MacroRecord).macros) return meal;
-        const m = meal as MacroRecord;
-        const mac = { ...(m.macros as MacroRecord) };
-        const k = Math.max(50, Math.round(num(mac.kcal) * factor));
-        return { ...m, macros: { ...mac, kcal: k } };
-      });
-    }
 
     return updated;
   });

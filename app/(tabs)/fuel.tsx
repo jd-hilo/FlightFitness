@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
@@ -16,9 +16,7 @@ import { EditMealModal } from '@/components/plan/EditMealModal';
 import { MealCard } from '@/components/plan/MealCard';
 import { WeekStrip } from '@/components/WeekStrip';
 import { theme } from '@/constants/theme';
-import { generateWeekPlan } from '@/lib/api/plan';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
-import { getWeekPlanFromStore } from '@/lib/planFromStore';
 import {
   dateKeyForViewStripDay,
   isViewStripDayBeforeToday,
@@ -29,7 +27,6 @@ import {
 } from '@/lib/weekUtils';
 import { getTriggerVerse } from '@/lib/verses';
 import { normalizeDay, useCompletionStore } from '@/stores/completionStore';
-import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -65,18 +62,15 @@ export default function FuelScreen() {
   const weekStart = usePlanStore((s) => s.weekStart);
   const macroTargets = usePlanStore((s) => s.macroTargets);
   const mealsByDay = usePlanStore((s) => s.mealsByDay);
-  const answers = useOnboardingStore((s) => s.answers);
   const selectedPlanDay = useUiStore((s) => s.selectedPlanDay);
   const setSelectedPlanDay = useUiStore((s) => s.setSelectedPlanDay);
   const byDay = useCompletionStore((s) => s.byDay);
   const toggleMeal = useCompletionStore((s) => s.toggleMeal);
-  const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
   const updateMeal = usePlanStore((s) => s.updateMeal);
   const showVerse = useVerseModalStore((s) => s.show);
   const tier = useSubscriptionStore((s) => s.tier);
   const headerRight =
     tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
-  const [busy, setBusy] = useState(false);
   const [mealEditing, setMealEditing] = useState<Meal | null>(null);
   const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
 
@@ -132,62 +126,6 @@ export default function FuelScreen() {
     }
   };
 
-  const runCustomize = async (
-    action: Parameters<typeof generateWeekPlan>[0]['action'],
-    extra?: Partial<Parameters<typeof generateWeekPlan>[0]>
-  ) => {
-    const current = getWeekPlanFromStore();
-    if (!current) return;
-    setBusy(true);
-    const res = await generateWeekPlan({
-      onboarding: answers,
-      action,
-      currentPlan: current,
-      ...extra,
-    });
-    setBusy(false);
-    if (res.ok) setFromWeekPlan(res.plan);
-    else Alert.alert('Request failed', res.error);
-  };
-
-  const onRegenerateDay = () => {
-    if (!weekStart) return;
-    const viewY = viewWeekStartYmdLocal();
-    const idx = mealDayIndexForViewStrip(weekStart, viewY, selectedPlanDay);
-    if (idx == null) {
-      Alert.alert(
-        'Outside plan week',
-        'This calendar day is not covered by your current 7-day plan. Regenerate a full week or pick another day.'
-      );
-      return;
-    }
-    Alert.alert(
-      'Regenerate day',
-      'Replace this day’s meals with a fresh AI set?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Regenerate',
-          onPress: () =>
-            runCustomize('regenerateDay', { regenerateDay: { dayIndex: idx } }),
-        },
-      ]
-    );
-  };
-
-  const onAdjustMacros = () => {
-    if (!macroTargets) return;
-    const t = macroTargets;
-    runCustomize('adjustMacros', {
-      adjustMacros: {
-        calories: Math.round(t.calories * 1.05),
-        proteinG: t.proteinG,
-        carbsG: t.carbsG,
-        fatG: t.fatG,
-      },
-    });
-  };
-
   const openPreWorkoutCollection = useCallback(() => {
     WebBrowser.openBrowserAsync(FLIGHT_FOODS_PRE_WORKOUT).catch(() => {});
   }, []);
@@ -235,29 +173,6 @@ export default function FuelScreen() {
               loggedCarbs={logged.carbsG}
               loggedFat={logged.fatG}
             />
-            <View style={[styles.toolbar, isPastDay && styles.toolbarMuted]}>
-              <Pressable
-                style={styles.toolBtn}
-                onPress={onRegenerateDay}
-                disabled={isPastDay}>
-                <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
-                  Regenerate day
-                </Text>
-              </Pressable>
-              <Pressable
-                style={styles.toolBtn}
-                onPress={onAdjustMacros}
-                disabled={isPastDay}>
-                <Text style={[styles.toolTxt, isPastDay && styles.toolTxtMuted]}>
-                  +5% calories
-                </Text>
-              </Pressable>
-            </View>
-            {busy ? (
-              <View style={{ marginBottom: 16, alignItems: 'center' }}>
-                <AppLoadingCross size="medium" />
-              </View>
-            ) : null}
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Daily log</Text>
               <Pressable onPress={() => router.push('/grocery')}>
@@ -413,25 +328,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
     marginBottom: 12,
-  },
-  toolbar: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  toolbarMuted: { opacity: 0.45 },
-  toolBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  toolTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  toolTxtMuted: {
-    color: theme.colors.onSurfaceVariant,
   },
   sectionHead: {
     flexDirection: 'row',

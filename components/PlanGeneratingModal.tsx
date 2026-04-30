@@ -1,15 +1,78 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  LayoutChangeEvent,
+  Modal,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { theme } from '@/constants/theme';
+
+const BAR_WIDTH_FRAC = 0.42;
 
 type Props = {
   visible: boolean;
-  /** Load a local sample week and leave this screen (AI may still finish in background). */
-  onUseSampleWeek?: () => void;
 };
 
-export function PlanGeneratingModal({ visible, onUseSampleWeek }: Props) {
+function GeneratingProgressBar({ active }: { active: boolean }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const [trackW, setTrackW] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(progress, {
+          toValue: 0,
+          duration: 1400,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      progress.setValue(0);
+    };
+  }, [active, progress]);
+
+  const barW = Math.max(0, trackW * BAR_WIDTH_FRAC);
+  const translateX = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-barW, trackW],
+  });
+
+  return (
+    <View
+      style={styles.progressTrack}
+      onLayout={(e: LayoutChangeEvent) =>
+        setTrackW(e.nativeEvent.layout.width)
+      }>
+      {trackW > 0 ? (
+        <Animated.View
+          style={[
+            styles.progressFill,
+            { width: barW, transform: [{ translateX }] },
+          ]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      ) : null}
+    </View>
+  );
+}
+
+export function PlanGeneratingModal({ visible }: Props) {
   return (
     <Modal
       visible={visible}
@@ -25,22 +88,14 @@ export function PlanGeneratingModal({ visible, onUseSampleWeek }: Props) {
             We are creating your personalized meals, workouts, and grocery list from your
             answers. Most finish within a minute.
           </Text>
-          <Text style={styles.sampleHint}>
-            While you wait, you can open the app with a sample week and regenerate your
-            personalized week anytime from Fuel or Train.
-          </Text>
-          <View style={styles.spinner}>
-            <AppLoadingCross size="large" />
+          <View
+            style={styles.progressWrap}
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel="Building your week"
+            accessibilityValue={{ text: 'In progress' }}>
+            <GeneratingProgressBar active={visible} />
           </View>
-          {onUseSampleWeek ? (
-            <Pressable
-              onPress={onUseSampleWeek}
-              style={styles.sampleBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Continue with sample week">
-              <Text style={styles.sampleBtnTxt}>Continue with sample week</Text>
-            </Pressable>
-          ) : null}
         </View>
       </View>
     </Modal>
@@ -82,34 +137,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.onSurfaceVariant,
     lineHeight: 22,
-    marginBottom: 12,
+    marginBottom: 28,
   },
-  sampleHint: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
-    color: theme.colors.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: 24,
-    opacity: 0.92,
+  progressWrap: {
+    width: '100%',
   },
-  spinner: {
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  progressTrack: {
+    height: 5,
+    width: '100%',
+    backgroundColor: theme.colors.surfaceVariant,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  sampleBtn: {
-    alignSelf: 'stretch',
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  sampleBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.gold,
+    borderRadius: 2,
   },
 });

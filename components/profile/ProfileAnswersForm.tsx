@@ -85,8 +85,8 @@ export function ProfileAnswersForm() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}>
       <Text style={styles.lead}>
-        Changes save automatically. Regenerate your week plan in Fuel or onboarding
-        when you want AI to reflect updates.
+        Changes save automatically. New AI plans will reflect these updates the next
+        time your week is generated.
       </Text>
 
       <Section title="Main goal">

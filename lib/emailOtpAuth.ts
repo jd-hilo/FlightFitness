@@ -1,11 +1,18 @@
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 
+const APPLE_REVIEW_EMAIL = 'apple@test.com';
+const APPLE_REVIEW_CODE = '111111';
+
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isAppleReviewEmail(email: string): boolean {
+  return email === APPLE_REVIEW_EMAIL;
 }
 
 export type OtpRequestResult =
@@ -27,6 +34,9 @@ export async function requestEmailOtp(emailRaw: string): Promise<OtpRequestResul
   const email = normalizeEmail(emailRaw);
   if (!isValidEmail(email)) {
     return { ok: false, error: 'Enter a valid email address.' };
+  }
+  if (isAppleReviewEmail(email)) {
+    return { ok: true };
   }
 
   const { error } = await supabase.auth.signInWithOtp({
@@ -55,6 +65,37 @@ export async function verifyEmailOtp(
   const token = tokenRaw.replace(/\D/g, '').trim();
   if (token.length < 6) {
     return { ok: false, error: 'Enter the 6-digit code from your email.' };
+  }
+  if (isAppleReviewEmail(email)) {
+    if (token !== APPLE_REVIEW_CODE) {
+      return { ok: false, error: 'Use 111111 for the Apple review account.' };
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: APPLE_REVIEW_CODE,
+    });
+    if (!signInError) return { ok: true };
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password: APPLE_REVIEW_CODE,
+    });
+    if (signUpError) {
+      if (__DEV__) console.warn('[verifyEmailOtp:appleReview]', signUpError.message);
+      return { ok: false, error: signUpError.message };
+    }
+    if (data.session) return { ok: true };
+
+    const { error: retryError } = await supabase.auth.signInWithPassword({
+      email,
+      password: APPLE_REVIEW_CODE,
+    });
+    if (retryError) {
+      if (__DEV__) console.warn('[verifyEmailOtp:appleReview]', retryError.message);
+      return { ok: false, error: retryError.message };
+    }
+    return { ok: true };
   }
 
   const { error } = await supabase.auth.verifyOtp({

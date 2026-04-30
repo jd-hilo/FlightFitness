@@ -1,8 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  InputAccessoryView,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,12 +18,9 @@ import { VerseCard } from '@/components/VerseCard';
 import { theme } from '@/constants/theme';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
-import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { getDailyVerse } from '@/lib/verses';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
-
-const JOURNAL_ACCESSORY_ID = 'faithJournalAccessory';
 
 function TaskCheck({ done }: { done: boolean }) {
   return (
@@ -60,7 +55,6 @@ export default function FaithScreen() {
   );
 
   const scrollRef = useRef<ScrollView>(null);
-  const keyboardHeight = useKeyboardOffset();
 
   const day = byDay[dateKey] ?? {
     verseRead: false,
@@ -93,38 +87,30 @@ export default function FaithScreen() {
     void loadFromApi();
   }, [loadFromApi]);
 
-  const onJournalDone = useCallback(() => {
-    Keyboard.dismiss();
-    markJournalReflectionComplete(dateKey);
-  }, [dateKey, markJournalReflectionComplete]);
-
+  /** Same timing as onboarding `scrollNotesToEnd` so the field stays visible above the keyboard. */
   const scrollJournalIntoView = useCallback(() => {
     setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
-    }, 280);
+    }, 120);
   }, []);
-
-  const kavOffset = insets.top + 52;
 
   return (
     <View style={styles.screen}>
       <ScreenHeader />
       <KeyboardAvoidingView
         style={styles.kav}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={kavOffset}>
+        behavior={Platform.OS === 'ios' ? 'height' : undefined}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={[
             styles.scroll,
             {
-              paddingBottom: insets.bottom + 120 + keyboardHeight,
+              paddingBottom: insets.bottom + 16,
             },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
         <Text style={styles.head}>Faith</Text>
         <Text style={styles.lead}>
@@ -224,9 +210,8 @@ export default function FaithScreen() {
             <View style={styles.taskHeaderText}>
               <Text style={styles.taskHeaderTitle}>Your reflection</Text>
               <Text style={styles.taskHeaderSub}>
-                Respond to today&apos;s study above. When you&apos;re finished, tap
-                Done on the keyboard — we&apos;ll check it off. Tap the check again to
-                clear and start over.
+                Respond to today&apos;s study above. When you&apos;re finished, tap the
+                check to save it. Tap the check again to clear and start over.
               </Text>
             </View>
           </Pressable>
@@ -240,36 +225,12 @@ export default function FaithScreen() {
             returnKeyType="done"
             blurOnSubmit
             maxLength={280}
-            textAlignVertical="top"
-            inputAccessoryViewID={
-              Platform.OS === 'ios' ? JOURNAL_ACCESSORY_ID : undefined
-            }
+            onSubmitEditing={() => markJournalReflectionComplete(dateKey)}
             onFocus={scrollJournalIntoView}
           />
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {Platform.OS === 'ios' ? (
-        <InputAccessoryView nativeID={JOURNAL_ACCESSORY_ID}>
-          <View style={styles.inputAccessory}>
-            <Pressable
-              onPress={onJournalDone}
-              style={styles.inputAccessoryDoneHit}
-              hitSlop={12}>
-              <Text style={styles.inputAccessoryDone}>Done</Text>
-            </Pressable>
-          </View>
-        </InputAccessoryView>
-      ) : null}
-
-      {Platform.OS === 'android' && keyboardHeight > 0 ? (
-        <View style={[styles.androidKbBar, { bottom: keyboardHeight }]}>
-          <Pressable onPress={onJournalDone} style={styles.androidKbDoneHit}>
-            <Text style={styles.androidKbDone}>Done</Text>
-          </Pressable>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -467,63 +428,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     marginBottom: 32,
   },
+  /** Match onboarding `styles.textArea` (+ insets for this card). */
   journalInput: {
     marginHorizontal: 16,
     marginBottom: 16,
-    minHeight: 120,
-    maxHeight: 200,
+    minHeight: 100,
     borderWidth: 1,
     borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.background,
-    color: theme.colors.onBackground,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 14,
     fontFamily: theme.fonts.body,
     fontSize: 15,
-    lineHeight: 22,
-    padding: 14,
-  },
-  inputAccessory: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-  },
-  inputAccessoryDoneHit: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  inputAccessoryDone: {
-    fontFamily: theme.fonts.label,
-    fontSize: 16,
-    letterSpacing: 1,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  androidKbBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 48,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.outline,
-  },
-  androidKbDoneHit: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  androidKbDone: {
-    fontFamily: theme.fonts.label,
-    fontSize: 14,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    color: theme.colors.onBackground,
+    textAlignVertical: 'top',
   },
 });

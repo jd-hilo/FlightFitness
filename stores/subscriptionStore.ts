@@ -53,6 +53,16 @@ export const useSubscriptionStore = create<SubscriptionState>()(
     {
       name: 'flight-subscription',
       storage: createJSONStorage(() => AsyncStorage),
+      /**
+       * Rehydration can finish after RevenueCat has already applied a higher tier from
+       * the network, restoring a stale `tier` from disk (e.g. still `free`). Refresh from
+       * RevenueCat once storage has merged so UI matches StoreKit / sandbox entitlements.
+       */
+      onRehydrateStorage: () => () => {
+        void import('@/lib/revenueCat').then(({ refreshRevenueCatCustomerInfo }) => {
+          void refreshRevenueCatCustomerInfo();
+        });
+      },
     }
   )
 );

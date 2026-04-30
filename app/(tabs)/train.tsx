@@ -173,7 +173,7 @@ export default function TrainScreen() {
                 <Text style={styles.restTitle}>Outside plan week</Text>
                 <Text style={styles.muted}>
                   This date is not covered by your saved plan (plan starts {weekStart}).
-                  Regenerate a full week or choose another day.
+                  Choose another day to view or edit your saved workouts.
                 </Text>
               </>
             )}

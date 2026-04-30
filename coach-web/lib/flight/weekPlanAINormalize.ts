@@ -3,6 +3,49 @@ import { reconcileMealMacrosToTargetsInPlan } from '@/lib/flight/reconcileMealMa
 /**
  * Coerce common OpenAI JSON slips before strict Zod parsing (reps as number, slot casing, etc.).
  */
+
+const SPREAD_WORKOUT_INDEXES: Record<number, number[]> = {
+  1: [2],
+  2: [1, 4],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 5],
+  5: [0, 1, 3, 4, 6],
+  6: [0, 1, 2, 4, 5, 6],
+  7: [0, 1, 2, 3, 4, 5, 6],
+};
+
+function hasRun(values: boolean[], match: boolean, maxAllowed: number): boolean {
+  let run = 0;
+  for (const value of values) {
+    run = value === match ? run + 1 : 0;
+    if (run > maxAllowed) return true;
+  }
+  return false;
+}
+
+function shouldSpreadWorkoutLayout(workoutsByDay: unknown[]): boolean {
+  const occupied = workoutsByDay.map((w) => w != null);
+  const trainingDays = occupied.filter(Boolean).length;
+  if (trainingDays <= 1 || trainingDays >= 7) return false;
+  return hasRun(occupied, true, trainingDays === 6 ? 3 : 2) || hasRun(occupied, false, 2);
+}
+
+function spreadWorkoutLayout(workoutsByDay: unknown[]): unknown[] {
+  if (!shouldSpreadWorkoutLayout(workoutsByDay)) return workoutsByDay;
+
+  const workouts = workoutsByDay.filter((w) => w != null);
+  const targets = SPREAD_WORKOUT_INDEXES[workouts.length];
+  if (!targets) return workoutsByDay;
+
+  let nextWorkout = 0;
+  return Array.from({ length: 7 }, (_, idx) => {
+    if (!targets.includes(idx)) return null;
+    const workout = workouts[nextWorkout++];
+    if (!workout || typeof workout !== 'object') return workout ?? null;
+    return { ...(workout as Record<string, unknown>), dayIndex: idx };
+  });
+}
+
 export function normalizeWeekPlanFromAI(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
   const o = raw as Record<string, unknown>;
@@ -113,6 +156,7 @@ export function normalizeWeekPlanFromAI(raw: unknown): unknown {
         });
       return row;
     });
+    out.workoutsByDay = spreadWorkoutLayout(out.workoutsByDay as unknown[]);
   }
 
   if (o.macroTargets && typeof o.macroTargets === 'object') {

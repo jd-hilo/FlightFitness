@@ -16,10 +16,10 @@ export function PlanUpgradeBadge() {
   if (tier === 'coaching') return null;
 
   const isFree = tier === 'free';
-  const label = isFree ? 'Upgrade' : 'Custom plans';
+  const label = isFree ? 'Upgrade' : 'Upgrade to custom coaching';
   const a11y = isFree
     ? 'Upgrade your plan. Opens subscription options.'
-    : 'Upgrade to custom plans. Opens subscription options.';
+    : 'Upgrade to FF Custom coaching. Opens subscription options.';
 
   return (
     <Pressable
@@ -38,7 +38,11 @@ export function PlanUpgradeBadge() {
           size={18}
           color={theme.colors.gold}
         />
-        <Text style={styles.label} numberOfLines={1}>
+        <Text
+          style={styles.label}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}>
           {label}
         </Text>
       </LinearGradient>
@@ -72,6 +76,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: theme.colors.gold,
     textTransform: 'uppercase',
-    maxWidth: 112,
+    maxWidth: 168,
+    textAlign: 'center',
   },
 });

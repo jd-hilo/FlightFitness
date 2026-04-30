@@ -241,11 +241,6 @@ export default function WelcomeScreen() {
               Get started
             </Text>
           </Pressable>
-          {!canGetStarted ? (
-            <Text style={styles.ctaHint}>
-              Swipe through each screen to unlock continue.
-            </Text>
-          ) : null}
           <Text style={styles.terms}>
             By using Flight Fitness, you agree to our{' '}
             <Text
@@ -347,13 +342,6 @@ const styles = StyleSheet.create({
   ctaWrapper: {
     paddingHorizontal: 28,
     gap: 10,
-  },
-  ctaHint: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
-    color: theme.colors.onSurfaceVariant,
-    textAlign: 'center',
   },
   terms: {
     fontFamily: theme.fonts.body,

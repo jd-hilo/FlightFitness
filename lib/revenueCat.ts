@@ -185,6 +185,8 @@ export async function presentRevenueCatCustomerCenter() {
     callbacks: {
       onRestoreCompleted: ({ customerInfo }) =>
         applyRevenueCatCustomerInfo(customerInfo),
+      onPromotionalOfferSucceeded: ({ customerInfo }) =>
+        applyRevenueCatCustomerInfo(customerInfo),
     },
   });
   await refreshRevenueCatCustomerInfo();

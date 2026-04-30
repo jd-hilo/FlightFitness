@@ -8,14 +8,17 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
 import { deleteAccount } from '@/lib/api/deleteAccount';
+import { generateWeekPlan } from '@/lib/api/plan';
 import { COACHING_DESCRIPTION } from '@/lib/coachingPlanCopy';
 import { getProfileSectionSummaries } from '@/lib/profileSectionSummaries';
 import { presentRevenueCatCustomerCenter } from '@/lib/revenueCat';
 import { resetLocalAppStateForSignOut } from '@/lib/signOutReset';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
+import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { usePlanStore } from '@/stores/planStore';
 import {
   type SubscriptionTier,
   useSubscriptionStore,
@@ -50,8 +53,10 @@ export default function EliteScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
+  const [regeneratingPlan, setRegeneratingPlan] = useState(false);
   const tier = useSubscriptionStore((s) => s.tier);
   const answers = useOnboardingStore((s) => s.answers);
+  const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
   const trainingStreak = useCompletionStore((s) => s.streak);
   const faithStreak = useFaithDailyStore((s) => s.faithStreak);
 
@@ -147,6 +152,42 @@ export default function EliteScreen() {
     })();
   }, [tier]);
 
+  const onDevRegeneratePlan = useCallback(() => {
+    Alert.alert(
+      'Regenerate AI week?',
+      'Dev only: this replaces the current saved meal and workout plan for this week.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Regenerate',
+          onPress: () => {
+            void (async () => {
+              setRegeneratingPlan(true);
+              const res = await generateWeekPlan({
+                onboarding: answers,
+                action: 'full',
+                weekStartHint: viewWeekStartYmdLocal(),
+              });
+              setRegeneratingPlan(false);
+
+              if (!res.ok) {
+                Alert.alert('Plan generation failed', res.error);
+                return;
+              }
+
+              setFromWeekPlan(res.plan);
+              const workoutCount = res.plan.workoutsByDay.filter(Boolean).length;
+              Alert.alert(
+                'Plan regenerated',
+                `Generated ${res.plan.mealsByDay.length} meal days and ${workoutCount} workout days.`
+              );
+            })();
+          },
+        },
+      ]
+    );
+  }, [answers, setFromWeekPlan]);
+
   return (
     <View style={styles.screen}>
       <ScreenHeader />
@@ -204,6 +245,29 @@ export default function EliteScreen() {
           ))}
         </View>
 
+        {__DEV__ ? (
+          <>
+            <Text style={styles.sectionLabel}>Developer tools</Text>
+            <View style={styles.devCard}>
+              <Text style={styles.devBody}>
+                Test the current AI prompt by replacing this week&apos;s meals and
+                workouts with a fresh full-plan generation.
+              </Text>
+              <Pressable
+                style={[
+                  styles.devBtn,
+                  regeneratingPlan && styles.devBtnDisabled,
+                ]}
+                onPress={onDevRegeneratePlan}
+                disabled={regeneratingPlan}>
+                <Text style={styles.devBtnTxt}>
+                  {regeneratingPlan ? 'Regenerating…' : 'Regenerate AI week'}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
+
         <Text style={styles.sectionLabel}>Membership</Text>
         <View style={styles.currentPlanCard}>
           <Text style={styles.currentBadge}>Your plan</Text>
@@ -228,7 +292,12 @@ export default function EliteScreen() {
           const meta = PLAN_META[planId];
           const isLast = idx === otherPlanIds.length - 1;
           const mb = isLast ? styles.upgradeCardLast : styles.upgradeCardSpacer;
-          const cta = planId === 'free' ? 'View plan' : 'Upgrade';
+          const cta =
+            planId === 'free'
+              ? 'View plan'
+              : planId === 'coaching'
+                ? 'Upgrade to custom coaching'
+                : 'Upgrade';
           return (
             <Pressable
               key={planId}
@@ -244,7 +313,9 @@ export default function EliteScreen() {
                 {meta.name} — {meta.price}
               </Text>
               <Text style={styles.cardBodyDark}>{meta.body}</Text>
-              <Text style={styles.upgradeRowCta}>{cta}</Text>
+              <Text style={styles.upgradeRowCta} numberOfLines={2}>
+                {cta}
+              </Text>
             </Pressable>
           );
         })}
@@ -437,6 +508,34 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     lineHeight: 19,
     marginBottom: 4,
+  },
+  devCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.outlineStrong,
+    padding: 16,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    marginBottom: 24,
+  },
+  devBody: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  devBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  devBtnDisabled: { opacity: 0.5 },
+  devBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   card: {
     borderWidth: 1,

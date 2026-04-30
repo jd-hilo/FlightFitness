@@ -89,10 +89,7 @@ export default function GenerateScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 48 }]}>
-      <PlanGeneratingModal
-        visible={status === 'loading'}
-        onUseSampleWeek={continueWithSampleWeek}
-      />
+      <PlanGeneratingModal visible={status === 'loading'} />
       {status === 'err' ? (
         <View style={styles.errBox}>
           <Text style={styles.title}>Couldn’t build your week</Text>

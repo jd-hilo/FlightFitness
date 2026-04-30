@@ -46,6 +46,7 @@ import {
   persistProfileFirstName,
   pullProfileFirstNameIntoStore,
 } from '@/lib/api/profileFirstName';
+import { persistProfileOnboarding } from '@/lib/api/profileOnboarding';
 import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { isStepComplete, useOnboardingStore } from '@/stores/onboardingStore';
 
@@ -366,7 +367,12 @@ export default function OnboardingScreen() {
         }
       }
       if (isLast) {
-        complete();
+        const completedAt = new Date().toISOString();
+        complete(completedAt);
+        const res = await persistProfileOnboarding(answers, completedAt);
+        if (__DEV__ && !res.ok) {
+          console.warn('[persistProfileOnboarding]', res.error);
+        }
         router.replace('/(onboarding)/upgrade-offer');
       } else {
         setStep((s) => s + 1);
@@ -441,8 +447,9 @@ export default function OnboardingScreen() {
             autoCorrect={false}
             autoComplete="name-given"
             textContentType="givenName"
-            returnKeyType="next"
+            returnKeyType="done"
             blurOnSubmit
+            onSubmitEditing={next}
             value={answers.firstName}
             onChangeText={(t) =>
               setAnswers({ firstName: normalizeFirstNameInput(t) })

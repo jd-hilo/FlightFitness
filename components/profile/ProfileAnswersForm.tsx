@@ -115,6 +115,8 @@ export function ProfileAnswersForm() {
           autoCorrect={false}
           autoComplete="name-given"
           textContentType="givenName"
+          returnKeyType="done"
+          blurOnSubmit
           value={answers.firstName}
           onChangeText={(t) => {
             const s = t.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');

@@ -70,7 +70,7 @@ type OnboardingState = {
   setNotes: (key: NotesKey, value: string) => void;
   setAnswers: (partial: Partial<OnboardingAnswers>) => void;
   setWeight: (key: 'currentWeightLb' | 'targetWeightLb', value: number) => void;
-  complete: () => void;
+  complete: (completedAt?: string) => void;
   reset: () => void;
 };
 
@@ -231,9 +231,9 @@ export const useOnboardingStore = create<OnboardingState>()(
         set((s) => ({
           answers: { ...s.answers, [key]: value },
         })),
-      complete: () =>
+      complete: (completedAt) =>
         set({
-          completedAt: new Date().toISOString(),
+          completedAt: completedAt ?? new Date().toISOString(),
         }),
       reset: () =>
         set({

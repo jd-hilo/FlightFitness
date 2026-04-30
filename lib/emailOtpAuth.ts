@@ -2,6 +2,8 @@ import { supabase, supabaseConfigured } from '@/lib/supabase';
 
 const APPLE_REVIEW_EMAIL = 'apple@test.com';
 const APPLE_REVIEW_CODE = '111111';
+const APPLE_REVIEW_ACCOUNT_ERROR =
+  'Apple review account already exists but is not configured for the review code. In Supabase, reset apple@test.com password to 111111 or delete and recreate that user.';
 
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
@@ -83,6 +85,9 @@ export async function verifyEmailOtp(
     });
     if (signUpError) {
       if (__DEV__) console.warn('[verifyEmailOtp:appleReview]', signUpError.message);
+      if (signUpError.message.toLowerCase().includes('already')) {
+        return { ok: false, error: APPLE_REVIEW_ACCOUNT_ERROR };
+      }
       return { ok: false, error: signUpError.message };
     }
     if (data.session) return { ok: true };

@@ -1,4 +1,5 @@
-import { type ReactNode, useRef } from 'react';
+import { persistProfileFirstName } from '@/lib/api/profileFirstName';
+import { type ReactNode, useEffect, useRef } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -48,6 +49,7 @@ const HEIGHT_VALUES = heightInchesValues();
 
 export function ProfileAnswersForm() {
   const scrollRef = useRef<ScrollView | null>(null);
+  const firstNameSyncSkip = useRef(true);
   const answers = useOnboardingStore((s) => s.answers);
   const toggleGoal = useOnboardingStore((s) => s.toggleGoal);
   const setSingle = useOnboardingStore((s) => s.setSingle);
@@ -73,6 +75,20 @@ export function ProfileAnswersForm() {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 120);
   };
+
+  useEffect(() => {
+    if (firstNameSyncSkip.current) {
+      firstNameSyncSkip.current = false;
+      return;
+    }
+    const trimmed = answers.firstName.trim();
+    const t = setTimeout(() => {
+      void persistProfileFirstName(trimmed).then((res) => {
+        if (__DEV__ && !res.ok) console.warn('[persistProfileFirstName]', res.error);
+      });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [answers.firstName]);
 
   return (
     <KeyboardAvoidingView

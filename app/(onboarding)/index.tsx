@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -42,6 +42,10 @@ import {
   isDietModifierOptionDisabled,
   isEquipmentOptionDisabled,
 } from '@/lib/onboardingOptions';
+import {
+  persistProfileFirstName,
+  pullProfileFirstNameIntoStore,
+} from '@/lib/api/profileFirstName';
 import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { isStepComplete, useOnboardingStore } from '@/stores/onboardingStore';
 
@@ -341,18 +345,33 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const notesScrollRef = useRef<ScrollView | null>(null);
 
+  useEffect(() => {
+    void pullProfileFirstNameIntoStore();
+  }, []);
+
   const current = STEPS[step]!;
   const isLast = step === STEPS.length - 1;
 
   const canNext = isStepComplete(answers, current.stepId);
 
   const next = () => {
-    if (isLast) {
-      complete();
-      router.replace('/(onboarding)/upgrade-offer');
-    } else {
-      setStep((s) => s + 1);
-    }
+    if (!canNext) return;
+    const leavingFirstName = current.stepId === 'firstName';
+    const first = answers.firstName.trim();
+    void (async () => {
+      if (leavingFirstName && first) {
+        const res = await persistProfileFirstName(first);
+        if (__DEV__ && !res.ok) {
+          console.warn('[persistProfileFirstName]', res.error);
+        }
+      }
+      if (isLast) {
+        complete();
+        router.replace('/(onboarding)/upgrade-offer');
+      } else {
+        setStep((s) => s + 1);
+      }
+    })();
   };
 
   const back = () => {

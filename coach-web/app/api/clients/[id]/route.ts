@@ -28,7 +28,9 @@ export async function GET(
 
   const { data: profile, error: profileError } = await admin
     .from("profiles")
-    .select("id, onboarding_json, subscription_tier, display_name, email, updated_at")
+    .select(
+      "id, onboarding_json, subscription_tier, display_name, email, first_name, updated_at"
+    )
     .eq("id", id)
     .maybeSingle();
 

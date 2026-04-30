@@ -7,6 +7,7 @@ import { FlightTabBar } from '@/components/FlightTabBar';
 import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { theme } from '@/constants/theme';
+import { pullProfileFirstNameIntoStore } from '@/lib/api/profileFirstName';
 import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
 import { useStoresHydrated } from '@/lib/hydration';
 import { PlanRemoteRealtimeSync } from '@/lib/planRemoteRealtime';
@@ -34,6 +35,11 @@ export default function TabLayout() {
     if (!hydrated) return;
     void ensureCurrentWeekPlan();
   }, [hydrated]);
+
+  useEffect(() => {
+    if (!hydrated || !registered || !supabaseConfigured) return;
+    void pullProfileFirstNameIntoStore();
+  }, [hydrated, registered]);
 
   const visible = useVerseModalStore((s) => s.visible);
   const verse = useVerseModalStore((s) => s.verse);

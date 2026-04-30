@@ -9,6 +9,7 @@ type ProfileRow = {
   subscription_tier: string;
   display_name: string | null;
   email: string | null;
+  first_name: string | null;
   updated_at: string;
 };
 
@@ -24,7 +25,9 @@ export async function GET(request: NextRequest) {
 
   let q = admin
     .from("profiles")
-    .select("id, onboarding_json, subscription_tier, display_name, email, updated_at")
+    .select(
+      "id, onboarding_json, subscription_tier, display_name, email, first_name, updated_at"
+    )
     .order("updated_at", { ascending: false });
 
   if (tier === "coaching") {
@@ -41,9 +44,11 @@ export async function GET(request: NextRequest) {
     list = list.filter((p) => {
       const name = (p.display_name ?? "").toLowerCase();
       const email = (p.email ?? "").toLowerCase();
+      const first = (p.first_name ?? "").toLowerCase();
       return (
         name.includes(search) ||
         email.includes(search) ||
+        first.includes(search) ||
         p.id.toLowerCase().includes(search)
       );
     });

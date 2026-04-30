@@ -32,6 +32,7 @@ import {
   normalizeDay,
   useCompletionStore,
 } from '@/stores/completionStore';
+import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
@@ -162,6 +163,7 @@ export default function HomeScreen() {
     [hasRemoteHero, dailyFetchSettled, dailyLoading]
   );
   const now = new Date();
+  const firstName = useOnboardingStore((s) => s.answers.firstName.trim());
   const greetingWord = timeOfDayGreetingWord(now);
   const timeLine = `${formatTimeLabel(now).toUpperCase()} // INTENSITY: ${intensityFromHour(
     now.getHours()
@@ -252,8 +254,14 @@ export default function HomeScreen() {
           <View style={styles.heroTextBlock}>
             <Text style={styles.heroKicker}>{timeLine}</Text>
             <Text style={styles.heroTitle}>
-              {greetingWord},{' '}
-              <Text style={styles.heroName}>Marcus</Text>
+              {firstName ? (
+                <>
+                  {greetingWord},{' '}
+                  <Text style={styles.heroName}>{firstName}</Text>
+                </>
+              ) : (
+                greetingWord
+              )}
             </Text>
           </View>
         </View>

@@ -46,6 +46,7 @@ export function buildOnboardingProfileJson(
   const allergyNotes = a.allergyOtherNotes.trim();
 
   return {
+    firstName: a.firstName.trim() || undefined,
     goals: a.goal.length ? a.goal : undefined,
     experience: a.experience || undefined,
     equipment: a.equipment.length ? a.equipment : undefined,
@@ -107,6 +108,9 @@ export function summarizeOnboardingForAI(a: OnboardingAnswers): string {
     '',
     '---',
     '',
+    ...(a.firstName.trim()
+      ? [`Preferred name: ${a.firstName.trim()} (use in supportive copy).`, '']
+      : []),
     `Body: ${a.ageYears} y, height ${a.heightInches} in total, current ${a.currentWeightLb} lb → target ${a.targetWeightLb} lb (delta ${delta >= 0 ? '+' : ''}${delta} lb).`,
     '',
     'Sex (for energy estimates only; keep copy inclusive):',

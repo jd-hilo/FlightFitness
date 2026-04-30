@@ -60,6 +60,9 @@ export function getProfileSectionSummaries(
     {
       title: 'About you',
       lines: [
+        answers.firstName.trim()
+          ? `First name: ${answers.firstName.trim()}`
+          : 'First name: Not set',
         `Sex: ${labelFor(SEX_OPTIONS, answers.sex)}`,
         `Age: ${answers.ageYears} yrs`,
         `Height: ${formatHeightInchesLabel(answers.heightInches)}`,

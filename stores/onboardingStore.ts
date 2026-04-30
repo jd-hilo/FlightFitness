@@ -19,6 +19,7 @@ const MAX_MODIFIERS = 5;
 const MAX_TIME_WINDOWS = 2;
 
 const defaultAnswers: OnboardingAnswers = {
+  firstName: '',
   goal: [],
   experience: '',
   equipment: [],
@@ -282,6 +283,8 @@ export function isStepComplete(
   stepId: string
 ): boolean {
   switch (stepId) {
+    case 'firstName':
+      return answers.firstName.trim().length > 0;
     case 'goal':
       return answers.goal.length > 0;
     case 'aboutSex':

@@ -72,6 +72,8 @@ export type MacroTargets = z.infer<typeof macroTargetsSchema>;
 export type WeekPlan = z.infer<typeof weekPlanSchema>;
 
 export type OnboardingAnswers = {
+  /** Preferred first name for in-app greetings (not used for auth). */
+  firstName: string;
   /** Up to two primary goal ids. First selected is treated as primary when ranking tradeoffs. */
   goal: string[];
   /** Single experience tier id. */

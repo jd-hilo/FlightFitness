@@ -89,6 +89,26 @@ export function ProfileAnswersForm() {
         time your week is generated.
       </Text>
 
+      <Section title="Your name">
+        <Text style={styles.subLabel}>First name (shown on Home)</Text>
+        <TextInput
+          style={styles.textField}
+          placeholder="Alex"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          autoCapitalize="words"
+          autoCorrect={false}
+          autoComplete="name-given"
+          textContentType="givenName"
+          value={answers.firstName}
+          onChangeText={(t) => {
+            const s = t.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');
+            setAnswers({ firstName: s.replace(/\s{2,}/g, ' ').slice(0, 40) });
+          }}
+          maxLength={40}
+          accessibilityLabel="First name"
+        />
+      </Section>
+
       <Section title="Main goal">
         <Text style={styles.subLabel}>Select up to 2</Text>
         <ChipGrid>
@@ -588,5 +608,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.onBackground,
     textAlignVertical: 'top',
+  },
+  textField: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.onBackground,
   },
 });

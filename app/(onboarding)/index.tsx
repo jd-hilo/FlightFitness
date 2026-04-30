@@ -139,7 +139,16 @@ type PaceKitchenStep = {
   subtitle: string;
 };
 
+type FirstNameStep = {
+  kind: 'firstName';
+  stepId: 'firstName';
+  title: string;
+  subtitle: string;
+  placeholder: string;
+};
+
 type Step =
+  | FirstNameStep
   | GoalStep
   | SingleStep
   | MultiStep
@@ -152,7 +161,23 @@ type Step =
   | AllergiesStep
   | PaceKitchenStep;
 
+const FIRST_NAME_MAX = 40;
+
+function normalizeFirstNameInput(raw: string): string {
+  let s = raw.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');
+  s = s.replace(/\s{2,}/g, ' ');
+  return s.slice(0, FIRST_NAME_MAX);
+}
+
 const STEPS: Step[] = [
+  {
+    kind: 'firstName',
+    stepId: 'firstName',
+    title: 'What should we call you?',
+    subtitle:
+      'Your first name appears on Home—just for you. It is not shown on a public profile.',
+    placeholder: 'Alex',
+  },
   {
     kind: 'goal',
     stepId: 'goal',
@@ -357,7 +382,8 @@ export default function OnboardingScreen() {
     keyboardOffset > 0 &&
     (current.kind === 'sessionInjury' ||
       current.kind === 'textNotes' ||
-      current.kind === 'allergies');
+      current.kind === 'allergies' ||
+      current.kind === 'firstName');
 
   const scrollNotesToEnd = () => {
     setTimeout(() => {
@@ -379,6 +405,34 @@ export default function OnboardingScreen() {
         accessibilityValue={{ min: 0, max: totalSteps, now: step + 1 }}>
         <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
       </View>
+
+      {current.kind === 'firstName' ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          contentContainerStyle={styles.chipsScroll}>
+          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.subtitle}>{current.subtitle}</Text>
+          <TextInput
+            style={styles.textField}
+            placeholder={current.placeholder}
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+            autoCapitalize="words"
+            autoCorrect={false}
+            autoComplete="name-given"
+            textContentType="givenName"
+            returnKeyType="next"
+            blurOnSubmit
+            value={answers.firstName}
+            onChangeText={(t) =>
+              setAnswers({ firstName: normalizeFirstNameInput(t) })
+            }
+            maxLength={FIRST_NAME_MAX}
+            accessibilityLabel="First name"
+          />
+        </ScrollView>
+      ) : null}
 
       {current.kind === 'single' ? (
         <>
@@ -959,6 +1013,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.onBackground,
     textAlignVertical: 'top',
+  },
+  textField: {
+    minHeight: 56,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 20,
+    color: theme.colors.onBackground,
   },
   weightScroll: { flexGrow: 1 },
   footer: {

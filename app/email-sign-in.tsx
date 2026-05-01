@@ -18,6 +18,8 @@ import { supabaseConfigured } from '@/lib/supabase';
 
 type Step = 'email' | 'code';
 
+type FormError = { message: string; caption?: string; variant?: 'default' | 'notice' };
+
 function nextParamIsOnboarding(next: string | string[] | undefined) {
   if (next === 'onboarding') return true;
   return Array.isArray(next) && next[0] === 'onboarding';
@@ -31,15 +33,15 @@ export default function EmailSignInScreen() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<FormError | null>(null);
 
   const onSendCode = useCallback(async () => {
-    setError(null);
+    setFormError(null);
     setBusy(true);
     try {
       const res = await requestEmailOtp(email);
       if (!res.ok) {
-        setError(res.error);
+        setFormError({ message: res.error });
         return;
       }
       setStep('code');
@@ -49,12 +51,16 @@ export default function EmailSignInScreen() {
   }, [email]);
 
   const onVerify = useCallback(async () => {
-    setError(null);
+    setFormError(null);
     setBusy(true);
     try {
       const res = await verifyEmailOtp(email, code);
       if (!res.ok) {
-        setError(res.error);
+        setFormError({
+          message: res.error,
+          caption: res.caption,
+          variant: res.variant ?? 'default',
+        });
         return;
       }
       if (afterAuthToOnboarding) {
@@ -71,7 +77,7 @@ export default function EmailSignInScreen() {
     if (step === 'code') {
       setStep('email');
       setCode('');
-      setError(null);
+      setFormError(null);
       return;
     }
     router.back();
@@ -139,7 +145,26 @@ export default function EmailSignInScreen() {
         </>
       )}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {formError ? (
+        formError.caption ? (
+          <View
+            style={[
+              styles.messageCard,
+              formError.variant === 'notice' ? styles.messageCardNotice : styles.messageCardError,
+            ]}>
+            <Text
+              style={[
+                styles.messageTitle,
+                formError.variant === 'notice' ? styles.messageTitleNotice : styles.messageTitleError,
+              ]}>
+              {formError.message}
+            </Text>
+            <Text style={styles.messageCaption}>{formError.caption}</Text>
+          </View>
+        ) : (
+          <Text style={styles.error}>{formError.message}</Text>
+        )
+      ) : null}
 
       <Pressable
         style={[styles.primary, (busy || !supabaseConfigured) && styles.primaryDisabled]}
@@ -217,6 +242,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.error,
     marginBottom: 12,
+    lineHeight: 20,
+  },
+  messageCard: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  messageCardNotice: {
+    borderColor: 'rgba(255, 215, 0, 0.35)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+  },
+  messageCardError: {
+    borderColor: 'rgba(255, 180, 171, 0.35)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+  },
+  messageTitle: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  messageTitleNotice: {
+    color: theme.colors.onBackground,
+  },
+  messageTitleError: {
+    color: theme.colors.error,
+  },
+  messageCaption: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 8,
   },
   primary: {
     backgroundColor: theme.colors.gold,

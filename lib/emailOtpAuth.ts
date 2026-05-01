@@ -2,8 +2,10 @@ import { supabase, supabaseConfigured } from '@/lib/supabase';
 
 const APPLE_REVIEW_EMAIL = 'apple@test.com';
 const APPLE_REVIEW_CODE = '111111';
-const APPLE_REVIEW_ACCOUNT_ERROR =
-  'Apple review account already exists but is not configured for the review code. In Supabase, reset apple@test.com password to 111111 or delete and recreate that user.';
+/** Shown when the user exists but password is not the review password (backend misconfiguration). */
+const APPLE_REVIEW_ACCOUNT_TITLE = "We couldn't finish sign-in for this demo account.";
+const APPLE_REVIEW_ACCOUNT_CAPTION =
+  "You used the correct review code. The developer needs to reset this email’s password in their auth settings so it matches App Review credentials (111111), or remove and recreate the user.";
 
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
@@ -23,7 +25,14 @@ export type OtpRequestResult =
 
 export type OtpVerifyResult =
   | { ok: true }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      /** Extra line(s) for multi-part messages (e.g. App Review demo account setup). */
+      caption?: string;
+      /** `notice` = informational card; default = inline error styling. */
+      variant?: 'default' | 'notice';
+    };
 
 /**
  * Sends a one-time code to the email (Supabase "Magic Link" template must include `{{ .Token }}` for OTP).
@@ -70,7 +79,12 @@ export async function verifyEmailOtp(
   }
   if (isAppleReviewEmail(email)) {
     if (token !== APPLE_REVIEW_CODE) {
-      return { ok: false, error: 'Use 111111 for the Apple review account.' };
+      return {
+        ok: false,
+        error: 'Wrong code',
+        caption: 'For App Store review testing, enter 111111.',
+        variant: 'notice',
+      };
     }
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -86,7 +100,12 @@ export async function verifyEmailOtp(
     if (signUpError) {
       if (__DEV__) console.warn('[verifyEmailOtp:appleReview]', signUpError.message);
       if (signUpError.message.toLowerCase().includes('already')) {
-        return { ok: false, error: APPLE_REVIEW_ACCOUNT_ERROR };
+        return {
+          ok: false,
+          error: APPLE_REVIEW_ACCOUNT_TITLE,
+          caption: APPLE_REVIEW_ACCOUNT_CAPTION,
+          variant: 'notice',
+        };
       }
       return { ok: false, error: signUpError.message };
     }

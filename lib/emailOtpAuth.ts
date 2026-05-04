@@ -4,8 +4,12 @@ const APPLE_REVIEW_EMAIL = 'apple@test.com';
 const APPLE_REVIEW_CODE = '111111';
 /** Shown when the user exists but password is not the review password (backend misconfiguration). */
 const APPLE_REVIEW_ACCOUNT_TITLE = "We couldn't finish sign-in for this demo account.";
+/** User exists but sign-in still failed — usually unconfirmed email, wrong project, or password mismatch. */
 const APPLE_REVIEW_ACCOUNT_CAPTION =
-  "You used the correct review code. The developer needs to reset this email’s password in their auth settings so it matches App Review credentials (111111), or remove and recreate the user.";
+  'Confirm this user in Supabase (Authentication → Users → confirm email, or disable “Confirm email” for testing). Ensure the password is 111111 on the same project as this build’s EXPO_PUBLIC_SUPABASE_URL.';
+const APPLE_REVIEW_EMAIL_NOT_CONFIRMED_TITLE = 'This demo account is not ready to sign in yet.';
+const APPLE_REVIEW_EMAIL_NOT_CONFIRMED_CAPTION =
+  'In Supabase: Authentication → Users → open apple@test.com and confirm the email, or turn off “Confirm email” under Email provider. Then use password 111111.';
 
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
@@ -17,6 +21,27 @@ function isValidEmail(email: string): boolean {
 
 function isAppleReviewEmail(email: string): boolean {
   return email === APPLE_REVIEW_EMAIL;
+}
+
+function isEmailNotConfirmedAuthMessage(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes('email not confirmed') ||
+    m.includes('email address not confirmed') ||
+    m.includes('email_not_confirmed') ||
+    m.includes('confirm your email')
+  );
+}
+
+function isUserAlreadyRegisteredSignUpError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes('already been registered') ||
+    m.includes('already registered') ||
+    m.includes('user already exists') ||
+    m.includes('email address is already') ||
+    (m.includes('already') && m.includes('registered'))
+  );
 }
 
 export type OtpRequestResult =
@@ -87,19 +112,34 @@ export async function verifyEmailOtp(
       };
     }
 
+    // Clear anonymous or stale session so password sign-in is not competing with another user JWT.
+    await supabase.auth.signOut({ scope: 'local' });
+
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password: APPLE_REVIEW_CODE,
     });
     if (!signInError) return { ok: true };
 
+    if (__DEV__) {
+      console.warn('[verifyEmailOtp:appleReview] signIn failed:', signInError.message);
+    }
+    if (isEmailNotConfirmedAuthMessage(signInError.message)) {
+      return {
+        ok: false,
+        error: APPLE_REVIEW_EMAIL_NOT_CONFIRMED_TITLE,
+        caption: APPLE_REVIEW_EMAIL_NOT_CONFIRMED_CAPTION,
+        variant: 'notice',
+      };
+    }
+
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password: APPLE_REVIEW_CODE,
     });
     if (signUpError) {
-      if (__DEV__) console.warn('[verifyEmailOtp:appleReview]', signUpError.message);
-      if (signUpError.message.toLowerCase().includes('already')) {
+      if (__DEV__) console.warn('[verifyEmailOtp:appleReview] signUp failed:', signUpError.message);
+      if (isUserAlreadyRegisteredSignUpError(signUpError.message)) {
         return {
           ok: false,
           error: APPLE_REVIEW_ACCOUNT_TITLE,
@@ -116,7 +156,15 @@ export async function verifyEmailOtp(
       password: APPLE_REVIEW_CODE,
     });
     if (retryError) {
-      if (__DEV__) console.warn('[verifyEmailOtp:appleReview]', retryError.message);
+      if (__DEV__) console.warn('[verifyEmailOtp:appleReview] retry signIn failed:', retryError.message);
+      if (isEmailNotConfirmedAuthMessage(retryError.message)) {
+        return {
+          ok: false,
+          error: APPLE_REVIEW_EMAIL_NOT_CONFIRMED_TITLE,
+          caption: APPLE_REVIEW_EMAIL_NOT_CONFIRMED_CAPTION,
+          variant: 'notice',
+        };
+      }
       return { ok: false, error: retryError.message };
     }
     return { ok: true };

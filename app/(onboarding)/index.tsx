@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -368,11 +369,15 @@ export default function OnboardingScreen() {
       }
       if (isLast) {
         const completedAt = new Date().toISOString();
-        complete(completedAt);
         const res = await persistProfileOnboarding(answers, completedAt);
-        if (__DEV__ && !res.ok) {
-          console.warn('[persistProfileOnboarding]', res.error);
+        if (!res.ok) {
+          Alert.alert(
+            'Could not save your profile',
+            `${res.error}\n\nStay on this screen and try Continue again, or check your connection. Your answers were not saved to the cloud yet, so signing out would lose them.`
+          );
+          return;
         }
+        complete(completedAt);
         router.replace('/(onboarding)/upgrade-offer');
       } else {
         setStep((s) => s + 1);

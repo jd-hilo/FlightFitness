@@ -31,20 +31,25 @@ function parseOnboardingJson(raw: unknown): PersistedOnboardingJson | null {
 
 async function restoreLatestPlanIfPresent(userId: string): Promise<boolean> {
   if (!supabaseConfigured || !supabase) return false;
-  const { data, error } = await supabase
-    .from('plans')
-    .select('payload')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1);
+  try {
+    const { data, error } = await supabase
+      .from('plans')
+      .select('payload')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-  if (error || !data?.length) return false;
-  const normalized = normalizeWeekPlanFromAI(data[0]?.payload);
-  const parsed = weekPlanSchema.safeParse(normalized);
-  if (!parsed.success) return false;
+    if (error || !data?.length) return false;
+    const normalized = normalizeWeekPlanFromAI(data[0]?.payload);
+    const parsed = weekPlanSchema.safeParse(normalized);
+    if (!parsed.success) return false;
 
-  usePlanStore.getState().setFromWeekPlan(parsed.data);
-  return true;
+    usePlanStore.getState().setFromWeekPlan(parsed.data);
+    return true;
+  } catch (error) {
+    if (__DEV__) console.warn('[restoreLatestPlanIfPresent]', error);
+    return false;
+  }
 }
 
 export async function persistProfileOnboarding(
@@ -63,7 +68,8 @@ export async function persistProfileOnboarding(
     return { ok: false, error: 'Not signed in.' };
   }
 
-  const trimmedFirstName = answers.firstName.trim();
+  const trimmedFirstName =
+    typeof answers.firstName === 'string' ? answers.firstName.trim() : '';
   const { error } = await supabase.from('profiles').upsert(
     {
       id: user.id,
@@ -85,46 +91,51 @@ export async function persistProfileOnboarding(
 export async function pullProfileOnboardingIntoStore(): Promise<boolean> {
   if (!supabaseConfigured || !supabase) return false;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
-  if (!user?.id || !isRegisteredAppUser(user)) return false;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user?.id || !isRegisteredAppUser(user)) return false;
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('first_name, onboarding_json')
-    .eq('id', user.id)
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('first_name, onboarding_json')
+      .eq('id', user.id)
+      .maybeSingle();
 
-  if (error) {
-    if (__DEV__) console.warn('[pullProfileOnboardingIntoStore]', error.message);
+    if (error) {
+      if (__DEV__) console.warn('[pullProfileOnboardingIntoStore]', error.message);
+      return false;
+    }
+
+    const remote = parseOnboardingJson(data?.onboarding_json);
+    const firstName =
+      typeof data?.first_name === 'string' ? data.first_name.trim() : '';
+
+    if (remote?.answers) {
+      useOnboardingStore.getState().setAnswers({
+        ...remote.answers,
+        firstName: firstName || remote.answers.firstName?.trim() || '',
+      });
+    } else if (firstName) {
+      useOnboardingStore.getState().setAnswers({ firstName });
+    }
+
+    if (remote?.completedAt) {
+      useOnboardingStore.setState({ completedAt: remote.completedAt });
+      return true;
+    }
+
+    const restoredPlan = await restoreLatestPlanIfPresent(user.id);
+    if (restoredPlan) {
+      useOnboardingStore.setState({ completedAt: new Date().toISOString() });
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    if (__DEV__) console.warn('[pullProfileOnboardingIntoStore]', error);
     return false;
   }
-
-  const remote = parseOnboardingJson(data?.onboarding_json);
-  const firstName =
-    typeof data?.first_name === 'string' ? data.first_name.trim() : '';
-
-  if (remote?.answers) {
-    useOnboardingStore.getState().setAnswers({
-      ...remote.answers,
-      firstName: firstName || remote.answers.firstName?.trim() || '',
-    });
-  } else if (firstName) {
-    useOnboardingStore.getState().setAnswers({ firstName });
-  }
-
-  if (remote?.completedAt) {
-    useOnboardingStore.setState({ completedAt: remote.completedAt });
-    return true;
-  }
-
-  const restoredPlan = await restoreLatestPlanIfPresent(user.id);
-  if (restoredPlan) {
-    useOnboardingStore.setState({ completedAt: new Date().toISOString() });
-    return true;
-  }
-
-  return false;
 }

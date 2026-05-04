@@ -44,9 +44,15 @@ export default function Index() {
 
     let cancelled = false;
     setRemoteOnboardingChecked(false);
-    void pullProfileOnboardingIntoStore().finally(() => {
-      if (!cancelled) setRemoteOnboardingChecked(true);
-    });
+    void (async () => {
+      try {
+        await pullProfileOnboardingIntoStore();
+      } catch (error) {
+        if (__DEV__) console.warn('[index] onboarding restore failed:', error);
+      } finally {
+        if (!cancelled) setRemoteOnboardingChecked(true);
+      }
+    })();
     return () => {
       cancelled = true;
     };

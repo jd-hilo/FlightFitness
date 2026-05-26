@@ -4,6 +4,38 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type SubscriptionTier = 'free' | 'essentials' | 'coaching';
 
+export const FREE_TIER_MAX_SAVED_WORKOUTS = 3;
+export const FREE_TIER_MAX_SAVED_MEALS = 5;
+
+export function hasPremiumLibraryAccess(tier: SubscriptionTier): boolean {
+  return tier === 'essentials' || tier === 'coaching';
+}
+
+export function savedWorkoutLimit(tier: SubscriptionTier): number | null {
+  return hasPremiumLibraryAccess(tier) ? null : FREE_TIER_MAX_SAVED_WORKOUTS;
+}
+
+export function savedMealLimit(tier: SubscriptionTier): number | null {
+  return hasPremiumLibraryAccess(tier) ? null : FREE_TIER_MAX_SAVED_MEALS;
+}
+
+export function canAddSavedWorkout(tier: SubscriptionTier, currentCount: number): boolean {
+  const limit = savedWorkoutLimit(tier);
+  return limit == null || currentCount < limit;
+}
+
+export function canAddSavedMealTemplate(
+  tier: SubscriptionTier,
+  templates: { name: string }[],
+  mealName: string
+): boolean {
+  if (hasPremiumLibraryAccess(tier)) return true;
+  const key = mealName.trim().toLowerCase();
+  const isUpdate = templates.some((t) => t.name.trim().toLowerCase() === key);
+  if (isUpdate) return true;
+  return templates.length < FREE_TIER_MAX_SAVED_MEALS;
+}
+
 type SubscriptionState = {
   tier: SubscriptionTier;
   freePlanUsed: boolean;

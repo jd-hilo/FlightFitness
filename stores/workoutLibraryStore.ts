@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { ensureExerciseSetRows, newId, syncExerciseAggregateFromSetRows } from '@/lib/exerciseNormalize';
 import { deleteRemoteWorkout, scheduleTrackingRemoteSave } from '@/lib/api/trackingPersistence';
+import { canAddSavedWorkout, useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { Exercise } from '@/types/plan';
 
 export type SavedWorkout = {
@@ -16,7 +17,7 @@ export type SavedWorkout = {
 
 type WorkoutLibraryState = {
   workouts: SavedWorkout[];
-  createWorkout: (title?: string) => string;
+  createWorkout: (title?: string) => string | null;
   updateWorkoutTitle: (id: string, title: string) => void;
   deleteWorkout: (id: string) => void;
   addExercise: (workoutId: string, exercise: Exercise) => void;
@@ -34,6 +35,11 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
       workouts: [],
 
       createWorkout: (title = 'Workout') => {
+        const tier = useSubscriptionStore.getState().tier;
+        if (!canAddSavedWorkout(tier, get().workouts.length)) {
+          return null;
+        }
+
         const id = newId('sw');
         const now = new Date().toISOString();
         const workout: SavedWorkout = {

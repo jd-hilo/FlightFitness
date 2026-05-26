@@ -33,13 +33,13 @@ const PLAN_META: Record<
   free: {
     name: 'Free',
     price: '$0',
-    body: 'Core tracking and limited plan previews to get started.',
+    body: 'Track faith, fuel, and training with up to 3 saved workouts and 5 saved meals.',
   },
   essentials: {
     name: 'Essentials',
     price: '$2.99/week',
     body:
-      'Unlimited AI meal & workout plans, grocery lists, plus daily faith study and reflections. Weekly billing only — there is no monthly or yearly Essentials plan.',
+      'Unlimited saved workouts and meals, AI week plans, grocery lists, and daily faith study. Weekly billing only.',
   },
   coaching: {
     name: 'FF Custom Coaching',

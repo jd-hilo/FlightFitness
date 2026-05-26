@@ -23,7 +23,7 @@ import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { usePlanStore } from '@/stores/planStore';
-import { useSubscriptionStore, shouldAllowAiFullWeekGeneration } from '@/stores/subscriptionStore';
+import { useSubscriptionStore, shouldAllowAiFullWeekGeneration, savedWorkoutLimit } from '@/stores/subscriptionStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 
 export default function TrainScreen() {
@@ -59,8 +59,21 @@ export default function TrainScreen() {
 
   const onCreateWorkout = () => {
     const id = createWorkout('New workout');
+    if (!id) {
+      Alert.alert(
+        'Workout limit reached',
+        'Free includes up to 3 saved workouts. Upgrade to Essentials for unlimited workouts.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Upgrade', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
     router.push(`/workout/${id}`);
   };
+
+  const workoutLimit = savedWorkoutLimit(tier);
 
   const onBegin = (workoutId: string) => {
     const workout = workouts.find((w) => w.id === workoutId);
@@ -124,6 +137,11 @@ export default function TrainScreen() {
         </Pressable>
 
         <Text style={styles.sectionTitle}>My workouts</Text>
+        {workoutLimit != null ? (
+          <Text style={styles.limitHint}>
+            {workouts.length} of {workoutLimit} saved on Free
+          </Text>
+        ) : null}
 
         {workouts.length === 0 ? (
           <View style={styles.empty}>
@@ -254,6 +272,13 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
     marginBottom: 16,
+  },
+  limitHint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: -10,
+    marginBottom: 14,
   },
   empty: {
     padding: 20,

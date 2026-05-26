@@ -23,8 +23,7 @@ import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { theme } from '@/constants/theme';
 
 /**
- * Shown after onboarding questions, before the first AI week is generated.
- * Mirrors the paywall plan UI with a “Get 1 week free” path for Free tier.
+ * Shown after onboarding questions. Subscription optional; no automatic AI week generation.
  */
 export default function OnboardingUpgradeOfferScreen() {
   const insets = useSafeAreaInsets();
@@ -50,25 +49,21 @@ export default function OnboardingUpgradeOfferScreen() {
     (s) => s.grantOnboardingFreeAiWeek
   );
 
-  const goGenerate = useCallback(() => {
-    router.replace('/(onboarding)/generate' as Href);
-  }, []);
-
-  const goManual = useCallback(() => {
+  const finishOnboarding = useCallback(() => {
     usePlanStore.getState().ensureWeekPlanShell(viewWeekStartYmdLocal());
     router.replace('/(tabs)' as Href);
   }, []);
 
   const onGetOneWeekFree = useCallback(() => {
     grantOnboardingFreeAiWeek();
-    goGenerate();
-  }, [goGenerate, grantOnboardingFreeAiWeek]);
+    finishOnboarding();
+  }, [finishOnboarding, grantOnboardingFreeAiWeek]);
 
   const onSelectEssentials = useCallback(async () => {
     setEssentialsBusy(true);
     try {
       await purchaseWeeklyEssentials();
-      goGenerate();
+      finishOnboarding();
     } catch (error) {
       if (revenueCatPurchaseWasCancelled(error)) return;
       const message = formatRevenueCatPurchaseError(error);
@@ -77,7 +72,7 @@ export default function OnboardingUpgradeOfferScreen() {
     } finally {
       setEssentialsBusy(false);
     }
-  }, [goGenerate]);
+  }, [finishOnboarding]);
 
   const onJoinWaitlist = useCallback(async () => {
     if (coachingWaitlistJoined) return;
@@ -106,7 +101,7 @@ export default function OnboardingUpgradeOfferScreen() {
             ? 'Flight Fitness Essentials is active on this account.'
             : 'We did not find an active Essentials subscription for this App Store account.'
         );
-        if (restored) goGenerate();
+        if (restored) finishOnboarding();
       } catch (error) {
         Alert.alert(
           'Could not restore purchases',
@@ -116,7 +111,7 @@ export default function OnboardingUpgradeOfferScreen() {
         setEssentialsBusy(false);
       }
     })();
-  }, [goGenerate]);
+  }, [finishOnboarding]);
 
   return (
     <>
@@ -140,7 +135,7 @@ export default function OnboardingUpgradeOfferScreen() {
           setWaitlistJoinedOpen(false);
         }}
       />
-      <Pressable style={[styles.manualBtn, { bottom: insets.bottom + 24 }]} onPress={goManual}>
+      <Pressable style={[styles.manualBtn, { bottom: insets.bottom + 24 }]} onPress={finishOnboarding}>
         <Text style={styles.manualBtnTxt}>Start building manually</Text>
       </Pressable>
     </>

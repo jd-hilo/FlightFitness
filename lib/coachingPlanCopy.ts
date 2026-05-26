@@ -12,6 +12,10 @@ export const ESSENTIALS_FEATURES = [
     label: 'Daily faith rooted in Scripture, in the app.',
   },
   {
+    icon: 'fitness-center',
+    label: 'Unlimited saved workouts and meals.',
+  },
+  {
     icon: 'calendar-month',
     label: 'Weeks of meals and training, built around your goals.',
   },

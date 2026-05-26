@@ -11,6 +11,12 @@ import {
   syncExerciseAggregateFromSetRows,
 } from '@/lib/exerciseNormalize';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
+import {
+  canAddSavedMealTemplate,
+  FREE_TIER_MAX_SAVED_MEALS,
+  hasPremiumLibraryAccess,
+  useSubscriptionStore,
+} from '@/stores/subscriptionStore';
 import type {
   Exercise,
   ExerciseSetRow,
@@ -65,7 +71,7 @@ export type PlanState = {
   ) => void;
   saveWorkoutTemplate: (dayIndex: number, title?: string) => void;
   applyWorkoutTemplate: (dayIndex: number, templateId: string) => void;
-  saveMealTemplate: (meal: Meal) => void;
+  saveMealTemplate: (meal: Meal) => boolean;
   setMacroTargets: (t: MacroTargets) => void;
   clearPlan: () => void;
 };
@@ -367,6 +373,12 @@ export const usePlanStore = create<PlanState>()(
       },
 
       saveMealTemplate: (meal) => {
+        const s = get();
+        const tier = useSubscriptionStore.getState().tier;
+        if (!canAddSavedMealTemplate(tier, s.mealTemplates, meal.name)) {
+          return false;
+        }
+
         const template: MealTemplate = {
           id: newId('mt'),
           slot: meal.slot,
@@ -377,13 +389,16 @@ export const usePlanStore = create<PlanState>()(
           createdAt: new Date().toISOString(),
         };
         const key = meal.name.trim().toLowerCase();
-        set((s) => ({
-          mealTemplates: [
-            template,
-            ...s.mealTemplates.filter((t) => t.name.trim().toLowerCase() !== key),
-          ].slice(0, 24),
-        }));
+        const next = [
+          template,
+          ...s.mealTemplates.filter((t) => t.name.trim().toLowerCase() !== key),
+        ];
+        const capped = hasPremiumLibraryAccess(tier)
+          ? next
+          : next.slice(0, FREE_TIER_MAX_SAVED_MEALS);
+        set({ mealTemplates: capped });
         scheduleRemotePlanSave();
+        return true;
       },
 
       setMacroTargets: (macroTargets) => {

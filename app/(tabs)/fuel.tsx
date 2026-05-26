@@ -39,7 +39,7 @@ import { normalizeDay, useCompletionStore } from '@/stores/completionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
-import { shouldAllowAiFullWeekGeneration, useSubscriptionStore } from '@/stores/subscriptionStore';
+import { shouldAllowAiFullWeekGeneration, useSubscriptionStore, savedMealLimit } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 import type { Meal } from '@/types/plan';
 
@@ -152,6 +152,7 @@ export default function FuelScreen() {
   };
 
   const canLogToday = !isPastDay && planMealIndex != null;
+  const mealLimit = savedMealLimit(tier);
 
   const resolveMealDayIndex = () => {
     const ws = usePlanStore.getState().weekStart;
@@ -231,6 +232,11 @@ export default function FuelScreen() {
 
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Daily log</Text>
+              {mealLimit != null ? (
+                <Text style={styles.limitHint}>
+                  {mealTemplates.length} of {mealLimit} saved meals on Free
+                </Text>
+              ) : null}
             </View>
 
             {planMealIndex == null ? (
@@ -357,7 +363,17 @@ export default function FuelScreen() {
             updateMeal(idx, updated.id, updated);
           } else {
             addMeal(idx, updated);
-            saveMealTemplate(updated);
+            const saved = saveMealTemplate(updated);
+            if (!saved) {
+              Alert.alert(
+                'Saved meal limit reached',
+                'Free includes up to 5 saved meals. Upgrade to Essentials for unlimited saved meals.',
+                [
+                  { text: 'OK', style: 'cancel' },
+                  { text: 'Upgrade', onPress: () => router.push('/paywall') },
+                ]
+              );
+            }
           }
           setEditor(null);
         }}
@@ -418,6 +434,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'rgba(255,215,0,0.3)',
     marginTop: 20,
+    gap: 6,
+  },
+  limitHint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
   },
   addMealBtn: {
     flexDirection: 'row',

@@ -53,6 +53,8 @@ export default function RootLayout() {
           <Stack.Screen name="email-sign-in" />
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="workout-session" options={{ headerShown: false }} />
+          <Stack.Screen name="workout/[id]" options={{ headerShown: false }} />
           <Stack.Screen
             name="grocery"
             options={{

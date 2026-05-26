@@ -8,6 +8,7 @@ import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { theme } from '@/constants/theme';
 import { pullProfileOnboardingIntoStore } from '@/lib/api/profileOnboarding';
+import { pullUserTrackingIntoStores } from '@/lib/api/trackingPersistence';
 import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
 import { useStoresHydrated } from '@/lib/hydration';
 import { PlanRemoteRealtimeSync } from '@/lib/planRemoteRealtime';
@@ -39,6 +40,7 @@ export default function TabLayout() {
   useEffect(() => {
     if (!hydrated || !registered || !supabaseConfigured) return;
     void pullProfileOnboardingIntoStore();
+    void pullUserTrackingIntoStores();
   }, [hydrated, registered]);
 
   const visible = useVerseModalStore((s) => s.visible);

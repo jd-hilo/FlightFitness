@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CoachingWaitlistJoinedModal } from '@/components/CoachingWaitlistJoinedModal';
@@ -15,8 +15,12 @@ import {
   purchaseWeeklyEssentials,
   restoreRevenueCatPurchases,
   revenueCatPurchaseWasCancelled,
+  formatRevenueCatPurchaseError,
 } from '@/lib/revenueCat';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { usePlanStore } from '@/stores/planStore';
+import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
+import { theme } from '@/constants/theme';
 
 /**
  * Shown after onboarding questions, before the first AI week is generated.
@@ -50,6 +54,11 @@ export default function OnboardingUpgradeOfferScreen() {
     router.replace('/(onboarding)/generate' as Href);
   }, []);
 
+  const goManual = useCallback(() => {
+    usePlanStore.getState().ensureWeekPlanShell(viewWeekStartYmdLocal());
+    router.replace('/(tabs)' as Href);
+  }, []);
+
   const onGetOneWeekFree = useCallback(() => {
     grantOnboardingFreeAiWeek();
     goGenerate();
@@ -62,10 +71,9 @@ export default function OnboardingUpgradeOfferScreen() {
       goGenerate();
     } catch (error) {
       if (revenueCatPurchaseWasCancelled(error)) return;
-      Alert.alert(
-        'Could not start purchase',
-        error instanceof Error ? error.message : 'Please try again in a moment.'
-      );
+      const message = formatRevenueCatPurchaseError(error);
+      if (!message) return;
+      Alert.alert('Could not start purchase', message);
     } finally {
       setEssentialsBusy(false);
     }
@@ -102,7 +110,7 @@ export default function OnboardingUpgradeOfferScreen() {
       } catch (error) {
         Alert.alert(
           'Could not restore purchases',
-          error instanceof Error ? error.message : 'Please try again in a moment.'
+          formatRevenueCatPurchaseError(error) || 'Please try again in a moment.'
         );
       } finally {
         setEssentialsBusy(false);
@@ -132,6 +140,30 @@ export default function OnboardingUpgradeOfferScreen() {
           setWaitlistJoinedOpen(false);
         }}
       />
+      <Pressable style={[styles.manualBtn, { bottom: insets.bottom + 24 }]} onPress={goManual}>
+        <Text style={styles.manualBtnTxt}>Start building manually</Text>
+      </Pressable>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  manualBtn: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    bottom: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  manualBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+});

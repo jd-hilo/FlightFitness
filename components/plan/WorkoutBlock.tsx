@@ -1,7 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { theme } from '@/constants/theme';
+import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import type { Exercise, WorkoutDay } from '@/types/plan';
 
 type Props = {
@@ -10,11 +13,8 @@ type Props = {
   exerciseIdsDone: string[];
   onToggleComplete: () => void;
   onToggleExercise: (exerciseId: string) => void;
-  /** Open editor for this exercise index (Fuel-style local edit). */
   onEditExercise?: (index: number) => void;
-  /** Past calendar days: show plan but disable completion / edit. */
   readOnly?: boolean;
-  /** Tighter layout for welcome / marketing slides. */
   compact?: boolean;
 };
 
@@ -83,9 +83,7 @@ export function WorkoutBlock({
           done={exerciseIdsDone.includes(ex.id)}
           readOnly={readOnly}
           onToggleCheck={() => onToggleExercise(ex.id)}
-          onEdit={
-            !readOnly && onEditExercise ? () => onEditExercise(i) : undefined
-          }
+          onEdit={!readOnly && onEditExercise ? () => onEditExercise(i) : undefined}
         />
       ))}
     </View>
@@ -109,12 +107,16 @@ function ExerciseRow({
   onToggleCheck: () => void;
   onEdit?: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const normalized = ensureExerciseSetRows(exercise);
+  const rows = normalized.setRows ?? [];
   const canEdit = onEdit && !readOnly;
   const iconColor = done
     ? readOnly
       ? theme.colors.onSurfaceVariant
       : theme.colors.gold
     : theme.colors.onSurfaceVariant;
+
   return (
     <View style={[styles.exRow, compact && styles.exRowCompact]}>
       <Pressable
@@ -131,6 +133,7 @@ function ExerciseRow({
           color={iconColor}
         />
       </Pressable>
+      <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} size={compact ? 16 : 20} />
       <View style={{ flex: 1 }}>
         <View style={styles.exTitleRow}>
           <Text
@@ -144,15 +147,31 @@ function ExerciseRow({
           </Text>
           {canEdit ? (
             <Pressable onPress={onEdit} hitSlop={8}>
-              <Text style={[styles.editLink, compact && styles.editLinkCompact]}>
-                Edit
-              </Text>
+              <Text style={[styles.editLink, compact && styles.editLinkCompact]}>Edit</Text>
             </Pressable>
           ) : null}
         </View>
         <Text style={[styles.exMeta, compact && styles.exMetaCompact, readOnly && styles.metaMuted]}>
-          {exercise.sets} × {exercise.reps} · Rest {exercise.restSec}s
+          {normalized.sets} × {normalized.reps} · Rest {normalized.restSec}s
         </Text>
+        {rows.length > 0 ? (
+          <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8}>
+            <Text style={styles.expandLink}>
+              {expanded ? 'Hide sets' : `Show ${rows.length} sets`}
+            </Text>
+          </Pressable>
+        ) : null}
+        {expanded
+          ? rows.map((row, i) => (
+              <Text
+                key={row.id || i}
+                style={[styles.setLine, readOnly && styles.metaMuted]}>
+                Set {i + 1}: {row.targetReps} reps
+                {row.weightLb != null ? ` · ${row.weightLb} lb` : ''}
+                {row.actualReps ? ` · logged ${row.actualReps}` : ''}
+              </Text>
+            ))
+          : null}
         {exercise.notes ? (
           <Text
             style={[styles.exNotes, compact && styles.exNotesCompact, readOnly && styles.metaMuted]}>
@@ -172,15 +191,9 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
-  cardReadOnly: {
-    opacity: 0.55,
-  },
-  textMuted: {
-    color: theme.colors.onSurfaceVariant,
-  },
-  metaMuted: {
-    opacity: 0.85,
-  },
+  cardReadOnly: { opacity: 0.55 },
+  textMuted: { color: theme.colors.onSurfaceVariant },
+  metaMuted: { opacity: 0.85 },
   head: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -207,9 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  completeBtnDisabled: {
-    borderColor: theme.colors.outline,
-  },
+  completeBtnDisabled: { borderColor: theme.colors.outline },
   completeTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
@@ -217,9 +228,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  completeTxtMuted: {
-    color: theme.colors.onSurfaceVariant,
-  },
+  completeTxtMuted: { color: theme.colors.onSurfaceVariant },
   exRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
@@ -227,11 +236,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     marginTop: 14,
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 8,
   },
-  exCheckHit: {
-    paddingTop: 2,
-  },
+  exCheckHit: { paddingTop: 2 },
   exTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -260,6 +267,20 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     marginTop: 4,
   },
+  expandLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    color: theme.colors.gold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
+  setLine: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 4,
+  },
   exNotes: {
     fontFamily: theme.fonts.body,
     fontSize: 12,
@@ -267,48 +288,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontStyle: 'italic',
   },
-  cardCompact: {
-    padding: 8,
-    marginBottom: 6,
-  },
-  headCompact: {
-    marginBottom: 8,
-    gap: 6,
-  },
-  kickerCompact: {
-    fontSize: 8,
-    marginBottom: 1,
-    letterSpacing: 1.5,
-  },
-  titleCompact: {
-    fontSize: 14,
-  },
-  completeBtnCompact: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  completeTxtCompact: {
-    fontSize: 8,
-    letterSpacing: 0.5,
-  },
-  exRowCompact: {
-    paddingTop: 8,
-    marginTop: 8,
-    gap: 6,
-  },
-  exNameCompact: {
-    fontSize: 11,
-  },
-  exMetaCompact: {
-    fontSize: 10,
-    marginTop: 1,
-  },
-  exNotesCompact: {
-    fontSize: 10,
-    marginTop: 3,
-  },
-  editLinkCompact: {
-    fontSize: 8,
-    letterSpacing: 0.5,
-  },
+  cardCompact: { padding: 8, marginBottom: 6 },
+  headCompact: { marginBottom: 8, gap: 6 },
+  kickerCompact: { fontSize: 8, marginBottom: 1, letterSpacing: 1.5 },
+  titleCompact: { fontSize: 14 },
+  completeBtnCompact: { paddingHorizontal: 8, paddingVertical: 5 },
+  completeTxtCompact: { fontSize: 8, letterSpacing: 0.5 },
+  exRowCompact: { paddingTop: 8, marginTop: 8, gap: 6 },
+  exNameCompact: { fontSize: 11 },
+  exMetaCompact: { fontSize: 10, marginTop: 1 },
+  exNotesCompact: { fontSize: 10, marginTop: 3 },
+  editLinkCompact: { fontSize: 8, letterSpacing: 0.5 },
 });

@@ -152,22 +152,35 @@ export async function getRevenueCatWeeklyPackage(): Promise<PurchasesPackage | n
 }
 
 export async function purchaseWeeklyEssentials() {
-  const weeklyPackage = await getRevenueCatWeeklyPackage();
-  if (!weeklyPackage) {
-    throw new Error(
-      `No weekly package found in the current RevenueCat offering. Add package "${REVENUECAT_WEEKLY_PACKAGE_ID}" to the Current offering.`
-    );
+  const ready = await configureRevenueCat();
+  if (!ready) {
+    throw new Error('SUBSCRIPTION_UNAVAILABLE');
   }
 
-  const { customerInfo } = await Purchases.purchasePackage(weeklyPackage);
-  applyRevenueCatCustomerInfo(customerInfo);
-  return customerInfo;
+  const weeklyPackage = await getRevenueCatWeeklyPackage();
+  if (!weeklyPackage) {
+    throw new Error('SUBSCRIPTION_PRODUCT_UNAVAILABLE');
+  }
+
+  try {
+    const { customerInfo } = await Purchases.purchasePackage(weeklyPackage);
+    applyRevenueCatCustomerInfo(customerInfo);
+    return customerInfo;
+  } catch (error) {
+    if (revenueCatPurchaseWasCancelled(error)) {
+      throw error;
+    }
+    if (__DEV__) {
+      console.warn('[RevenueCat] purchase failed:', error);
+    }
+    throw error;
+  }
 }
 
 export async function restoreRevenueCatPurchases() {
   const ready = await configureRevenueCat();
   if (!ready) {
-    throw new Error('RevenueCat is not configured for this platform.');
+    throw new Error('SUBSCRIPTION_UNAVAILABLE');
   }
 
   const customerInfo = await Purchases.restorePurchases();
@@ -198,6 +211,54 @@ export function revenueCatPurchaseWasCancelled(error: unknown) {
     'userCancelled' in error &&
       (error as { userCancelled?: boolean }).userCancelled
   );
+}
+
+/** User-safe message for purchase / restore failures (never show SDK config strings in production UI). */
+export function formatRevenueCatPurchaseError(error: unknown): string {
+  if (revenueCatPurchaseWasCancelled(error)) return '';
+
+  if (error instanceof Error) {
+    if (
+      error.message === 'SUBSCRIPTION_UNAVAILABLE' ||
+      error.message === 'SUBSCRIPTION_PRODUCT_UNAVAILABLE' ||
+      error.message.includes('RevenueCat is not configured')
+    ) {
+      return 'Subscriptions are not available right now. Please try again in a moment.';
+    }
+    if (error.message.includes('No weekly package')) {
+      return 'This subscription is not available right now. Please try again later.';
+    }
+  }
+
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = String((error as { code?: unknown }).code ?? '');
+    if (code.includes('PURCHASE_NOT_ALLOWED')) {
+      return 'Purchases are not allowed on this device.';
+    }
+    if (code.includes('PRODUCT_NOT_AVAILABLE')) {
+      return 'This subscription is not available in the App Store right now.';
+    }
+    if (code.includes('NETWORK')) {
+      return 'Network error. Check your connection and try again.';
+    }
+    if (code.includes('STORE_PROBLEM')) {
+      return 'The App Store is temporarily unavailable. Please try again later.';
+    }
+  }
+
+  return 'Could not complete your purchase. Please try again.';
+}
+
+export async function getEssentialsWeeklyPriceLabel(): Promise<string | null> {
+  const ready = await configureRevenueCat();
+  if (!ready) return null;
+  const weeklyPackage = await getRevenueCatWeeklyPackage();
+  return weeklyPackage?.product.priceString ?? null;
+}
+
+export async function warmRevenueCatOfferings() {
+  await configureRevenueCat();
+  await getRevenueCatWeeklyPackage();
 }
 
 export function useRevenueCatSubscriptionSync() {

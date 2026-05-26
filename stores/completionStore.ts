@@ -3,12 +3,13 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { formatYmdLocal } from '@/lib/weekUtils';
+import { scheduleTrackingRemoteSave } from '@/lib/api/trackingPersistence';
 
 function todayKey() {
   return formatYmdLocal(new Date());
 }
 
-type DayCompletion = {
+export type DayCompletion = {
   mealIds: string[];
   workoutDone: boolean;
   /** Exercise IDs completed for that calendar day (Train tab checkmarks). */
@@ -100,6 +101,7 @@ export const useCompletionStore = create<CompletionState>()(
           byDay: { ...get().byDay, [dateKey]: nextDay },
           ...streakUpdate,
         });
+        scheduleTrackingRemoteSave();
         return !has;
       },
       toggleWorkout: (dateKey, allExerciseIds) => {
@@ -135,6 +137,7 @@ export const useCompletionStore = create<CompletionState>()(
           byDay: { ...get().byDay, [dateKey]: nextDay },
           ...streakUpdate,
         });
+        scheduleTrackingRemoteSave();
         return nextDone;
       },
       toggleExerciseDone: (dateKey, exerciseId) => {
@@ -149,6 +152,7 @@ export const useCompletionStore = create<CompletionState>()(
             [dateKey]: { ...day, exerciseIdsDone },
           },
         });
+        scheduleTrackingRemoteSave();
       },
       backfillExerciseIdsIfWorkoutDone: (dateKey, allExerciseIds) => {
         if (!allExerciseIds.length) return;
@@ -160,6 +164,7 @@ export const useCompletionStore = create<CompletionState>()(
             [dateKey]: { ...day, exerciseIdsDone: [...allExerciseIds] },
           },
         });
+        scheduleTrackingRemoteSave();
       },
       setWorkoutDoneFlag: (dateKey, done) => {
         const day = normalizeDay(get().byDay[dateKey]);
@@ -188,6 +193,7 @@ export const useCompletionStore = create<CompletionState>()(
           byDay: { ...get().byDay, [dateKey]: nextDay },
           ...streakUpdate,
         });
+        scheduleTrackingRemoteSave();
       },
       reset: () =>
         set({ byDay: {}, streak: 0, lastStreakIncrementDate: null }),

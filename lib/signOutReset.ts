@@ -8,6 +8,8 @@ import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
+import { useWeightLogStore } from '@/stores/weightLogStore';
+import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
 /**
  * Clears local app data so after sign-out (and a relaunch) the user starts from
@@ -24,6 +26,8 @@ export function resetLocalAppStateForSignOut(): void {
   useSubscriptionStore.getState().resetDev();
   useCompletionStore.getState().reset();
   useFaithDailyStore.getState().reset();
+  useWorkoutSessionLogStore.getState().reset();
+  useWeightLogStore.getState().reset();
 
   useDailyContentStore.setState({
     content: null,

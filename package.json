@@ -18,7 +18,8 @@
     "build:production:all": "eas build --platform all --profile production",
     "build:dev:ios-sim": "eas build --profile development --platform ios",
     "build:dev:ios-device": "eas build --profile development-device --platform ios",
-    "submit:ios": "eas build --platform ios --profile production --auto-submit"
+    "submit:ios": "eas build --platform ios --profile production --auto-submit",
+    "icons:ingest": "node scripts/ingest-exercise-icons.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/epilogue": "^0.4.2",

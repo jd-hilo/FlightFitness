@@ -5,6 +5,9 @@ import { usePlanStore } from '@/stores/planStore';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
+import { useWeightLogStore } from '@/stores/weightLogStore';
+import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
+import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
 /** Wait for all persisted stores to rehydrate from AsyncStorage. */
 export function useStoresHydrated(): boolean {
@@ -18,6 +21,9 @@ export function useStoresHydrated(): boolean {
       useCompletionStore.persist.rehydrate(),
       useSubscriptionStore.persist.rehydrate(),
       useFaithDailyStore.persist.rehydrate(),
+      useWeightLogStore.persist.rehydrate(),
+      useWorkoutLibraryStore.persist.rehydrate(),
+      useWorkoutSessionLogStore.persist.rehydrate(),
     ]).then(() => {
       if (!cancelled) setReady(true);
     });

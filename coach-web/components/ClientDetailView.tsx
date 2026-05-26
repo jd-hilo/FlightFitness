@@ -531,6 +531,11 @@ export function ClientDetailView({
                                 onChange={(e) => updateExercise(dayIndex, exIndex, { notes: e.target.value })}
                               />
                             </label>
+                            {ex.setRows && ex.setRows.length > 0 ? (
+                              <p className="text-zinc-500 text-xs sm:col-span-2">
+                                {ex.setRows.length} granular set rows (preserved from mobile edits)
+                              </p>
+                            ) : null}
                           </div>
                         ))}
                       </div>

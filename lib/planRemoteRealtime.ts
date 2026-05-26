@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useEffect } from 'react';
 
+import { shouldIgnoreRemotePlanUpdate } from '@/lib/api/planPersistence';
 import { ensureFreshSessionForEdge, supabase, supabaseConfigured } from '@/lib/supabase';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { normalizeWeekPlanFromAI } from '@/lib/weekPlanAINormalize';
@@ -49,6 +50,7 @@ export function usePlanRemoteRealtime() {
             filter: `user_id=eq.${uid}`,
           },
           (payload) => {
+            if (shouldIgnoreRemotePlanUpdate()) return;
             const row = payload.new as { week_start?: string; payload?: unknown } | null;
             if (!row?.week_start || row.payload === undefined || row.payload === null) return;
             const viewWeek = viewWeekStartYmdLocal();

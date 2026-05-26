@@ -1,7 +1,7 @@
 import type { PlanState } from '@/stores/planStore';
 
-/** True when arrays are length 7 and every day has at least one meal. */
-export function isPlanWeekDataComplete(s: {
+/** True when week arrays exist and macro targets are present (manual-first shell). */
+export function isPlanWeekShellValid(s: {
   mealsByDay: unknown;
   workoutsByDay: unknown;
   macroTargets: unknown;
@@ -11,6 +11,17 @@ export function isPlanWeekDataComplete(s: {
   const w = s.workoutsByDay;
   if (!Array.isArray(meals) || meals.length !== 7) return false;
   if (!Array.isArray(w) || w.length !== 7) return false;
+  return true;
+}
+
+/** True when arrays are length 7 and every day has at least one meal (AI-complete week). */
+export function isPlanWeekDataComplete(s: {
+  mealsByDay: unknown;
+  workoutsByDay: unknown;
+  macroTargets: unknown;
+}): boolean {
+  if (!isPlanWeekShellValid(s)) return false;
+  const meals = s.mealsByDay as unknown[];
   for (let i = 0; i < 7; i++) {
     const day = meals[i];
     if (!Array.isArray(day) || day.length < 1) return false;
@@ -28,6 +39,6 @@ export function localPlanCoversWeek(
   return (
     state.weekStart === targetWeekStartYmd &&
     state.groceryList != null &&
-    isPlanWeekDataComplete(state)
+    isPlanWeekShellValid(state)
   );
 }

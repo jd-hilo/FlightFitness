@@ -21,27 +21,43 @@ alter table public.coach_threads enable row level security;
 alter table public.coach_messages enable row level security;
 
 -- Threads: own row only
+drop policy if exists "coach_threads_select_own" on public.coach_threads;
 create policy "coach_threads_select_own"
   on public.coach_threads for select
   using (auth.uid() = user_id);
 
+drop policy if exists "coach_threads_insert_own" on public.coach_threads;
 create policy "coach_threads_insert_own"
   on public.coach_threads for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "coach_threads_update_own" on public.coach_threads;
 create policy "coach_threads_update_own"
   on public.coach_threads for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 -- Messages: read own; insert only as user (coach via service role)
+drop policy if exists "coach_messages_select_own" on public.coach_messages;
 create policy "coach_messages_select_own"
   on public.coach_messages for select
   using (auth.uid() = user_id);
 
+drop policy if exists "coach_messages_insert_user_only" on public.coach_messages;
 create policy "coach_messages_insert_user_only"
   on public.coach_messages for insert
   with check (auth.uid() = user_id and sender = 'user');
 
 -- Realtime: new coach messages for unread updates
-alter publication supabase_realtime add table public.coach_messages;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'coach_messages'
+  ) then
+    execute 'alter publication supabase_realtime add table public.coach_messages';
+  end if;
+end $$;

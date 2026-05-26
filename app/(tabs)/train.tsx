@@ -1,127 +1,97 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
-import { PlanStripEmptyHint } from '@/components/PlanStripEmptyHint';
 import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
-import { WeekStrip } from '@/components/WeekStrip';
-import { EditExerciseModal } from '@/components/plan/EditExerciseModal';
-import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
-import {
-  dateKeyForViewStripDay,
-  isViewStripDayBeforeToday,
-  mealDayIndexForViewStrip,
-  viewStripIndexForToday,
-  viewWeekStartYmdLocal,
-} from '@/lib/weekUtils';
-import { getTriggerVerse } from '@/lib/verses';
-import {
-  normalizeDay,
-  useCompletionStore,
-} from '@/stores/completionStore';
+import { formatDuration } from '@/lib/formatDuration';
+import { aiGenerateFullWeek } from '@/lib/planAiAssist';
+import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
+import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
+import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { usePlanStore } from '@/stores/planStore';
-import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
-import { useUiStore } from '@/stores/uiStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
-import { useVerseModalStore } from '@/stores/verseModalStore';
+import { useSubscriptionStore, shouldAllowAiFullWeekGeneration } from '@/stores/subscriptionStore';
+import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
+
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
-  const weekStart = usePlanStore((s) => s.weekStart);
-  const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
-  const selectedPlanDay = useUiStore((s) => s.selectedPlanDay);
-  const setSelectedPlanDay = useUiStore((s) => s.setSelectedPlanDay);
-  const byDay = useCompletionStore((s) => s.byDay);
-  const toggleWorkout = useCompletionStore((s) => s.toggleWorkout);
-  const toggleExerciseDone = useCompletionStore((s) => s.toggleExerciseDone);
-  const setWorkoutDoneFlag = useCompletionStore((s) => s.setWorkoutDoneFlag);
-  const backfillExerciseIdsIfWorkoutDone = useCompletionStore(
-    (s) => s.backfillExerciseIdsIfWorkoutDone
-  );
-  const updateExercise = usePlanStore((s) => s.updateExercise);
-  const showVerse = useVerseModalStore((s) => s.show);
+  const workouts = useWorkoutLibraryStore((s) => s.workouts);
+  const createWorkout = useWorkoutLibraryStore((s) => s.createWorkout);
+  const deleteWorkout = useWorkoutLibraryStore((s) => s.deleteWorkout);
+  const importFromLegacyTemplates = useWorkoutLibraryStore((s) => s.importFromLegacyTemplates);
+  const legacyTemplates = usePlanStore((s) => s.workoutTemplates);
+  const session = useActiveWorkoutStore((s) => s.session);
+  const startSession = useActiveWorkoutStore((s) => s.startSession);
+  const getElapsedSeconds = useActiveWorkoutStore((s) => s.getElapsedSeconds);
   const tier = useSubscriptionStore((s) => s.tier);
+  const canUseAi = shouldAllowAiFullWeekGeneration();
+  const [aiBusy, setAiBusy] = useState(false);
+  const [timerTick, setTimerTick] = useState(0);
+
   const headerRight =
     tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
-  const [exerciseEditIndex, setExerciseEditIndex] = useState<number | null>(null);
-  const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
-
-  const viewWeekYmd = viewWeekStartYmdLocal();
-  const isPastDay = isViewStripDayBeforeToday(viewWeekYmd, selectedPlanDay);
-  const hasPlanData = weekStart != null && workoutsByDay != null;
-  const planWorkoutIndex =
-    hasPlanData && weekStart
-      ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay)
-      : null;
-  const dateKey = hasPlanData
-    ? dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay)
-    : '';
-  const workout =
-    hasPlanData && planWorkoutIndex != null
-      ? workoutsByDay![planWorkoutIndex]
-      : null;
-  const completion = normalizeDay(byDay[dateKey]);
-
-  const exerciseBeingEdited =
-    exerciseEditIndex != null && workout?.exercises[exerciseEditIndex]
-      ? workout.exercises[exerciseEditIndex]!
-      : null;
 
   useEffect(() => {
-    setSelectedPlanDay(viewStripIndexForToday(viewWeekStartYmdLocal()));
-  }, [weekStart, setSelectedPlanDay]);
+    importFromLegacyTemplates(legacyTemplates);
+  }, [importFromLegacyTemplates, legacyTemplates]);
 
   useEffect(() => {
-    setExerciseEditIndex(null);
-  }, [selectedPlanDay, planWorkoutIndex]);
+    if (!session) return;
+    const id = setInterval(() => setTimerTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [session]);
 
-  useEffect(() => {
-    if (!weekStart || !workoutsByDay) return;
-    const idx = mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay);
-    if (idx == null) return;
-    const w = workoutsByDay[idx];
-    if (!w) return;
-    const dk = dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay);
-    backfillExerciseIdsIfWorkoutDone(
-      dk,
-      w.exercises.map((e) => e.id)
-    );
-  }, [
-    weekStart,
-    workoutsByDay,
-    selectedPlanDay,
-    viewWeekYmd,
-    backfillExerciseIdsIfWorkoutDone,
-  ]);
+  const elapsed = session ? getElapsedSeconds() : 0;
+  void timerTick;
 
-  const onToggleWorkout = () => {
-    if (isPastDay) return;
-    const ids = workout?.exercises.map((e) => e.id) ?? [];
-    const nowDone = toggleWorkout(dateKey, ids);
-    if (nowDone) {
-      const v = getTriggerVerse('discipline', `${dateKey}-w-train`);
-      showVerse(v, 'Whatever you do, work at it with all your heart.');
-    }
+  const onCreateWorkout = () => {
+    const id = createWorkout('New workout');
+    router.push(`/workout/${id}`);
   };
 
-  const onToggleExercise = (exerciseId: string) => {
-    if (isPastDay || !workout) return;
-    const before = normalizeDay(useCompletionStore.getState().byDay[dateKey]);
-    toggleExerciseDone(dateKey, exerciseId);
-    const after = normalizeDay(useCompletionStore.getState().byDay[dateKey]);
-    const allIds = workout.exercises.map((e) => e.id);
-    const allDone =
-      allIds.length > 0 && allIds.every((id) => after.exerciseIdsDone.includes(id));
-    if (allDone && !before.workoutDone) {
-      setWorkoutDoneFlag(dateKey, true);
-      const v = getTriggerVerse('discipline', `${dateKey}-ex-${exerciseId}`);
-      showVerse(v, 'Whatever you do, work at it with all your heart.');
-    } else if (!allDone && before.workoutDone) {
-      setWorkoutDoneFlag(dateKey, false);
+  const onBegin = (workoutId: string) => {
+    const workout = workouts.find((w) => w.id === workoutId);
+    if (!workout) return;
+    if (workout.exercises.length === 0) {
+      Alert.alert('Add exercises first', 'Open this workout and add at least one exercise.');
+      router.push(`/workout/${workoutId}`);
+      return;
+    }
+    if (session && session.sourceWorkoutId !== workoutId) {
+      Alert.alert(
+        'Workout in progress',
+        'Finish or discard your current session before starting another.'
+      );
+      return;
+    }
+    if (!session) startSession(workout);
+    router.push('/workout-session');
+  };
+
+  const handleAiWeek = async () => {
+    if (!canUseAi) {
+      router.push('/paywall');
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const res = await aiGenerateFullWeek(viewWeekStartYmdLocal());
+      if (!res.ok) Alert.alert('AI assist', res.error);
+    } finally {
+      setAiBusy(false);
     }
   };
 
@@ -134,91 +104,89 @@ export default function TrainScreen() {
           { paddingBottom: insets.bottom + 120 },
         ]}>
         <TabScreenHeading title="Train" rightSlot={headerRight} />
-        <WeekStrip
-          weekStartYmd={viewWeekYmd}
-          selectedIndex={selectedPlanDay}
-          onSelect={setSelectedPlanDay}
-        />
-        {isPastDay ? (
-          <Text style={styles.pastHint}>Past day — view only</Text>
-        ) : null}
-        {!hasPlanData ? (
-          weekPlanEnsuring ? (
-            <View style={styles.rest}>
-              <View style={{ marginBottom: 16, alignItems: 'center' }}>
-                <AppLoadingCross size="medium" />
-              </View>
-              <Text style={styles.restTitle}>Generating your week</Text>
-              <Text style={styles.muted}>
-                Syncing your plan for this calendar week…
-              </Text>
+
+        {session ? (
+          <Pressable style={styles.resumeBanner} onPress={() => router.push('/workout-session')}>
+            <View>
+              <Text style={styles.resumeKicker}>Workout in progress</Text>
+              <Text style={styles.resumeTitle}>{session.title}</Text>
             </View>
-          ) : (
-            <PlanStripEmptyHint variant="train" />
-          )
-        ) : planWorkoutIndex == null ? (
-          <View style={styles.rest}>
-            {weekPlanEnsuring ? (
-              <>
-                <View style={{ marginBottom: 16, alignItems: 'center' }}>
-                <AppLoadingCross size="medium" />
-              </View>
-                <Text style={styles.restTitle}>Generating your week</Text>
-                <Text style={styles.muted}>
-                  Building your plan for this calendar week…
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.restTitle}>Outside plan week</Text>
-                <Text style={styles.muted}>
-                  This date is not covered by your saved plan (plan starts {weekStart}).
-                  Choose another day to view or edit your saved workouts.
-                </Text>
-              </>
-            )}
-          </View>
-        ) : workout ? (
-          <WorkoutBlock
-            workout={workout}
-            completed={completion.workoutDone}
-            exerciseIdsDone={completion.exerciseIdsDone}
-            onToggleComplete={onToggleWorkout}
-            onToggleExercise={onToggleExercise}
-            onEditExercise={
-              isPastDay
-                ? undefined
-                : (i) => {
-                    setExerciseEditIndex(i);
-                  }
-            }
-            readOnly={isPastDay}
-          />
-        ) : (
-          <View style={[styles.rest, isPastDay && styles.restReadOnly]}>
-            <Text style={styles.restTitle}>Recovery day</Text>
+            <View style={styles.resumeRight}>
+              <Text style={styles.resumeTimer}>{formatDuration(elapsed)}</Text>
+              <Text style={styles.resumeLink}>Resume</Text>
+            </View>
+          </Pressable>
+        ) : null}
+
+        <Pressable style={styles.primaryBtn} onPress={onCreateWorkout}>
+          <MaterialIcons name="add" size={20} color={theme.colors.onGold} />
+          <Text style={styles.primaryBtnTxt}>Create workout</Text>
+        </Pressable>
+
+        <Text style={styles.sectionTitle}>My workouts</Text>
+
+        {workouts.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No workouts yet</Text>
             <Text style={styles.muted}>
-              Light walk or mobility — your split builds in rest too.
+              Create a workout, add exercises with sets, then hit Begin when you are ready to train.
             </Text>
           </View>
+        ) : (
+          workouts.map((workout) => {
+            const exerciseCount = workout.exercises.length;
+            const setCount = workout.exercises.reduce(
+              (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? ex.sets),
+              0
+            );
+            return (
+              <View key={workout.id} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{workout.title}</Text>
+                    <Text style={styles.cardMeta}>
+                      {exerciseCount} exercise{exerciseCount === 1 ? '' : 's'} · {setCount} sets
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.beginBtn}
+                    onPress={() => onBegin(workout.id)}>
+                    <Text style={styles.beginBtnTxt}>Begin</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.cardActions}>
+                  <Pressable onPress={() => router.push(`/workout/${workout.id}`)}>
+                    <Text style={styles.cardLink}>Edit</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      Alert.alert('Delete workout?', workout.title, [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => deleteWorkout(workout.id),
+                        },
+                      ])
+                    }>
+                    <Text style={styles.cardLinkDanger}>Delete</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })
         )}
+
+        <Pressable style={styles.aiWeekBtn} disabled={aiBusy} onPress={() => void handleAiWeek()}>
+          {aiBusy ? (
+            <ActivityIndicator color={theme.colors.onSurfaceVariant} />
+          ) : (
+            <Text style={styles.aiWeekBtnTxt}>
+              {canUseAi ? 'Generate full week plan (AI)' : 'Upgrade for AI week plans'}
+            </Text>
+          )}
+        </Pressable>
       </ScrollView>
-      <EditExerciseModal
-        visible={exerciseEditIndex != null && exerciseBeingEdited != null}
-        exercise={exerciseBeingEdited}
-        onClose={() => setExerciseEditIndex(null)}
-        onSave={(updated) => {
-          const idx = mealDayIndexForViewStrip(
-            weekStart!,
-            viewWeekYmd,
-            selectedPlanDay
-          );
-          if (idx != null && exerciseEditIndex != null) {
-            updateExercise(idx, exerciseEditIndex, updated);
-          }
-          setExerciseEditIndex(null);
-        }}
-      />
     </View>
   );
 }
@@ -226,45 +194,154 @@ export default function TrainScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
-  generatingBox: {
-    padding: 24,
-    gap: 12,
-    alignItems: 'flex-start',
+  resumeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 16,
+    marginBottom: 16,
   },
-  generatingTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
+  resumeKicker: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 1.5,
     color: theme.colors.gold,
     textTransform: 'uppercase',
   },
-  rest: {
-    padding: 24,
+  resumeTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 16,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  resumeRight: { alignItems: 'flex-end' },
+  resumeTimer: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 22,
+    color: theme.colors.gold,
+  },
+  resumeLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    color: theme.colors.gold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  primaryBtn: {
+    backgroundColor: theme.colors.gold,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 24,
+  },
+  primaryBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: theme.colors.onGold,
+    textTransform: 'uppercase',
+  },
+  sectionTitle: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 24,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+    marginBottom: 16,
+  },
+  empty: {
+    padding: 20,
     borderWidth: 1,
     borderColor: theme.colors.outline,
     backgroundColor: theme.colors.surfaceContainerLow,
+    gap: 8,
+    marginBottom: 16,
   },
-  restTitle: {
+  emptyTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
+    fontSize: 16,
     color: theme.colors.gold,
     textTransform: 'uppercase',
-    marginBottom: 8,
   },
   muted: {
     fontFamily: theme.fonts.body,
+    fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 19,
   },
-  pastHint: {
+  card: {
+    borderWidth: 1,
+    borderColor: theme.colors.outlineStrong,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 16,
+    marginBottom: 10,
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+  },
+  cardMeta: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 4,
+  },
+  beginBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  beginBtnTxt: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outlineStrong,
+  },
+  cardLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    color: theme.colors.gold,
     letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  cardLinkDanger: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    color: theme.colors.error,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  aiWeekBtn: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+  },
+  aiWeekBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.5,
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  restReadOnly: {
-    opacity: 0.55,
   },
 });

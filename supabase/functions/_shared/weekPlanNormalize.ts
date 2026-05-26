@@ -1,3 +1,4 @@
+import { normalizeExerciseRecord } from './exerciseNormalize.ts';
 import { reconcileMealMacrosToTargetsInPlan } from './reconcileMealMacrosToTargets.ts';
 
 /** Same rules as lib/weekPlanAINormalize.ts (kept in sync for Edge). */
@@ -117,37 +118,7 @@ export function normalizeWeekPlanFromAI(raw: unknown): unknown {
       const list = Array.isArray(rawEx) ? rawEx : rawEx == null ? [] : [];
       row.exercises = list
         .filter((ex): ex is Record<string, unknown> => ex != null && typeof ex === 'object')
-        .map((ex, j) => {
-          const e = { ...ex };
-          if (typeof e.id !== 'string' || e.id.trim() === '') {
-            e.id = `ex-${idx}-${j}`;
-          }
-          if (typeof e.name !== 'string' || e.name.trim() === '') {
-            e.name = 'Exercise';
-          }
-          if (typeof e.reps === 'number') e.reps = String(e.reps);
-          else if (e.reps == null || typeof e.reps !== 'string') {
-            e.reps = String(e.reps ?? '');
-          }
-          if (typeof e.sets === 'string') {
-            const n = Number(e.sets);
-            e.sets = Number.isNaN(n) ? 3 : n;
-          } else if (typeof e.sets !== 'number' || Number.isNaN(e.sets)) {
-            e.sets = 3;
-          }
-          if (typeof e.restSec === 'string') {
-            const n = Number(e.restSec);
-            e.restSec = Number.isNaN(n) ? 60 : n;
-          } else if (typeof e.restSec !== 'number' || Number.isNaN(e.restSec)) {
-            e.restSec = 60;
-          }
-          if (e.notes === null || e.notes === undefined) {
-            delete e.notes;
-          } else if (typeof e.notes !== 'string') {
-            e.notes = String(e.notes);
-          }
-          return e;
-        });
+        .map((ex, j) => normalizeExerciseRecord(ex, j, idx));
       return row;
     });
     out.workoutsByDay = spreadWorkoutLayout(out.workoutsByDay as unknown[]);

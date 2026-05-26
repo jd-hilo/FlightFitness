@@ -41,7 +41,8 @@ const SCHEMA_HINT = `Return ONLY valid JSON matching this exact shape — no mar
   "groceryList": [{ "name": string, "quantity"?: string, "category"?: string }]
 }
 Each meal object: { "id": "unique-string", "slot": "breakfast"|"lunch"|"dinner"|"snack", "name": string, "description": string, "recipe": string, "macros": { "proteinG": number, "carbsG": number, "fatG": number, "kcal": number } }.
-Each exercise object: { "id": "unique-string", "name": string, "sets": number, "reps": "string (e.g. '8-12')", "restSec": number, "notes": "optional string or omit" }.
+Each exercise object: { "id": "unique-string", "name": string, "sets": number, "reps": "string (e.g. '8-12')", "restSec": number, "notes": "optional string or omit", "setRows": optional array of { "id": string, "targetReps": string, "actualReps"?: string, "weightLb"?: number, "restSec"?: number, "rpe"?: number, "completed"?: boolean } }.
+When setRows is provided, sets/reps/restSec should match the row count and first row defaults.
 dayIndex on each workout MUST equal its 0-based array index. Every training day MUST have a non-empty exercises array.
 workoutsByDay layout: spread training and rest across Mon–Sun (see TRAINING WEEK LAYOUT below).`;
 

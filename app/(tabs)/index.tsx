@@ -15,11 +15,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
+import { DailyCompletedSection } from '@/components/home/DailyCompletedSection';
+import { WeightLogSection } from '@/components/home/WeightLogSection';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
 import { supabaseConfigured } from '@/lib/supabase';
-import { getDailyVerse, getTriggerVerse } from '@/lib/verses';
+import { getDailyVerse } from '@/lib/verses';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import {
   dateKeyForViewStripDay,
@@ -32,11 +34,12 @@ import {
   normalizeDay,
   useCompletionStore,
 } from '@/stores/completionStore';
+import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
-import { useVerseModalStore } from '@/stores/verseModalStore';
+import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
 const HOME_HERO_SOURCE = require('@/assets/images/home-hero.png');
 
@@ -86,13 +89,12 @@ export default function HomeScreen() {
   const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
   const setSelectedPlanDay = useUiStore((s) => s.setSelectedPlanDay);
   const byDay = useCompletionStore((s) => s.byDay);
-  const toggleMeal = useCompletionStore((s) => s.toggleMeal);
-  const toggleWorkout = useCompletionStore((s) => s.toggleWorkout);
   const backfillExerciseIdsIfWorkoutDone = useCompletionStore(
     (s) => s.backfillExerciseIdsIfWorkoutDone
   );
   const streak = useCompletionStore((s) => s.streak);
-  const showVerse = useVerseModalStore((s) => s.show);
+  const faithByDay = useFaithDailyStore((s) => s.byDay);
+  const workoutSessions = useWorkoutSessionLogStore((s) => s.sessions);
   const dailyRemote = useDailyContentStore((s) => s.content);
   const dailyLoading = useDailyContentStore((s) => s.loading);
   const dailyFetchSettled = useDailyContentStore((s) => s.dailyFetchSettled);
@@ -175,23 +177,28 @@ export default function HomeScreen() {
     return sumMacrosForMeals(done);
   }, [dayMeals, completion.mealIds]);
 
-  const onMealToggle = (mealId: string) => {
-    if (!dateKey) return;
-    const nowDone = toggleMeal(dateKey, mealId);
-    if (nowDone) {
-      const v = getTriggerVerse('gratitude', `${dateKey}-${mealId}`);
-      showVerse(v, 'Fuel the temple — one meal at a time.');
-    }
-  };
+  const librarySessionsToday = useMemo(
+    () => workoutSessions.filter((s) => s.dateKey === dateKey),
+    [workoutSessions, dateKey]
+  );
 
-  const onWorkoutToggle = () => {
-    if (!dateKey) return;
-    const ids = workout?.exercises.map((e) => e.id) ?? [];
-    const nowDone = toggleWorkout(dateKey, ids);
-    if (nowDone) {
-      const v = getTriggerVerse('discipline', `${dateKey}-w`);
-      showVerse(v, 'Strength is built in faithful reps.');
+  const completedMeals = useMemo(() => {
+    if (!mealsByDay || completion.mealIds.length === 0) return [];
+    const ids = new Set(completion.mealIds);
+    const found: typeof dayMeals = [];
+    for (const day of mealsByDay) {
+      for (const meal of day) {
+        if (ids.has(meal.id)) found.push(meal);
+      }
     }
+    return found;
+  }, [mealsByDay, completion.mealIds]);
+
+  const faithToday = faithByDay[dateKey] ?? {
+    verseRead: false,
+    studyRead: false,
+    journalDone: false,
+    journalLine: '',
   };
 
   const onShareInsight = async () => {
@@ -325,100 +332,28 @@ export default function HomeScreen() {
                 loggedCarbs={logged.carbsG}
                 loggedFat={logged.fatG}
               />
-
-              <Text style={styles.section}>Today&apos;s plan</Text>
-              <View style={styles.card}>
-                <Text style={styles.cardKicker}>Workout</Text>
-                {planDayIndex == null ? (
-                  <Text style={styles.mutedCard}>
-                    Today isn&apos;t covered by your current plan week. Check Train
-                    after your week syncs.
-                  </Text>
-                ) : workout ? (
-                  <>
-                    <Text style={styles.cardTitle}>{workout.title}</Text>
-                    <Text style={styles.cardMeta}>
-                      {workout.exercises.length} movements
-                    </Text>
-                    <Pressable style={styles.rowBtn} onPress={onWorkoutToggle}>
-                      <MaterialIcons
-                        name={
-                          completion.workoutDone
-                            ? 'check-circle'
-                            : 'radio-button-unchecked'
-                        }
-                        size={22}
-                        color={theme.colors.gold}
-                      />
-                      <Text style={styles.rowBtnTxt}>
-                        {completion.workoutDone
-                          ? 'Completed'
-                          : 'Mark workout done'}
-                      </Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <Text style={styles.mutedCard}>
-                    Rest or cardio — check Train tab.
-                  </Text>
-                )}
-              </View>
-
-              <View style={styles.card}>
-                <Text style={styles.cardKicker}>Meals</Text>
-                {planDayIndex == null ? (
-                  <Text style={styles.mutedCard}>
-                    Today isn&apos;t covered by your current plan week (plan starts{' '}
-                    {weekStart}). Open Fuel after your week syncs.
-                  </Text>
-                ) : dayMeals.length === 0 ? (
-                  <Text style={styles.mutedCard}>
-                    No meals listed for today in your plan.
-                  </Text>
-                ) : (
-                  dayMeals.map((m) => {
-                    const done = completion.mealIds.includes(m.id);
-                    return (
-                      <Pressable
-                        key={m.id}
-                        style={styles.mealRow}
-                        onPress={() => onMealToggle(m.id)}>
-                        <MaterialIcons
-                          name={done ? 'check-box' : 'check-box-outline-blank'}
-                          size={22}
-                          color={theme.colors.gold}
-                        />
-                        <View style={styles.mealText}>
-                          <Text style={styles.mealName}>{m.name}</Text>
-                          <Text style={styles.mealMeta}>
-                            {m.macros.kcal} kcal · {m.macros.proteinG}g protein
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })
-                )}
-              </View>
-
-              <View style={styles.actions}>
-                <Pressable
-                  style={styles.actionBtn}
-                  onPress={() => router.push('/grocery')}>
-                  <MaterialIcons
-                    name="shopping-cart"
-                    size={20}
-                    color={theme.colors.onGold}
-                  />
-                  <Text style={styles.actionTxt}>Grocery list</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.actionOutline}
-                  onPress={() => router.push('/(tabs)/fuel')}>
-                  <Text style={styles.actionOutlineTxt}>Open Fuel</Text>
-                </Pressable>
-              </View>
             </>
           )}
+
+          <WeightLogSection dateKey={dateKey} />
+
+          <Text style={styles.section}>What have you completed today…</Text>
+          <DailyCompletedSection
+            librarySessions={librarySessionsToday}
+            planWorkoutTitle={workout?.title ?? null}
+            planWorkoutDone={completion.workoutDone}
+            meals={completedMeals.map((m) => ({
+              id: m.id,
+              name: m.name,
+              kcal: m.macros.kcal,
+              proteinG: m.macros.proteinG,
+            }))}
+            faith={{
+              verseRead: faithToday.verseRead,
+              studyRead: faithToday.studyRead,
+              journalDone: faithToday.journalDone,
+            }}
+          />
         </View>
       </ScrollView>
     </View>
@@ -690,37 +625,5 @@ const styles = StyleSheet.create({
   mutedCard: {
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurfaceVariant,
-  },
-  actions: { flexDirection: 'row', gap: 8, marginBottom: 24 },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: theme.colors.gold,
-    paddingVertical: 14,
-  },
-  actionTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
-  },
-  actionOutline: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  actionOutlineTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
 });

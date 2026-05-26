@@ -28,6 +28,16 @@ export const mealSchema = z.object({
   imageKeyword: z.string().optional(),
 });
 
+export const exerciseSetRowSchema = z.object({
+  id: z.string(),
+  targetReps: z.string(),
+  actualReps: z.string().optional(),
+  weightLb: z.number().optional(),
+  restSec: z.number().optional(),
+  rpe: z.number().optional(),
+  completed: z.boolean().optional(),
+});
+
 export const exerciseSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -35,6 +45,10 @@ export const exerciseSchema = z.object({
   reps: z.string(),
   restSec: z.number(),
   notes: z.string().optional(),
+  /** Optional link to bundled exercise catalog entry. */
+  catalogExerciseId: z.string().optional(),
+  /** Granular per-set targets and logging (Strong-style). */
+  setRows: z.array(exerciseSetRowSchema).optional(),
 });
 
 export const workoutDaySchema = z.object({
@@ -65,11 +79,29 @@ export const weekPlanSchema = z.object({
 });
 
 export type Meal = z.infer<typeof mealSchema>;
+export type ExerciseSetRow = z.infer<typeof exerciseSetRowSchema>;
 export type Exercise = z.infer<typeof exerciseSchema>;
 export type WorkoutDay = z.infer<typeof workoutDaySchema>;
 export type GroceryItem = z.infer<typeof groceryItemSchema>;
 export type MacroTargets = z.infer<typeof macroTargetsSchema>;
 export type WeekPlan = z.infer<typeof weekPlanSchema>;
+
+export type WorkoutTemplate = {
+  id: string;
+  title: string;
+  exercises: Exercise[];
+  createdAt: string;
+};
+
+export type MealTemplate = {
+  id: string;
+  slot: MealSlot;
+  name: string;
+  description: string;
+  recipe?: string;
+  macros: z.infer<typeof macrosSchema>;
+  createdAt: string;
+};
 
 export type OnboardingAnswers = {
   /** Preferred first name for in-app greetings (not used for auth). */

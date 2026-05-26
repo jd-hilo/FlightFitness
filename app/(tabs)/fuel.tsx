@@ -2,7 +2,15 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
@@ -12,10 +20,11 @@ import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
-import { EditMealModal } from '@/components/plan/EditMealModal';
 import { MealCard } from '@/components/plan/MealCard';
+import { MealEditorModal } from '@/components/plan/MealEditorModal';
 import { WeekStrip } from '@/components/WeekStrip';
 import { theme } from '@/constants/theme';
+import { aiGenerateFullWeek, aiRegenerateDay } from '@/lib/planAiAssist';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
 import {
   dateKeyForViewStripDay,
@@ -30,7 +39,7 @@ import { normalizeDay, useCompletionStore } from '@/stores/completionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { shouldAllowAiFullWeekGeneration, useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 import type { Meal } from '@/types/plan';
 
@@ -57,24 +66,34 @@ const FLIGHT_FOODS_PRE_WORKOUT_PRODUCTS = [
   },
 ] as const;
 
+type MealEditorState =
+  | { mode: 'add' }
+  | { mode: 'edit'; meal: Meal };
+
 export default function FuelScreen() {
   const insets = useSafeAreaInsets();
   const weekStart = usePlanStore((s) => s.weekStart);
   const macroTargets = usePlanStore((s) => s.macroTargets);
   const mealsByDay = usePlanStore((s) => s.mealsByDay);
+  const mealTemplates = usePlanStore((s) => s.mealTemplates);
   const selectedPlanDay = useUiStore((s) => s.selectedPlanDay);
   const setSelectedPlanDay = useUiStore((s) => s.setSelectedPlanDay);
   const byDay = useCompletionStore((s) => s.byDay);
   const toggleMeal = useCompletionStore((s) => s.toggleMeal);
+  const ensureWeekPlanShell = usePlanStore((s) => s.ensureWeekPlanShell);
+  const addMeal = usePlanStore((s) => s.addMeal);
   const updateMeal = usePlanStore((s) => s.updateMeal);
+  const removeMeal = usePlanStore((s) => s.removeMeal);
+  const saveMealTemplate = usePlanStore((s) => s.saveMealTemplate);
   const showVerse = useVerseModalStore((s) => s.show);
   const tier = useSubscriptionStore((s) => s.tier);
   const headerRight =
     tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
-  const [mealEditing, setMealEditing] = useState<Meal | null>(null);
+  const [editor, setEditor] = useState<MealEditorState | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
+  const canUseAi = shouldAllowAiFullWeekGeneration();
 
-  /** Calendar strip always shows Mon–Sun of the week that contains **today**. */
   const viewWeekYmd = viewWeekStartYmdLocal();
   const isPastDay = isViewStripDayBeforeToday(viewWeekYmd, selectedPlanDay);
 
@@ -96,18 +115,18 @@ export default function FuelScreen() {
     setSelectedPlanDay(viewStripIndexForToday(viewWeekStartYmdLocal()));
   }, [weekStart, setSelectedPlanDay]);
 
-  const hasPlanData =
+  const hasPlanShell =
     weekStart != null && macroTargets != null && mealsByDay != null;
 
   const planMealIndex =
-    hasPlanData && weekStart
+    hasPlanShell && weekStart
       ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay)
       : null;
-  const dateKey = hasPlanData
+  const dateKey = hasPlanShell
     ? dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay)
     : '';
   const dayMeals =
-    hasPlanData && planMealIndex != null
+    hasPlanShell && planMealIndex != null
       ? mealsByDay![planMealIndex] ?? []
       : [];
   const completion = normalizeDay(byDay[dateKey]);
@@ -123,6 +142,46 @@ export default function FuelScreen() {
     if (nowDone) {
       const v = getTriggerVerse('gratitude', `${dateKey}-${mealId}-fuel`);
       showVerse(v, 'Give thanks — your body is a gift.');
+    }
+  };
+
+  const openAddMeal = () => {
+    if (isPastDay) return;
+    ensureWeekPlanShell(viewWeekYmd);
+    setEditor({ mode: 'add' });
+  };
+
+  const canLogToday = !isPastDay && planMealIndex != null;
+
+  const resolveMealDayIndex = () => {
+    const ws = usePlanStore.getState().weekStart;
+    if (!ws) return null;
+    return mealDayIndexForViewStrip(ws, viewWeekYmd, selectedPlanDay);
+  };
+
+  const handleAiDay = async () => {
+    const idx = resolveMealDayIndex();
+    if (idx == null || !canUseAi) return;
+    setAiBusy(true);
+    try {
+      const res = await aiRegenerateDay(idx);
+      if (!res.ok) Alert.alert('AI assist', res.error);
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const handleAiWeek = async () => {
+    if (!canUseAi) {
+      router.push('/paywall');
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const res = await aiGenerateFullWeek(viewWeekYmd);
+      if (!res.ok) Alert.alert('AI assist', res.error);
+    } finally {
+      setAiBusy(false);
     }
   };
 
@@ -147,19 +206,15 @@ export default function FuelScreen() {
         {isPastDay ? (
           <Text style={styles.pastHint}>Past day — view only</Text>
         ) : null}
-        {!hasPlanData ? (
+
+        {!hasPlanShell ? (
           weekPlanEnsuring ? (
             <View style={styles.generatingBox}>
-              <View style={{ marginBottom: 16, alignItems: 'center' }}>
-                <AppLoadingCross size="medium" />
-              </View>
-              <Text style={styles.generatingTitle}>Generating your custom plan</Text>
-              <Text style={styles.muted}>
-                Your personalized meals for this week are on the way…
-              </Text>
+              <AppLoadingCross size="medium" />
+              <Text style={styles.generatingTitle}>Loading your week</Text>
             </View>
           ) : (
-            <PlanStripEmptyHint variant="fuel" />
+            <PlanStripEmptyHint variant="fuel" onBuildManual={openAddMeal} />
           )
         ) : (
           <>
@@ -173,42 +228,68 @@ export default function FuelScreen() {
               loggedCarbs={logged.carbsG}
               loggedFat={logged.fatG}
             />
+
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Daily log</Text>
-              <Pressable onPress={() => router.push('/grocery')}>
-                <Text style={styles.link}>Grocery</Text>
-              </Pressable>
             </View>
+
             {planMealIndex == null ? (
-              weekPlanEnsuring ? (
-                <View style={styles.generatingInline}>
-                  <AppLoadingCross size="medium" />
-                  <Text style={styles.generatingInlineTitle}>
-                    Generating your custom plan
-                  </Text>
-                  <Text style={styles.outsidePlanHint}>
-                    Your daily log will fill in here as soon as your week is ready…
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.outsidePlanHint}>
-                  No meals for this date — it falls outside your saved plan week (plan
-                  starts {weekStart}).
-                </Text>
-              )
+              <Text style={styles.outsidePlanHint}>
+                Outside your saved plan week — tap Start this week on Train or add meals after
+                selecting an in-range day.
+              </Text>
             ) : null}
+
+            {planMealIndex != null && dayMeals.length === 0 && !isPastDay && canUseAi ? (
+              <Pressable
+                style={styles.aiAssistBtn}
+                disabled={aiBusy}
+                onPress={() => void handleAiDay()}>
+                {aiBusy ? (
+                  <ActivityIndicator color={theme.colors.gold} />
+                ) : (
+                  <Text style={styles.aiAssistTxt}>Generate meals (AI)</Text>
+                )}
+              </Pressable>
+            ) : null}
+
             {dayMeals.map((meal) => (
               <MealCard
                 key={meal.id}
                 meal={meal}
                 completed={completion.mealIds.includes(meal.id)}
                 onToggleComplete={() => onMealToggle(meal.id)}
-                onEdit={setMealEditing}
+                onEdit={(m) => setEditor({ mode: 'edit', meal: m })}
                 readOnly={isPastDay}
               />
             ))}
+
+            {canLogToday ? (
+              <Pressable style={styles.addMealBtn} onPress={openAddMeal}>
+                <MaterialIcons name="add" size={20} color={theme.colors.gold} />
+                <Text style={styles.addMealBtnTxt}>Add meal</Text>
+              </Pressable>
+            ) : null}
+
+            {!isPastDay && planMealIndex != null && canUseAi && dayMeals.length > 0 ? (
+              <Pressable
+                style={styles.aiAssistBtn}
+                disabled={aiBusy}
+                onPress={() => void handleAiDay()}>
+                <Text style={styles.aiAssistTxt}>Regenerate this day (AI)</Text>
+              </Pressable>
+            ) : null}
           </>
         )}
+
+        {!isPastDay && hasPlanShell ? (
+          <Pressable style={styles.aiWeekBtn} disabled={aiBusy} onPress={() => void handleAiWeek()}>
+            <Text style={styles.aiWeekBtnTxt}>
+              {canUseAi ? 'Generate full week (AI)' : 'Upgrade for AI week plans'}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <Text style={styles.energySectionTitle}>Energy</Text>
         <Text style={styles.energyLead}>
           Pre-workout picks from{' '}
@@ -259,23 +340,40 @@ export default function FuelScreen() {
           </Text>
         </View>
       </ScrollView>
-      <EditMealModal
-        visible={mealEditing != null}
-        meal={mealEditing}
-        onClose={() => setMealEditing(null)}
+
+      <MealEditorModal
+        visible={editor != null}
+        mode={editor?.mode ?? 'add'}
+        meal={editor?.mode === 'edit' ? editor.meal : null}
+        mealTemplates={mealTemplates}
+        onClose={() => setEditor(null)}
         onSave={(updated) => {
-          if (!weekStart) {
-            setMealEditing(null);
+          const idx = resolveMealDayIndex();
+          if (idx == null) {
+            setEditor(null);
             return;
           }
-          const idx = mealDayIndexForViewStrip(
-            weekStart,
-            viewWeekYmd,
-            selectedPlanDay
-          );
-          if (idx != null) updateMeal(idx, updated.id, updated);
-          setMealEditing(null);
+          if (editor?.mode === 'edit') {
+            updateMeal(idx, updated.id, updated);
+          } else {
+            addMeal(idx, updated);
+            saveMealTemplate(updated);
+          }
+          setEditor(null);
         }}
+        onDelete={
+          editor?.mode === 'edit'
+            ? () => {
+                const idx = resolveMealDayIndex();
+                if (idx == null) {
+                  setEditor(null);
+                  return;
+                }
+                removeMeal(idx, editor.meal.id);
+                setEditor(null);
+              }
+            : undefined
+        }
       />
     </View>
   );
@@ -299,25 +397,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingVertical: 8,
   },
-  generatingBox: {
-    padding: 24,
-    gap: 12,
-    alignItems: 'flex-start',
-  },
+  generatingBox: { padding: 24, gap: 12, alignItems: 'flex-start' },
   generatingTitle: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 18,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  generatingInline: {
-    marginBottom: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  generatingInlineTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 15,
     color: theme.colors.gold,
     textTransform: 'uppercase',
   },
@@ -330,13 +413,31 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 2,
     borderBottomColor: 'rgba(255,215,0,0.3)',
+    marginTop: 20,
+  },
+  addMealBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    borderStyle: 'dashed',
+    backgroundColor: theme.colors.surfaceContainerLow,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  addMealBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   sectionTitle: {
     fontFamily: theme.fonts.headline,
@@ -344,11 +445,32 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  link: {
+  aiAssistBtn: {
+    marginBottom: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+  },
+  aiAssistTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    color: theme.colors.gold,
-    letterSpacing: 2,
+    letterSpacing: 1.2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+  },
+  aiWeekBtn: {
+    marginTop: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+  },
+  aiWeekBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
   energySectionTitle: {
@@ -386,16 +508,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.outlineStrong,
     gap: 12,
   },
-  energyRowLast: {
-    borderBottomWidth: 0,
-  },
-  energyIcon: {
-    marginTop: 2,
-  },
-  energyRowText: {
-    flex: 1,
-    minWidth: 0,
-  },
+  energyRowLast: { borderBottomWidth: 0 },
+  energyIcon: { marginTop: 2 },
+  energyRowText: { flex: 1, minWidth: 0 },
   energyName: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 14,
@@ -457,10 +572,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textTransform: 'uppercase',
     fontWeight: '600',
-  },
-  muted: {
-    fontFamily: theme.fonts.body,
-    color: theme.colors.onSurfaceVariant,
-    padding: 24,
   },
 });

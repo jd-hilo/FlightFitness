@@ -5,15 +5,11 @@ import { theme } from '@/constants/theme';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 type Props = {
-  /** Shapes the one-line copy (meals vs training). */
   variant: 'fuel' | 'train';
+  onBuildManual?: () => void;
 };
 
-/**
- * Shown under the week strip when there is no synced plan and we are not
- * actively generating — subtle nudge instead of a mock week.
- */
-export function PlanStripEmptyHint({ variant }: Props) {
+export function PlanStripEmptyHint({ variant, onBuildManual }: Props) {
   const tier = useSubscriptionStore((s) => s.tier);
 
   if (tier === 'coaching') {
@@ -21,35 +17,40 @@ export function PlanStripEmptyHint({ variant }: Props) {
       <View style={styles.wrap}>
         <Text style={styles.line}>
           {variant === 'fuel'
-            ? 'Meals from Jude will show here when your plan is ready.'
-            : 'Workouts from Jude will show here when your plan is ready.'}
+            ? 'Add meals yourself or wait for Jude to assign your plan.'
+            : 'Build a workout or wait for Jude to assign your plan.'}
         </Text>
+        {onBuildManual ? (
+          <Pressable onPress={onBuildManual} style={styles.manualBtn}>
+            <Text style={styles.link}>
+              {variant === 'fuel' ? 'Add your first meal' : 'Build your first workout'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
 
-  if (tier === 'essentials') {
-    return (
-      <View style={styles.wrap}>
-        <Text style={styles.line}>
-          {"We couldn't load this week's plan yet. Check your connection or try again later."}
-        </Text>
-      </View>
-    );
-  }
-
-  const noun = variant === 'fuel' ? 'meals' : 'training';
+  const noun = variant === 'fuel' ? 'meal' : 'workout';
   return (
-    <Pressable
-      onPress={() => router.push('/paywall')}
-      style={styles.wrap}
-      accessibilityRole="button"
-      accessibilityLabel={`Upgrade for AI ${noun} plans`}>
+    <View style={styles.wrap}>
       <Text style={styles.line}>
-        Upgrade to Essentials for AI {noun} and grocery lists for this week.
+        Start manual — add your own {noun}s for this week, or use AI when you are ready.
       </Text>
-      <Text style={styles.link}>View plans</Text>
-    </Pressable>
+      {onBuildManual ? (
+        <Pressable onPress={onBuildManual} style={styles.manualBtn}>
+          <Text style={styles.link}>
+            {variant === 'fuel' ? 'Add meal' : 'Build workout'}
+          </Text>
+        </Pressable>
+      ) : null}
+      <Pressable
+        onPress={() => router.push('/paywall')}
+        accessibilityRole="button"
+        accessibilityLabel="Upgrade for AI plans">
+        <Text style={styles.subLink}>Generate with AI (Essentials)</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -58,6 +59,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     marginBottom: 8,
+    alignItems: 'center',
   },
   line: {
     fontFamily: theme.fonts.body,
@@ -66,6 +68,7 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
   },
+  manualBtn: { marginTop: 10 },
   link: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
@@ -73,6 +76,14 @@ const styles = StyleSheet.create({
     color: theme.colors.gold,
     textTransform: 'uppercase',
     textAlign: 'center',
-    marginTop: 6,
+  },
+  subLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

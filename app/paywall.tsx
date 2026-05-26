@@ -15,6 +15,7 @@ import {
   purchaseWeeklyEssentials,
   restoreRevenueCatPurchases,
   revenueCatPurchaseWasCancelled,
+  formatRevenueCatPurchaseError,
 } from '@/lib/revenueCat';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
@@ -46,10 +47,9 @@ export default function PaywallScreen() {
       router.back();
     } catch (error) {
       if (revenueCatPurchaseWasCancelled(error)) return;
-      Alert.alert(
-        'Could not start purchase',
-        error instanceof Error ? error.message : 'Please try again in a moment.'
-      );
+      const message = formatRevenueCatPurchaseError(error);
+      if (!message) return;
+      Alert.alert('Could not start purchase', message);
     } finally {
       setEssentialsBusy(false);
     }
@@ -85,7 +85,7 @@ export default function PaywallScreen() {
       } catch (error) {
         Alert.alert(
           'Could not restore purchases',
-          error instanceof Error ? error.message : 'Please try again in a moment.'
+          formatRevenueCatPurchaseError(error) || 'Please try again in a moment.'
         );
       } finally {
         setEssentialsBusy(false);

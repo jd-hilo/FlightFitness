@@ -19,6 +19,7 @@ import { theme } from '@/constants/theme';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { getDailyVerse } from '@/lib/verses';
+import { formatYmdLocal } from '@/lib/weekUtils';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 
@@ -36,7 +37,7 @@ function TaskCheck({ done }: { done: boolean }) {
 
 export default function FaithScreen() {
   const insets = useSafeAreaInsets();
-  const dateKey = new Date().toISOString().slice(0, 10);
+  const dateKey = formatYmdLocal(new Date());
   const reading = useMemo(() => getDailyFaithReading(), []);
   const dailyRemote = useDailyContentStore((s) => s.content);
   const dailyVerse = useMemo(

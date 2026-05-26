@@ -7,6 +7,12 @@ create table if not exists public.coaching_waitlist (
   created_at timestamptz not null default now()
 );
 
+-- Keep newest row per email before enforcing uniqueness
+delete from public.coaching_waitlist w
+using public.coaching_waitlist w2
+where lower(w.email) = lower(w2.email)
+  and w.created_at < w2.created_at;
+
 create unique index if not exists coaching_waitlist_email_lower_unique
   on public.coaching_waitlist (lower(email));
 
@@ -16,6 +22,7 @@ create index if not exists coaching_waitlist_created_desc
 alter table public.coaching_waitlist enable row level security;
 
 -- Signed-in users (including anonymous auth) can add themselves to the waitlist.
+drop policy if exists "coaching_waitlist_insert_own_session" on public.coaching_waitlist;
 create policy "coaching_waitlist_insert_own_session"
   on public.coaching_waitlist for insert
   to authenticated

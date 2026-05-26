@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
-import { FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
+import { FLIGHT_FITNESS_PRIVACY_POLICY_URL, FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -251,6 +251,16 @@ export default function WelcomeScreen() {
                 void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
               }>
               Terms of Service
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.termsLink}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+              onPress={() =>
+                void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
+              }>
+              Privacy Policy
             </Text>
             .
           </Text>

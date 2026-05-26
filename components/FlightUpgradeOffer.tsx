@@ -10,11 +10,18 @@ import { theme } from '@/constants/theme';
 import {
   COACHING_FEATURES,
   ESSENTIALS_FEATURES,
-  ESSENTIALS_PAYWALL_LEGAL,
   ESSENTIALS_RENEWAL_FOOTNOTE,
   ESSENTIALS_WEEKLY_ONLY_CAPTION,
 } from '@/lib/coachingPlanCopy';
-import { FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
+import {
+  FLIGHT_FITNESS_PRIVACY_POLICY_URL,
+  FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
+} from '@/lib/legalUrls';
+import {
+  getEssentialsWeeklyPriceLabel,
+  warmRevenueCatOfferings,
+} from '@/lib/revenueCat';
+import { essentialsPaywallLegalCopy } from '@/lib/subscriptionLegalCopy';
 import type { SubscriptionTier } from '@/stores/subscriptionStore';
 
 type Offer = 'essentials' | 'coaching';
@@ -59,6 +66,7 @@ export function FlightUpgradeOffer({
   const [selected, setSelected] = useState<Offer>(
     tier === 'coaching' ? 'coaching' : 'essentials'
   );
+  const [weeklyPrice, setWeeklyPrice] = useState('$2.99');
   const coachingActive = tier === 'coaching';
   const essentialsActive = tier === 'essentials';
   const coachingCardLocked = coachingWaitlistJoined && !coachingActive;
@@ -67,6 +75,18 @@ export function FlightUpgradeOffer({
     if (!coachingWaitlistJoined) return;
     setSelected((s) => (s === 'coaching' ? 'essentials' : s));
   }, [coachingWaitlistJoined]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await warmRevenueCatOfferings();
+      const price = await getEssentialsWeeklyPriceLabel();
+      if (!cancelled && price) setWeeklyPrice(price);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const visibleBenefits =
     selected === 'coaching' ? COACHING_FEATURES : ESSENTIALS_FEATURES;
   const selectedBusy =
@@ -139,7 +159,7 @@ export function FlightUpgradeOffer({
               </View>
             </View>
             <View style={styles.offerBottom}>
-              <Text style={styles.offerPrice}>$2.99</Text>
+              <Text style={styles.offerPrice}>{weeklyPrice}</Text>
               <Text style={styles.offerPeriod}>/week</Text>
             </View>
             <Text style={styles.offerNote}>
@@ -239,7 +259,7 @@ export function FlightUpgradeOffer({
           </Pressable>
         ) : null}
 
-        <Text style={styles.legal}>{ESSENTIALS_PAYWALL_LEGAL}</Text>
+        <Text style={styles.legal}>{essentialsPaywallLegalCopy()}</Text>
 
         <Text style={styles.terms}>
           By continuing, you agree to our{' '}
@@ -251,6 +271,16 @@ export function FlightUpgradeOffer({
               void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
             }>
             Terms of Service
+          </Text>{' '}
+          and{' '}
+          <Text
+            style={styles.termsLink}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy"
+            onPress={() =>
+              void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
+            }>
+            Privacy Policy
           </Text>
           .
         </Text>

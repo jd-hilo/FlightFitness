@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-25T21:28:21.019Z",
+  "sources": [
+    {
+      "id": "healthicons",
+      "license": "CC0-1.0",
+      "repo": "https://github.com/resolvetosavelives/healthicons"
+    }
+  ],
+  "icons": [
+    {
+      "key": "healthicons:exercise",
+      "fallbackMaterialIcon": "fitness-center",
+      "source": "healthicons",
+      "license": "CC0-1.0",
+      "status": "manifest-only"
+    }
+  ]
+}

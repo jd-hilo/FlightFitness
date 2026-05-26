@@ -7,18 +7,13 @@ import { pullProfileOnboardingIntoStore } from '@/lib/api/profileOnboarding';
 import { useStoresHydrated } from '@/lib/hydration';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useHasActivePlan } from '@/stores/planStore';
-import { theme } from '@/constants/theme';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { theme } from '@/constants/theme';
 
 export default function Index() {
   const hydrated = useStoresHydrated();
   const { ready: authReady, registered: authRegistered } = useRegisteredAuth();
   const completed = useOnboardingStore((s) => s.completedAt != null);
-  const hasPlan = useHasActivePlan();
-  const tier = useSubscriptionStore((s) => s.tier);
-  const freeAiRemaining = useSubscriptionStore((s) => s.freeAiWeekGenerationsRemaining);
   const dailyFetchSettled = useDailyContentStore((s) => s.dailyFetchSettled);
   const [remoteOnboardingChecked, setRemoteOnboardingChecked] = useState(false);
 
@@ -80,23 +75,6 @@ export default function Index() {
 
   if (!completed) {
     return <Redirect href="/(onboarding)" />;
-  }
-
-  if (!hasPlan) {
-    if (tier === 'coaching') {
-      return <Redirect href="/(tabs)" />;
-    }
-    if (tier === 'free' && freeAiRemaining <= 0) {
-      if (!dailyFetchSettled) {
-        return (
-          <View style={styles.center}>
-            <AppLoadingCross size="large" />
-          </View>
-        );
-      }
-      return <Redirect href="/(tabs)" />;
-    }
-    return <Redirect href="/(onboarding)/generate" />;
   }
 
   if (!dailyFetchSettled) {

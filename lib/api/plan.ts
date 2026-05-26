@@ -208,7 +208,17 @@ function applyCustomizationLocal(
       ...m,
       id: `m-${i}-${j}-${Date.now()}`,
     }));
-    plan = { ...plan, mealsByDay: nextMeals };
+    const nextWorkouts = [...plan.workoutsByDay];
+    nextWorkouts[i] = fresh.workoutsByDay[i]
+      ? {
+          ...fresh.workoutsByDay[i]!,
+          exercises: fresh.workoutsByDay[i]!.exercises.map((ex, j) => ({
+            ...ex,
+            id: `ex-${i}-${j}-${Date.now()}`,
+          })),
+        }
+      : null;
+    plan = { ...plan, mealsByDay: nextMeals, workoutsByDay: nextWorkouts };
   }
   if (body.action === 'swapExercise' && body.swapExercise) {
     const { dayIndex, exerciseIndex } = body.swapExercise;

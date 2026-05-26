@@ -56,7 +56,3 @@ export const COACHING_WAITLIST_HINT =
 
 /** Small print on the Essentials offer card when the user does not already have it. */
 export const ESSENTIALS_RENEWAL_FOOTNOTE = 'Renews weekly · cancel anytime';
-
-/** Paywall / upgrade footer — Essentials is the only purchasable tier here and is weekly. */
-export const ESSENTIALS_PAYWALL_LEGAL =
-  'Essentials bills weekly and auto-renews until you cancel in subscription settings (App Store or Google Play).';

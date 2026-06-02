@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +17,6 @@ import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { NumberStepper } from '@/components/plan/NumberStepper';
 import { theme } from '@/constants/theme';
 import { searchExerciseCatalog } from '@/data/exerciseCatalog';
-import { aiSwapExercise } from '@/lib/planAiAssist';
 import {
   defaultSetRow,
   ensureExerciseSetRows,
@@ -64,7 +62,6 @@ export function ExerciseEditorModal({
   const [notes, setNotes] = useState('');
   const [setRows, setSetRows] = useState<ExerciseSetRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -137,26 +134,6 @@ export function ExerciseEditorModal({
     }
     setError(null);
     onSave(parsed.data);
-  };
-
-  const handleAiSuggest = async () => {
-    if (dayIndex == null || exerciseIndex == null) return;
-    setAiBusy(true);
-    setError(null);
-    try {
-      const res = await aiSwapExercise(dayIndex, exerciseIndex, notes.trim() || undefined);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      const w = res.plan.workoutsByDay[dayIndex];
-      const swapped = w?.exercises[exerciseIndex];
-      if (swapped) {
-        onSave(ensureExerciseSetRows(swapped));
-      }
-    } finally {
-      setAiBusy(false);
-    }
   };
 
   return (
@@ -291,19 +268,6 @@ export function ExerciseEditorModal({
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
           />
-
-          {mode === 'edit' && dayIndex != null && exerciseIndex != null ? (
-            <Pressable
-              style={styles.aiBtn}
-              disabled={aiBusy}
-              onPress={() => void handleAiSuggest()}>
-              {aiBusy ? (
-                <ActivityIndicator color={theme.colors.gold} />
-              ) : (
-                <Text style={styles.aiBtnTxt}>Suggest alternative (AI)</Text>
-              )}
-            </Pressable>
-          ) : null}
 
           {onDelete ? (
             <Pressable style={styles.deleteBtn} onPress={onDelete}>
@@ -462,20 +426,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   addSetTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    color: theme.colors.gold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  aiBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  aiBtnTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
     color: theme.colors.gold,

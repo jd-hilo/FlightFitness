@@ -5,12 +5,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
+import { WeightProgressChart } from '@/components/home/WeightProgressChart';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SessionMinutesChart } from '@/components/tracking/SessionMinutesChart';
+import { WeeklyHabitChart } from '@/components/tracking/WeeklyHabitChart';
 import { theme } from '@/constants/theme';
 import { deleteAccount } from '@/lib/api/deleteAccount';
 import { generateWeekPlan } from '@/lib/api/plan';
-import { COACHING_DESCRIPTION } from '@/lib/coachingPlanCopy';
-import { getProfileSectionSummaries } from '@/lib/profileSectionSummaries';
+import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
+import {
+  buildLast7DayHabitScores,
+  buildLast7DaySessionMinutes,
+} from '@/lib/trackingWeekScores';
+import { buildWeightChartEntries } from '@/lib/weightChartEntries';
 import { presentRevenueCatCustomerCenter } from '@/lib/revenueCat';
 import { resetLocalAppStateForSignOut } from '@/lib/signOutReset';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
@@ -19,33 +26,14 @@ import { useCompletionStore } from '@/stores/completionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
-import {
-  type SubscriptionTier,
-  useSubscriptionStore,
-} from '@/stores/subscriptionStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { useWeightLogStore } from '@/stores/weightLogStore';
+import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
-const TIER_ORDER: SubscriptionTier[] = ['free', 'essentials', 'coaching'];
-
-const PLAN_META: Record<
-  SubscriptionTier,
-  { name: string; price: string; body: string }
-> = {
-  free: {
-    name: 'Free',
-    price: '$0',
-    body: 'Track faith, fuel, and training with up to 3 saved workouts and 5 saved meals.',
-  },
-  essentials: {
-    name: 'Essentials',
-    price: '$2.99/week',
-    body:
-      'Unlimited saved workouts and meals, AI week plans, grocery lists, and daily faith study. Weekly billing only.',
-  },
-  coaching: {
-    name: 'FF Custom Coaching',
-    price: '$199/month (waitlist)',
-    body: `${COACHING_DESCRIPTION} Join the waitlist from Upgrade; we email you when a seat opens.`,
-  },
+const TIER_LABEL: Record<string, string> = {
+  free: 'Free',
+  essentials: 'Essentials',
+  coaching: 'Coaching',
 };
 
 export default function EliteScreen() {
@@ -54,58 +42,88 @@ export default function EliteScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
   const [regeneratingPlan, setRegeneratingPlan] = useState(false);
+
   const tier = useSubscriptionStore((s) => s.tier);
+  const firstName = useOnboardingStore((s) => s.answers.firstName.trim());
+  const onboardingWeight = useOnboardingStore((s) => s.answers.currentWeightLb);
+  const targetWeight = useOnboardingStore((s) => s.answers.targetWeightLb);
   const answers = useOnboardingStore((s) => s.answers);
   const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
+  const weekStart = usePlanStore((s) => s.weekStart);
+  const mealsByDay = usePlanStore((s) => s.mealsByDay);
+  const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
+
   const trainingStreak = useCompletionStore((s) => s.streak);
+  const completionByDay = useCompletionStore((s) => s.byDay);
   const faithStreak = useFaithDailyStore((s) => s.faithStreak);
+  const faithByDay = useFaithDailyStore((s) => s.byDay);
 
-  const profileSections = getProfileSectionSummaries(answers);
+  const weightEntries = useWeightLogStore((s) => s.entries);
+  const sessions = useWorkoutSessionLogStore((s) => s.sessions);
 
-  const otherPlanIds = useMemo(
-    () => TIER_ORDER.filter((id) => id !== tier),
-    [tier]
+  const chartEntries = useMemo(
+    () => buildWeightChartEntries(weightEntries, onboardingWeight),
+    [weightEntries, onboardingWeight]
+  );
+
+  const latestWeight =
+    weightEntries.length > 0
+      ? [...weightEntries].sort((a, b) => a.dateKey.localeCompare(b.dateKey)).at(-1)
+          ?.weightLb ?? onboardingWeight
+      : onboardingWeight;
+
+  const habitDays = useMemo(
+    () =>
+      buildLast7DayHabitScores({
+        completionByDay,
+        faithByDay,
+        planWeekStart: weekStart,
+        mealsByDay,
+        workoutsByDay,
+      }),
+    [completionByDay, faithByDay, weekStart, mealsByDay, workoutsByDay]
+  );
+
+  const sessionMinutes = useMemo(
+    () => buildLast7DaySessionMinutes(sessions),
+    [sessions]
+  );
+
+  const workoutsThisWeek = useMemo(
+    () => habitDays.filter((d) => d.train >= 1).length,
+    [habitDays]
   );
 
   const onSignOut = () => {
-    Alert.alert(
-      'Sign out',
-      supabaseConfigured
-        ? 'Clears your saved plan, onboarding answers, streaks, and subscription test state from this device, then ends your cloud session. Next time you open the app you start from the welcome flow.'
-        : 'Clears your saved plan, onboarding answers, streaks, and subscription test state from this device. Cloud auth is not configured; you return to the welcome screen.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign out',
-          style: 'destructive',
-          onPress: async () => {
-            setSigningOut(true);
-            try {
-              resetLocalAppStateForSignOut();
-              if (supabase) {
-                const { error } = await supabase.auth.signOut({ scope: 'local' });
-                if (__DEV__ && error) {
-                  console.warn('[signOut] local scope:', error.message);
-                }
-              }
-            } finally {
-              setSigningOut(false);
-              router.replace('/welcome' as Href);
+    Alert.alert('Sign out?', undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          setSigningOut(true);
+          try {
+            resetLocalAppStateForSignOut();
+            if (supabase) {
+              await supabase.auth.signOut({ scope: 'local' });
             }
-          },
+          } finally {
+            setSigningOut(false);
+            router.replace('/welcome' as Href);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const onDeleteAccount = useCallback(() => {
     Alert.alert(
       'Delete account?',
-      'This permanently deletes your Flight Fitness account and cloud data. You cannot undo this.',
+      'This permanently deletes your account and cloud data.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete account',
+          text: 'Delete',
           style: 'destructive',
           onPress: () => {
             void (async () => {
@@ -117,12 +135,7 @@ export default function EliteScreen() {
                 return;
               }
               resetLocalAppStateForSignOut();
-              if (supabase) {
-                const { error } = await supabase.auth.signOut({ scope: 'local' });
-                if (__DEV__ && error) {
-                  console.warn('[deleteAccount] signOut after delete:', error.message);
-                }
-              }
+              if (supabase) await supabase.auth.signOut({ scope: 'local' });
               router.replace('/welcome' as Href);
             })();
           },
@@ -136,15 +149,14 @@ export default function EliteScreen() {
       router.push('/paywall' as Href);
       return;
     }
-
     void (async () => {
       setManagingSubscription(true);
       try {
         await presentRevenueCatCustomerCenter();
       } catch (error) {
         Alert.alert(
-          'Could not open subscription settings',
-          error instanceof Error ? error.message : 'Please try again in a moment.'
+          'Subscriptions',
+          error instanceof Error ? error.message : 'Try again shortly.'
         );
       } finally {
         setManagingSubscription(false);
@@ -153,39 +165,28 @@ export default function EliteScreen() {
   }, [tier]);
 
   const onDevRegeneratePlan = useCallback(() => {
-    Alert.alert(
-      'Regenerate AI week?',
-      'Dev only: this replaces the current saved meal and workout plan for this week.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Regenerate',
-          onPress: () => {
-            void (async () => {
-              setRegeneratingPlan(true);
-              const res = await generateWeekPlan({
-                onboarding: answers,
-                action: 'full',
-                weekStartHint: viewWeekStartYmdLocal(),
-              });
-              setRegeneratingPlan(false);
-
-              if (!res.ok) {
-                Alert.alert('Plan generation failed', res.error);
-                return;
-              }
-
-              setFromWeekPlan(res.plan);
-              const workoutCount = res.plan.workoutsByDay.filter(Boolean).length;
-              Alert.alert(
-                'Plan regenerated',
-                `Generated ${res.plan.mealsByDay.length} meal days and ${workoutCount} workout days.`
-              );
-            })();
-          },
+    Alert.alert('Regenerate week?', 'Dev only — replaces this week\'s plan.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Regenerate',
+        onPress: () => {
+          void (async () => {
+            setRegeneratingPlan(true);
+            const res = await generateWeekPlan({
+              onboarding: answers,
+              action: 'full',
+              weekStartHint: viewWeekStartYmdLocal(),
+            });
+            setRegeneratingPlan(false);
+            if (!res.ok) {
+              Alert.alert('Failed', res.error);
+              return;
+            }
+            setFromWeekPlan(res.plan);
+          })();
         },
-      ]
-    );
+      },
+    ]);
   }, [answers, setFromWeekPlan]);
 
   return (
@@ -196,136 +197,118 @@ export default function EliteScreen() {
           styles.scroll,
           { paddingBottom: insets.bottom + 120 },
         ]}>
-        <View style={styles.profileRow}>
-          <View style={styles.avatar}>
-            <MaterialIcons name="person" size={40} color={theme.colors.gold} />
-          </View>
-          <View style={styles.profileText}>
-            <Text style={styles.displayName}>Your profile</Text>
-          </View>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>
+            {firstName ? `${firstName}'s` : 'Your'} tracking
+          </Text>
+          <Pressable
+            onPress={() => router.push('/profile-edit' as Href)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile">
+            <MaterialIcons name="edit" size={22} color={theme.colors.gold} />
+          </Pressable>
         </View>
-        <Text style={styles.lead}>
-          Membership, habits, and training identity in one place. Tap below to go
-          deeper on plans and coaching.
-        </Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statVal}>{trainingStreak}</Text>
-            <Text style={styles.statLabel}>Training streak</Text>
+            <Text style={styles.statLabel}>Train streak</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statVal}>{faithStreak}</Text>
             <Text style={styles.statLabel}>Faith streak</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statVal} numberOfLines={1} adjustsFontSizeToFit>
-              {tier.toUpperCase()}
-            </Text>
-            <Text style={styles.statLabel}>Plan tier</Text>
+            <Text style={styles.statVal}>{workoutsThisWeek}</Text>
+            <Text style={styles.statLabel}>Workouts / 7d</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Your plan inputs</Text>
-        <Pressable
-          style={styles.editProfileBtn}
-          onPress={() => router.push('/profile-edit' as Href)}>
-          <Text style={styles.editProfileBtnTxt}>Edit all choices</Text>
-        </Pressable>
-        <View style={styles.profileSectionsWrap}>
-          {profileSections.map((sec) => (
-            <View key={sec.title} style={styles.profileSectionCard}>
-              <Text style={styles.profileSectionTitle}>{sec.title}</Text>
-              {sec.lines.map((line, i) => (
-                <Text key={i} style={styles.profileSectionLine}>
-                  {line}
-                </Text>
-              ))}
-            </View>
-          ))}
+        <View style={styles.chartCard}>
+          <Text style={styles.chartKicker}>Weight</Text>
+          <View style={styles.weightHead}>
+            <Text style={styles.weightNow}>{latestWeight} lb</Text>
+            {targetWeight > 0 ? (
+              <Text style={styles.weightTarget}>→ {targetWeight} lb</Text>
+            ) : null}
+          </View>
+          <WeightProgressChart
+            entries={chartEntries}
+            targetWeightLb={targetWeight > 0 ? targetWeight : undefined}
+          />
         </View>
 
-        {__DEV__ ? (
-          <>
-            <Text style={styles.sectionLabel}>Developer tools</Text>
-            <View style={styles.devCard}>
-              <Text style={styles.devBody}>
-                Test the current AI prompt by replacing this week&apos;s meals and
-                workouts with a fresh full-plan generation.
-              </Text>
-              <Pressable
-                style={[
-                  styles.devBtn,
-                  regeneratingPlan && styles.devBtnDisabled,
-                ]}
-                onPress={onDevRegeneratePlan}
-                disabled={regeneratingPlan}>
-                <Text style={styles.devBtnTxt}>
-                  {regeneratingPlan ? 'Regenerating…' : 'Regenerate AI week'}
-                </Text>
-              </Pressable>
-            </View>
-          </>
-        ) : null}
+        <View style={styles.chartCard}>
+          <Text style={styles.chartKicker}>7-day habits</Text>
+          <WeeklyHabitChart days={habitDays} />
+        </View>
 
-        <Text style={styles.sectionLabel}>Membership</Text>
-        <View style={styles.currentPlanCard}>
-          <Text style={styles.currentBadge}>Your plan</Text>
-          <Text style={styles.currentPlanTitle}>
-            {PLAN_META[tier].name} — {PLAN_META[tier].price}
-          </Text>
-          <Text style={styles.currentPlanBody}>{PLAN_META[tier].body}</Text>
+        <View style={styles.chartCard}>
+          <Text style={styles.chartKicker}>Training time</Text>
+          <SessionMinutesChart points={sessionMinutes} />
+          {sessionMinutes.every((p) => p.minutes === 0) ? (
+            <Text style={styles.chartEmpty}>
+              Finish a workout session to log minutes here.
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.actions}>
           <Pressable
+            style={styles.actionRow}
+            onPress={() => router.push('/profile-edit' as Href)}>
+            <MaterialIcons name="tune" size={20} color={theme.colors.gold} />
+            <Text style={styles.actionTxt}>Plan inputs</Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={22}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
+          <Pressable
+            style={styles.actionRow}
             onPress={onManagePlan}
-            hitSlop={8}
-            disabled={managingSubscription}
-            accessibilityRole="button"
-            accessibilityLabel="Manage or change plan">
-            <Text style={styles.currentPlanLink}>
-              {managingSubscription ? 'Opening subscriptions…' : 'Manage or change plan'}
+            disabled={managingSubscription}>
+            <MaterialIcons name="workspace-premium" size={20} color={theme.colors.gold} />
+            <Text style={styles.actionTxt}>
+              {TIER_LABEL[tier] ?? tier}
+              {managingSubscription ? '…' : ''}
+            </Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={22}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
+          {tier !== 'coaching' ? (
+            <Pressable
+              style={styles.actionRow}
+              onPress={() => router.push('/paywall' as Href)}>
+              <MaterialIcons name="upgrade" size={20} color={theme.colors.gold} />
+              <Text style={styles.actionTxt}>Upgrade</Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={22}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {__DEV__ && isAiWeekPlanEnabled() ? (
+          <Pressable
+            style={styles.devBtn}
+            onPress={onDevRegeneratePlan}
+            disabled={regeneratingPlan}>
+            <Text style={styles.devBtnTxt}>
+              {regeneratingPlan ? 'Regenerating…' : 'Dev: regenerate week'}
             </Text>
           </Pressable>
-        </View>
+        ) : null}
 
-        <Text style={styles.otherPlansLabel}>Also available</Text>
-        {otherPlanIds.map((planId, idx) => {
-          const meta = PLAN_META[planId];
-          const isLast = idx === otherPlanIds.length - 1;
-          const mb = isLast ? styles.upgradeCardLast : styles.upgradeCardSpacer;
-          const cta =
-            planId === 'free'
-              ? 'View plan'
-              : planId === 'coaching'
-                ? 'Upgrade to custom coaching'
-                : 'Upgrade';
-          return (
-            <Pressable
-              key={planId}
-              style={[styles.card, mb]}
-              onPress={() => router.push('/paywall' as Href)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                planId === 'free'
-                  ? `View ${meta.name} plan`
-                  : `Upgrade to ${meta.name}`
-              }>
-              <Text style={styles.cardTitleDark}>
-                {meta.name} — {meta.price}
-              </Text>
-              <Text style={styles.cardBodyDark}>{meta.body}</Text>
-              <Text style={styles.upgradeRowCta} numberOfLines={2}>
-                {cta}
-              </Text>
-            </Pressable>
-          );
-        })}
-
-        <Text style={styles.sectionLabel}>Account</Text>
         <Pressable
-          style={[
-            styles.signOutBtn,
-            (signingOut || deletingAccount) && styles.signOutBtnDisabled,
-          ]}
+          style={styles.signOutBtn}
           onPress={onSignOut}
           disabled={signingOut || deletingAccount}>
           <Text style={styles.signOutTxt}>
@@ -333,14 +316,11 @@ export default function EliteScreen() {
           </Text>
         </Pressable>
         <Pressable
-          style={[
-            styles.deleteAccountBtn,
-            deletingAccount && styles.deleteAccountBtnDisabled,
-          ]}
           onPress={onDeleteAccount}
-          disabled={signingOut || deletingAccount}>
-          <Text style={styles.deleteAccountTxt}>
-            {deletingAccount ? 'Deleting account…' : 'Delete account'}
+          disabled={signingOut || deletingAccount}
+          hitSlop={8}>
+          <Text style={styles.deleteTxt}>
+            {deletingAccount ? 'Deleting…' : 'Delete account'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -351,46 +331,28 @@ export default function EliteScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
-  profileRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: theme.colors.gold,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileText: { flex: 1 },
-  displayName: {
+  title: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 22,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  lead: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
-    color: theme.colors.onSurfaceVariant,
-    lineHeight: 21,
-    marginBottom: 24,
+    flex: 1,
   },
   statsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 28,
+    marginBottom: 20,
   },
   statCard: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: theme.colors.outline,
     backgroundColor: theme.colors.surfaceContainerLow,
@@ -398,164 +360,88 @@ const styles = StyleSheet.create({
   },
   statVal: {
     fontFamily: theme.fonts.headline,
-    fontSize: 20,
+    fontSize: 22,
     color: theme.colors.gold,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
     fontFamily: theme.fonts.label,
     fontSize: 8,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
-  sectionLabel: {
+  chartCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 16,
+    marginBottom: 16,
+  },
+  chartKicker: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
     color: theme.colors.gold,
     textTransform: 'uppercase',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  currentPlanCard: {
-    borderWidth: 2,
-    borderColor: theme.colors.gold,
-    padding: 20,
-    marginBottom: 20,
-    backgroundColor: theme.colors.surfaceContainerLow,
+  chartEmpty: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    lineHeight: 19,
   },
-  currentBadge: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 3,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+  weightHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
     marginBottom: 8,
   },
-  currentPlanTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 20,
+  weightNow: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 28,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 8,
   },
-  currentPlanBody: {
+  weightTarget: {
     fontFamily: theme.fonts.body,
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: 12,
   },
-  currentPlanLink: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  otherPlansLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  upgradeCardSpacer: { marginBottom: 16 },
-  upgradeCardLast: { marginBottom: 32 },
-  upgradeRowCta: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  editProfileBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  editProfileBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  profileSectionsWrap: { marginBottom: 20 },
-  profileSectionCard: {
+  actions: {
     borderWidth: 1,
     borderColor: theme.colors.outline,
-    padding: 14,
-    marginBottom: 12,
-    backgroundColor: theme.colors.surfaceContainerLow,
+    marginBottom: 20,
   },
-  profileSectionTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 12,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.outline,
   },
-  profileSectionLine: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
+  actionTxt: {
+    flex: 1,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 15,
     color: theme.colors.onBackground,
-    lineHeight: 19,
-    marginBottom: 4,
-  },
-  devCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    padding: 16,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    marginBottom: 24,
-  },
-  devBody: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
-    lineHeight: 19,
-    marginBottom: 14,
   },
   devBtn: {
     borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 13,
+    borderColor: theme.colors.outlineStrong,
+    paddingVertical: 12,
     alignItems: 'center',
+    marginBottom: 16,
   },
-  devBtnDisabled: { opacity: 0.5 },
   devBtnTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    padding: 24,
-    backgroundColor: theme.colors.surfaceContainerLow,
-  },
-  cardTitleDark: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  cardBodyDark: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
+    letterSpacing: 1,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: 16,
+    textTransform: 'uppercase',
   },
   signOutBtn: {
     borderWidth: 1,
@@ -564,7 +450,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  signOutBtnDisabled: { opacity: 0.5 },
   signOutTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
@@ -572,19 +457,13 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     textTransform: 'uppercase',
   },
-  deleteAccountBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  deleteAccountBtnDisabled: { opacity: 0.5 },
-  deleteAccountTxt: {
+  deleteTxt: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
+    fontSize: 10,
+    letterSpacing: 1,
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 24,
   },
 });

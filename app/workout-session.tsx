@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ExerciseEditorModal } from '@/components/plan/ExerciseEditorModal';
 import { NumberStepper } from '@/components/plan/NumberStepper';
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { RestTimerOverlay } from '@/components/workout/RestTimerOverlay';
@@ -18,8 +19,10 @@ import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { parseTargetReps } from '@/lib/repUtils';
-import { getTriggerVerse } from '@/lib/verses';
+import { resolveDailyVerse } from '@/lib/dailyVerse';
+import { prefetchVersePassage } from '@/lib/versePassageCache';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
@@ -29,10 +32,11 @@ type Focus = { exerciseIndex: number; setRowIndex: number };
 
 type RestState = {
   seconds: number;
-  verseKey: string;
   nextLabel: string;
   nextFocus: Focus | null;
 };
+
+type EditorState = { mode: 'add' };
 
 function findNextIncompleteSet(
   exercises: Exercise[],
@@ -77,12 +81,19 @@ export default function WorkoutSessionScreen() {
   const toggleSetComplete = useActiveWorkoutStore((s) => s.toggleSetComplete);
   const completeSetRow = useActiveWorkoutStore((s) => s.completeSetRow);
   const updateSetRow = useActiveWorkoutStore((s) => s.updateSetRow);
+  const addExercise = useActiveWorkoutStore((s) => s.addExercise);
   const getElapsedSeconds = useActiveWorkoutStore((s) => s.getElapsedSeconds);
   const applySessionProgress = useWorkoutLibraryStore((s) => s.applySessionProgress);
   const showVerse = useVerseModalStore((s) => s.show);
+  const dailyContent = useDailyContentStore((s) => s.content);
+  const dailyVerse = useMemo(
+    () => resolveDailyVerse(dailyContent),
+    [dailyContent]
+  );
   const [elapsed, setElapsed] = useState(0);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [rest, setRest] = useState<RestState | null>(null);
+  const [editor, setEditor] = useState<EditorState | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -95,6 +106,14 @@ export default function WorkoutSessionScreen() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [session?.sessionId, getElapsedSeconds]);
+
+  useEffect(() => {
+    void useDailyContentStore.getState().load();
+  }, []);
+
+  useEffect(() => {
+    prefetchVersePassage(dailyVerse);
+  }, [dailyVerse.id, dailyVerse.reference]);
 
   const endRest = useCallback(() => {
     setRest((current) => {
@@ -118,12 +137,10 @@ export default function WorkoutSessionScreen() {
     if (!updated) return;
     const nextFocus = findNextIncompleteSet(updated.exercises, exerciseIndex, setRowIndex);
     const restSec = row?.restSec ?? exercise.restSec ?? 90;
-    const verseKey = `${session.sessionId}:${exerciseIndex}:${setRowIndex}`;
 
     if (nextFocus) {
       setRest({
         seconds: restSec,
-        verseKey,
         nextLabel: focusLabel(updated.exercises, nextFocus),
         nextFocus,
       });
@@ -144,8 +161,7 @@ export default function WorkoutSessionScreen() {
       durationSec,
     });
     finishSession();
-    const v = getTriggerVerse('discipline', session.sessionId);
-    showVerse(v, 'Whatever you do, work at it with all your heart.');
+    showVerse(dailyVerse, 'Whatever you do, work at it with all your heart.');
     router.replace('/(tabs)/train');
   };
 
@@ -179,10 +195,6 @@ export default function WorkoutSessionScreen() {
     (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
     0
   );
-  const restVerse = rest
-    ? getTriggerVerse('strength', rest.verseKey)
-    : getTriggerVerse('strength', session.sessionId);
-
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
@@ -299,12 +311,36 @@ export default function WorkoutSessionScreen() {
             </View>
           );
         })}
+
+        <Pressable style={styles.addExerciseBtn} onPress={() => setEditor({ mode: 'add' })}>
+          <MaterialIcons name="add" size={22} color={theme.colors.background} />
+          <Text style={styles.addExerciseTxt}>Add exercise</Text>
+        </Pressable>
       </ScrollView>
+
+      <ExerciseEditorModal
+        visible={editor != null}
+        mode="add"
+        exercise={null}
+        dayIndex={null}
+        exerciseIndex={null}
+        onClose={() => setEditor(null)}
+        onSave={(exercise) => {
+          addExercise(exercise);
+          setEditor(null);
+          const updated = useActiveWorkoutStore.getState().session;
+          if (!updated) return;
+          const newIndex = updated.exercises.length - 1;
+          const incomplete = findFirstIncompleteSet(updated.exercises);
+          if (incomplete) setFocus(incomplete);
+          else setFocus({ exerciseIndex: newIndex, setRowIndex: 0 });
+        }}
+      />
 
       <RestTimerOverlay
         visible={rest != null}
         seconds={rest?.seconds ?? 90}
-        verse={restVerse}
+        verse={dailyVerse}
         nextLabel={rest?.nextLabel ?? ''}
         onSkip={endRest}
         onComplete={endRest}
@@ -446,4 +482,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   setFields: { flexDirection: 'row', gap: 10 },
+  addExerciseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.gold,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  addExerciseTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: theme.colors.background,
+    textTransform: 'uppercase',
+  },
 });

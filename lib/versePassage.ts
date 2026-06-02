@@ -49,8 +49,16 @@ export async function fetchVersePassageContext(
   verse: VerseEntry
 ): Promise<BiblePassage | null> {
   const slug = buildPassageSlug(verse.reference);
-  if (!slug) return null;
-  return fetchPassage(slug, { translation: 'web' });
+  if (slug) {
+    const withContext = await fetchPassage(slug, { translation: 'web' });
+    if (withContext) return withContext;
+  }
+
+  const exact = verse.reference.trim();
+  if (exact) {
+    return fetchPassage(exact, { translation: 'web' });
+  }
+  return null;
 }
 
 export function truncateVersePreview(text: string, maxLen = 110): string {

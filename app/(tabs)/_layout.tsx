@@ -73,7 +73,7 @@ export default function TabLayout() {
         <Tabs.Screen name="train" options={{ title: 'Train' }} />
         <Tabs.Screen name="fuel" options={{ title: 'Fuel' }} />
         <Tabs.Screen name="faith" options={{ title: 'Faith' }} />
-        <Tabs.Screen name="elite" options={{ title: 'Profile' }} />
+        <Tabs.Screen name="elite" options={{ title: 'Track' }} />
       </Tabs>
       <VerseCelebrationModal
         visible={visible}

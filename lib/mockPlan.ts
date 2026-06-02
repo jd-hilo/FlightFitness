@@ -9,6 +9,8 @@ import {
   FOOD_PREFERENCE_OPTIONS,
 } from '@/lib/onboardingOptions';
 
+import type { MacroTargets } from '@/types/plan';
+
 /** Rough maintenance estimate (Mifflin–St Jeor × 1.55 activity). */
 function estimateMaintenanceKcal(a: OnboardingAnswers): number {
   const kg = a.currentWeightLb * 0.45359237;
@@ -76,6 +78,13 @@ function equipmentHint(ids: string[]) {
   return ids
     .map((id) => EQUIPMENT_OPTIONS.find((o) => o.id === id)?.label ?? id)
     .join(', ');
+}
+
+/** On-device macro recommendation when AI is unavailable (onboarding fallback). */
+export function recommendMacroTargetsFromOnboarding(
+  answers: OnboardingAnswers
+): MacroTargets {
+  return buildMockWeekPlan(answers).macroTargets;
 }
 
 export function buildMockWeekPlan(answers: OnboardingAnswers): WeekPlan {

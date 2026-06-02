@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -48,16 +48,25 @@ export default function WorkoutDetailScreen() {
     }
   }, [id, workout, workouts.length]);
 
+  const leave = useCallback(() => {
+    if (id && titleDraft.trim()) {
+      updateWorkoutTitle(id, titleDraft.trim());
+    }
+    router.back();
+  }, [id, titleDraft, updateWorkoutTitle]);
+
   if (!workout) return null;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={leave} hitSlop={12}>
           <Text style={styles.headerBtn}>Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Edit workout</Text>
-        <View style={{ width: 48 }} />
+        <Pressable onPress={leave} hitSlop={12}>
+          <Text style={styles.headerBtnPrimary}>Save</Text>
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingHorizontal: 20 }}>
@@ -157,6 +166,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
+    letterSpacing: 1,
+  },
+  headerBtnPrimary: {
+    fontFamily: theme.fonts.label,
+    fontSize: 12,
+    color: theme.colors.gold,
     letterSpacing: 1,
   },
   label: {

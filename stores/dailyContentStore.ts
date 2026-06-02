@@ -7,6 +7,8 @@ import {
   type DailyContent,
   type DailyContentFetchResult,
 } from '@/lib/api/dailyContent';
+import { resolveDailyVerse } from '@/lib/dailyVerse';
+import { prefetchVersePassage } from '@/lib/versePassageCache';
 
 type DailyContentState = {
   content: DailyContent | null;
@@ -50,6 +52,7 @@ export const useDailyContentStore = create<DailyContentState>((set, get) => ({
       const utcDay = new Date().toISOString().slice(0, 10);
       const existing = get().content;
       if (existing?.day === utcDay) {
+        prefetchVersePassage(resolveDailyVerse(existing));
         await raceTimeout(
           prefetchDailyHeroImage(existing),
           HERO_PREFETCH_TIMEOUT_MS,
@@ -68,7 +71,9 @@ export const useDailyContentStore = create<DailyContentState>((set, get) => ({
           undefined
         );
         set({ content: c });
+        prefetchVersePassage(resolveDailyVerse(c));
       } finally {
+        prefetchVersePassage(resolveDailyVerse(get().content));
         set({ loading: false, dailyFetchSettled: true });
       }
     })();
@@ -96,6 +101,7 @@ export const useDailyContentStore = create<DailyContentState>((set, get) => ({
           undefined
         );
         set({ content: r.data });
+        prefetchVersePassage(resolveDailyVerse(r.data));
       }
       return r;
     } finally {

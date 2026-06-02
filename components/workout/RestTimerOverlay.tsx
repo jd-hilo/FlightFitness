@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -14,11 +15,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
 import type { BiblePassage } from '@/lib/bibleApi';
 import { formatDuration } from '@/lib/formatDuration';
+import { formatRestNextLabel, restVerseHeroText } from '@/lib/restVerseDisplay';
 import {
-  fetchVersePassageContext,
+  getCachedVersePassage,
+  loadVersePassage,
+} from '@/lib/versePassageCache';
+import {
   isVerseHighlighted,
   parseVerseReference,
-  truncateVersePreview,
 } from '@/lib/versePassage';
 import type { VerseEntry } from '@/lib/verses';
 
@@ -56,18 +60,27 @@ export function RestTimerOverlay({
   const [passageError, setPassageError] = useState(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const featuredRef = parseVerseReference(verse.reference);
-  const previewText = truncateVersePreview(verse.text);
+
+  const verseHero = useMemo(() => restVerseHeroText(verse.text), [verse.text]);
+  const nextLine = useMemo(() => formatRestNextLabel(nextLabel), [nextLabel]);
+  const progress = seconds > 0 ? Math.max(0, Math.min(1, remaining / seconds)) : 0;
+  const urgent = remaining > 0 && remaining <= 10;
 
   useEffect(() => {
     if (!visible) {
       setReaderOpen(false);
-      setPassage(null);
-      setPassageError(false);
       return;
     }
     setRemaining(seconds);
-  }, [visible, seconds]);
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 240,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, seconds, fadeAnim]);
 
   useEffect(() => {
     if (!visible || seconds <= 0) return;
@@ -84,27 +97,37 @@ export function RestTimerOverlay({
     return () => clearInterval(id);
   }, [visible, seconds]);
 
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-    setPassageLoading(true);
-    setPassageError(false);
-    void fetchVersePassageContext(verse).then((res) => {
-      if (cancelled) return;
-      setPassageLoading(false);
-      if (res) {
-        setPassage(res);
-      } else {
-        setPassageError(true);
+  const loadPassage = useCallback(
+    (force = false) => {
+      const cached = !force ? getCachedVersePassage(verse) : null;
+      if (cached) {
+        setPassage(cached);
+        setPassageError(false);
+        setPassageLoading(false);
+        return;
       }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, verse.id, verse.reference]);
+      setPassageLoading(true);
+      setPassageError(false);
+      void loadVersePassage(verse, { force }).then((res) => {
+        setPassageLoading(false);
+        if (res) {
+          setPassage(res);
+          setPassageError(false);
+        } else {
+          setPassageError(true);
+        }
+      });
+    },
+    [verse]
+  );
+
+  useEffect(() => {
+    loadPassage(false);
+  }, [verse.id, verse.reference, loadPassage]);
 
   const openReader = () => {
-    if (passage || passageError) setReaderOpen(true);
+    setReaderOpen(true);
+    if (!passage && passageError) loadPassage(true);
   };
 
   const passageBody =
@@ -126,19 +149,21 @@ export function RestTimerOverlay({
       <Text style={styles.readerPassage}>{passage?.text ?? verse.text}</Text>
     );
 
+  const referenceDisplay = verse.reference.trim().toUpperCase();
+
   return (
     <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
       <View
         style={[
-          styles.backdrop,
+          styles.screen,
           {
-            paddingTop: insets.top + (readerOpen ? 12 : 24),
-            paddingBottom: insets.bottom + 24,
+            paddingTop: insets.top + (readerOpen ? 8 : 16),
+            paddingBottom: insets.bottom + 12,
           },
         ]}>
         {readerOpen ? (
           <>
-            <View style={[styles.readerTopBar, { paddingHorizontal: 20 }]}>
+            <View style={styles.readerTopBar}>
               <Pressable
                 style={styles.readerBackBtn}
                 onPress={() => setReaderOpen(false)}
@@ -154,11 +179,11 @@ export function RestTimerOverlay({
               style={styles.readerScroll}
               contentContainerStyle={[
                 styles.readerContent,
-                { paddingBottom: insets.bottom + 100 },
+                { paddingBottom: insets.bottom + 72 },
               ]}
               showsVerticalScrollIndicator={false}>
-              <Text style={styles.readerKicker}>Scripture</Text>
-              <Text style={styles.readerTitle}>{verse.reference}</Text>
+              <Text style={styles.readerKicker}>Today&apos;s word</Text>
+              <Text style={styles.readerTitle}>{referenceDisplay}</Text>
               {passage?.translationName ? (
                 <Text style={styles.readerMeta}>{passage.translationName}</Text>
               ) : null}
@@ -172,60 +197,77 @@ export function RestTimerOverlay({
                 <>
                   {passageBody}
                   {passageError ? (
-                    <Text style={styles.readerFallbackNote}>
-                      Full passage unavailable offline — showing today&apos;s verse.
-                    </Text>
+                    <Pressable onPress={() => loadPassage(true)} hitSlop={8}>
+                      <Text style={styles.readerFallbackNote}>
+                        Couldn&apos;t load the full passage. Tap to retry.
+                      </Text>
+                    </Pressable>
                   ) : null}
                 </>
               )}
 
-              <View style={styles.readerFeaturedBox}>
-                <Text style={styles.readerFeaturedLabel}>Today&apos;s word</Text>
-                <Text style={styles.readerFeaturedText}>&ldquo;{verse.text}&rdquo;</Text>
+              <View style={styles.readerPullQuote}>
+                <Text style={styles.readerPullQuoteText}>{verseHero.text}</Text>
               </View>
             </ScrollView>
 
-            <View style={[styles.readerFooter, { paddingBottom: insets.bottom + 16 }]}>
-              <Pressable style={styles.skipBtn} onPress={onSkip}>
-                <Text style={styles.skipTxt}>Skip rest</Text>
+            <View style={[styles.heroFooter, { paddingBottom: insets.bottom + 8 }]}>
+              <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
+              <Pressable onPress={onSkip} hitSlop={12}>
+                <Text style={styles.skipGhost}>Skip rest</Text>
               </Pressable>
             </View>
           </>
         ) : (
-          <View style={styles.cardWrap}>
-            <View style={styles.card}>
-              <Text style={styles.kicker}>Rest</Text>
-              <Text style={styles.timer}>{formatDuration(remaining)}</Text>
-              <Text style={styles.next}>{nextLabel}</Text>
-
-              <View style={styles.verseBox}>
-                <Text style={styles.verseRef}>{verse.reference}</Text>
-                <Text style={styles.verseText} numberOfLines={3}>
-                  &ldquo;{previewText}&rdquo;
-                </Text>
-                <Pressable
-                  style={[
-                    styles.readMoreBtn,
-                    passageLoading && styles.readMoreBtnDisabled,
-                  ]}
-                  onPress={openReader}
-                  disabled={passageLoading && !passageError}>
-                  {passageLoading ? (
-                    <ActivityIndicator size="small" color={theme.colors.gold} />
-                  ) : (
-                    <>
-                      <Text style={styles.readMoreTxt}>Read more</Text>
-                      <MaterialIcons name="menu-book" size={16} color={theme.colors.gold} />
-                    </>
-                  )}
-                </Pressable>
+          <Animated.View style={[styles.hero, { opacity: fadeAnim }]}>
+            <View style={styles.heroTop}>
+              <Text style={styles.restKicker}>Rest</Text>
+              <Text
+                style={[styles.timer, urgent && styles.timerUrgent]}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                minimumFontScale={0.55}
+                accessibilityLabel={`${remaining} seconds remaining`}>
+                {formatDuration(remaining)}
+              </Text>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
               </View>
+              {nextLine ? (
+                <Text style={styles.nextLine}>Next · {nextLine}</Text>
+              ) : null}
+            </View>
 
-              <Pressable style={styles.skipBtn} onPress={onSkip}>
-                <Text style={styles.skipTxt}>Skip rest</Text>
+            <Pressable
+              style={styles.verseBlock}
+              onPress={openReader}
+              accessibilityRole="button"
+              accessibilityLabel="Open full scripture passage">
+              <Text style={styles.verseKicker}>Today&apos;s word</Text>
+              <Text style={styles.verseRef}>{referenceDisplay}</Text>
+              <Text style={styles.verseText}>{verseHero.text}</Text>
+              <View style={styles.verseTapRow}>
+                <Text style={styles.verseTapHint}>
+                  {verseHero.truncated ? 'Tap for full passage' : 'Tap to read in context'}
+                </Text>
+                <MaterialIcons name="east" size={14} color={theme.colors.gold} />
+              </View>
+              {passageLoading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.gold}
+                  style={styles.verseLoader}
+                />
+              ) : null}
+            </Pressable>
+
+            <View style={[styles.heroFooter, { paddingBottom: insets.bottom + 8 }]}>
+              <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
+              <Pressable onPress={onSkip} hitSlop={12}>
+                <Text style={styles.skipGhost}>Skip rest</Text>
               </Pressable>
             </View>
-          </View>
+          </Animated.View>
         )}
       </View>
     </Modal>
@@ -233,96 +275,122 @@ export function RestTimerOverlay({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  screen: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    paddingHorizontal: 24,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: 28,
   },
-  cardWrap: { flex: 1, justifyContent: 'center' },
-  card: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 28,
-    alignItems: 'center',
+  hero: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
-  kicker: {
+  heroTop: {
+    paddingTop: 8,
+  },
+  restKicker: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
-    letterSpacing: 2,
+    letterSpacing: 4,
     color: theme.colors.gold,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   timer: {
     fontFamily: theme.fonts.headline,
-    fontSize: 64,
+    fontSize: 132,
+    lineHeight: 132,
     color: theme.colors.gold,
-    letterSpacing: 2,
-    marginBottom: 8,
+    letterSpacing: -2,
+    marginBottom: 16,
+    fontVariant: ['tabular-nums'],
   },
-  next: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
+  timerUrgent: {
+    color: theme.colors.onBackground,
+  },
+  progressTrack: {
+    height: 2,
+    backgroundColor: 'rgba(255, 215, 0, 0.18)',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.gold,
+  },
+  nextLine: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 2.5,
     color: theme.colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginBottom: 24,
+    textTransform: 'uppercase',
   },
-  verseBox: {
-    width: '100%',
+  verseBlock: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 24,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.outlineStrong,
-    paddingTop: 20,
-    marginBottom: 24,
+    borderTopColor: theme.colors.outline,
+  },
+  verseKicker: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 3,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    marginBottom: 12,
   },
   verseRef: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 11,
+    letterSpacing: 2,
     color: theme.colors.gold,
     textTransform: 'uppercase',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 16,
   },
   verseText: {
-    fontFamily: theme.fonts.body,
-    fontSize: 15,
-    lineHeight: 22,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 26,
+    lineHeight: 36,
     color: theme.colors.onBackground,
-    textAlign: 'center',
-    marginBottom: 14,
+    letterSpacing: -0.3,
   },
-  readMoreBtn: {
+  verseTapRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    gap: 6,
+    marginTop: 22,
   },
-  readMoreBtnDisabled: { opacity: 0.7 },
-  readMoreTxt: {
+  verseTapHint: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
-  skipBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    alignItems: 'center',
+  verseLoader: {
+    position: 'absolute',
+    right: 0,
+    bottom: 24,
   },
-  skipTxt: {
+  heroFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+    paddingTop: 14,
+  },
+  brandMark: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: theme.colors.onSurfaceVariant,
+  },
+  skipGhost: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: theme.colors.onBackground,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
   restPill: {
@@ -351,7 +419,7 @@ const styles = StyleSheet.create({
   readerTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   readerBackBtn: {
     flexDirection: 'row',
@@ -368,33 +436,35 @@ const styles = StyleSheet.create({
   },
   readerTopSpacer: { flex: 1 },
   readerScroll: { flex: 1 },
-  readerContent: { paddingHorizontal: 4 },
+  readerContent: { paddingRight: 4 },
   readerKicker: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    letterSpacing: 2,
+    letterSpacing: 3,
     color: theme.colors.gold,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  readerTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 38,
+    lineHeight: 42,
+    letterSpacing: -0.5,
+    color: theme.colors.onBackground,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
-  readerTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 28,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
   readerMeta: {
     fontFamily: theme.fonts.body,
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   readerLoading: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 24,
+    paddingVertical: 32,
   },
   readerLoadingTxt: {
     fontFamily: theme.fonts.body,
@@ -403,50 +473,38 @@ const styles = StyleSheet.create({
   },
   readerPassage: {
     fontFamily: theme.fonts.body,
-    fontSize: 17,
-    lineHeight: 28,
+    fontSize: 19,
+    lineHeight: 32,
     color: theme.colors.onBackground,
-    marginBottom: 24,
+    marginBottom: 28,
   },
   readerVerseNum: {
     fontFamily: theme.fonts.label,
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.gold,
   },
   readerVerseHighlight: {
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    backgroundColor: 'rgba(255, 215, 0, 0.14)',
   },
   readerFallbackNote: {
     fontFamily: theme.fonts.body,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 20,
     color: theme.colors.onSurfaceVariant,
     fontStyle: 'italic',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  readerFeaturedBox: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 18,
+  readerPullQuote: {
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.gold,
+    paddingLeft: 16,
     marginTop: 8,
   },
-  readerFeaturedLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1.5,
+  readerPullQuoteText: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 22,
+    lineHeight: 30,
     color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  readerFeaturedText: {
-    fontFamily: theme.fonts.body,
-    fontSize: 16,
-    lineHeight: 24,
-    color: theme.colors.onBackground,
-  },
-  readerFooter: {
-    paddingTop: 12,
-    paddingHorizontal: 4,
+    letterSpacing: -0.3,
   },
 });

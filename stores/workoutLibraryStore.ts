@@ -116,11 +116,32 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
         set((s) => ({
           workouts: s.workouts.map((w) => {
             if (w.id !== workoutId) return w;
-            const exercises = w.exercises.map((savedEx, ei) => {
-              const sessionEx = sessionExercises[ei];
-              if (!sessionEx) return savedEx;
-              const saved = ensureExerciseSetRows(savedEx);
+            const exercises = sessionExercises.map((sessionEx, ei) => {
+              const savedEx = w.exercises[ei];
               const sess = ensureExerciseSetRows(sessionEx);
+              if (!savedEx) {
+                const setRows = (sess.setRows ?? []).map((row) => {
+                  const loggedReps = row.actualReps?.trim();
+                  const nextTargetReps =
+                    loggedReps && /^\d+(\.\d+)?$/.test(loggedReps)
+                      ? String(Math.round(Number(loggedReps)))
+                      : row.targetReps;
+                  return {
+                    ...row,
+                    id: newId('set'),
+                    completed: false,
+                    actualReps: undefined,
+                    weightLb: row.weightLb,
+                    targetReps: nextTargetReps,
+                  };
+                });
+                return syncExerciseAggregateFromSetRows({
+                  ...sess,
+                  id: newId('ex'),
+                  setRows,
+                });
+              }
+              const saved = ensureExerciseSetRows(savedEx);
               const setRows = (saved.setRows ?? []).map((row, ri) => {
                 const logged = sess.setRows?.[ri];
                 if (!logged) return { ...row, completed: false, actualReps: undefined };

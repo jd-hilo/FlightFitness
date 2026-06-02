@@ -85,8 +85,8 @@ export function PlanGeneratingModal({ visible }: Props) {
           <Text style={styles.kicker}>Flight Fitness</Text>
           <Text style={styles.title}>Building your week</Text>
           <Text style={styles.sub}>
-            We are creating your personalized meals, workouts, and grocery list from your
-            answers. Most finish within a minute.
+            Setting up your meals, workouts, and grocery list from your answers. Most
+            finish within a minute.
           </Text>
           <View
             style={styles.progressWrap}

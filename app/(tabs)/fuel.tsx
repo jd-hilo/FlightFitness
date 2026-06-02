@@ -24,7 +24,6 @@ import { MealCard } from '@/components/plan/MealCard';
 import { MealEditorModal } from '@/components/plan/MealEditorModal';
 import { WeekStrip } from '@/components/WeekStrip';
 import { theme } from '@/constants/theme';
-import { aiGenerateFullWeek, aiRegenerateDay } from '@/lib/planAiAssist';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
 import {
   dateKeyForViewStripDay,
@@ -39,7 +38,7 @@ import { normalizeDay, useCompletionStore } from '@/stores/completionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
-import { shouldAllowAiFullWeekGeneration, useSubscriptionStore, savedMealLimit } from '@/stores/subscriptionStore';
+import { useSubscriptionStore, savedMealLimit } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 import type { Meal } from '@/types/plan';
 
@@ -90,9 +89,7 @@ export default function FuelScreen() {
   const headerRight =
     tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
   const [editor, setEditor] = useState<MealEditorState | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
   const weekPlanEnsuring = usePlanWeekEnsureStore((s) => s.inProgress);
-  const canUseAi = shouldAllowAiFullWeekGeneration();
 
   const viewWeekYmd = viewWeekStartYmdLocal();
   const isPastDay = isViewStripDayBeforeToday(viewWeekYmd, selectedPlanDay);
@@ -160,32 +157,6 @@ export default function FuelScreen() {
     return mealDayIndexForViewStrip(ws, viewWeekYmd, selectedPlanDay);
   };
 
-  const handleAiDay = async () => {
-    const idx = resolveMealDayIndex();
-    if (idx == null || !canUseAi) return;
-    setAiBusy(true);
-    try {
-      const res = await aiRegenerateDay(idx);
-      if (!res.ok) Alert.alert('AI assist', res.error);
-    } finally {
-      setAiBusy(false);
-    }
-  };
-
-  const handleAiWeek = async () => {
-    if (!canUseAi) {
-      router.push('/paywall');
-      return;
-    }
-    setAiBusy(true);
-    try {
-      const res = await aiGenerateFullWeek(viewWeekYmd);
-      if (!res.ok) Alert.alert('AI assist', res.error);
-    } finally {
-      setAiBusy(false);
-    }
-  };
-
   const openPreWorkoutCollection = useCallback(() => {
     WebBrowser.openBrowserAsync(FLIGHT_FOODS_PRE_WORKOUT).catch(() => {});
   }, []);
@@ -246,19 +217,6 @@ export default function FuelScreen() {
               </Text>
             ) : null}
 
-            {planMealIndex != null && dayMeals.length === 0 && !isPastDay && canUseAi ? (
-              <Pressable
-                style={styles.aiAssistBtn}
-                disabled={aiBusy}
-                onPress={() => void handleAiDay()}>
-                {aiBusy ? (
-                  <ActivityIndicator color={theme.colors.gold} />
-                ) : (
-                  <Text style={styles.aiAssistTxt}>Generate meals (AI)</Text>
-                )}
-              </Pressable>
-            ) : null}
-
             {dayMeals.map((meal) => (
               <MealCard
                 key={meal.id}
@@ -277,24 +235,8 @@ export default function FuelScreen() {
               </Pressable>
             ) : null}
 
-            {!isPastDay && planMealIndex != null && canUseAi && dayMeals.length > 0 ? (
-              <Pressable
-                style={styles.aiAssistBtn}
-                disabled={aiBusy}
-                onPress={() => void handleAiDay()}>
-                <Text style={styles.aiAssistTxt}>Regenerate this day (AI)</Text>
-              </Pressable>
-            ) : null}
           </>
         )}
-
-        {!isPastDay && hasPlanShell ? (
-          <Pressable style={styles.aiWeekBtn} disabled={aiBusy} onPress={() => void handleAiWeek()}>
-            <Text style={styles.aiWeekBtnTxt}>
-              {canUseAi ? 'Generate full week (AI)' : 'Upgrade for AI week plans'}
-            </Text>
-          </Pressable>
-        ) : null}
 
         <Text style={styles.energySectionTitle}>Energy</Text>
         <Text style={styles.energyLead}>
@@ -363,6 +305,14 @@ export default function FuelScreen() {
             updateMeal(idx, updated.id, updated);
           } else {
             addMeal(idx, updated);
+            const logDateKey = dateKeyForViewStripDay(viewWeekYmd, selectedPlanDay);
+            if (!isPastDay && logDateKey) {
+              const nowDone = toggleMeal(logDateKey, updated.id);
+              if (nowDone) {
+                const v = getTriggerVerse('gratitude', `${logDateKey}-${updated.id}-fuel`);
+                showVerse(v, 'Give thanks — your body is a gift.');
+              }
+            }
             const saved = saveMealTemplate(updated);
             if (!saved) {
               Alert.alert(
@@ -465,34 +415,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.headline,
     fontSize: 28,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-  },
-  aiAssistBtn: {
-    marginBottom: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-  },
-  aiAssistTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-  },
-  aiWeekBtn: {
-    marginTop: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.outline,
-  },
-  aiWeekBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
   energySectionTitle: {

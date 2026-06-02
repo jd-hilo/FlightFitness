@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
+
 export type SubscriptionTier = 'free' | 'essentials' | 'coaching';
 
 export const FREE_TIER_MAX_SAVED_WORKOUTS = 3;
@@ -101,13 +103,14 @@ export const useSubscriptionStore = create<SubscriptionState>()(
 
 /** True when automatic full-week AI generation is allowed for this subscription. */
 export function shouldAllowAiFullWeekGeneration(): boolean {
+  if (!isAiWeekPlanEnabled()) return false;
   const s = useSubscriptionStore.getState();
   if (s.tier === 'essentials') return true;
   if (s.tier === 'coaching') return false;
   return s.freeAiWeekGenerationsRemaining > 0;
 }
 
-/** AI customization (swap meal, etc.) is always allowed. */
+/** Per-exercise / per-day AI assists (swap, regenerate day, etc.). */
 export function useCanCustomize() {
-  return true;
+  return isAiWeekPlanEnabled();
 }

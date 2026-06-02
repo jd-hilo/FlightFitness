@@ -2,7 +2,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -18,12 +17,10 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
 import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
-import { aiGenerateFullWeek } from '@/lib/planAiAssist';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
-import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { usePlanStore } from '@/stores/planStore';
-import { useSubscriptionStore, shouldAllowAiFullWeekGeneration, savedWorkoutLimit } from '@/stores/subscriptionStore';
+import { useSubscriptionStore, savedWorkoutLimit } from '@/stores/subscriptionStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 
 export default function TrainScreen() {
@@ -37,8 +34,6 @@ export default function TrainScreen() {
   const startSession = useActiveWorkoutStore((s) => s.startSession);
   const getElapsedSeconds = useActiveWorkoutStore((s) => s.getElapsedSeconds);
   const tier = useSubscriptionStore((s) => s.tier);
-  const canUseAi = shouldAllowAiFullWeekGeneration();
-  const [aiBusy, setAiBusy] = useState(false);
   const [timerTick, setTimerTick] = useState(0);
 
   const headerRight =
@@ -92,20 +87,6 @@ export default function TrainScreen() {
     }
     if (!session) startSession(workout);
     router.push('/workout-session');
-  };
-
-  const handleAiWeek = async () => {
-    if (!canUseAi) {
-      router.push('/paywall');
-      return;
-    }
-    setAiBusy(true);
-    try {
-      const res = await aiGenerateFullWeek(viewWeekStartYmdLocal());
-      if (!res.ok) Alert.alert('AI assist', res.error);
-    } finally {
-      setAiBusy(false);
-    }
   };
 
   return (
@@ -195,15 +176,6 @@ export default function TrainScreen() {
           })
         )}
 
-        <Pressable style={styles.aiWeekBtn} disabled={aiBusy} onPress={() => void handleAiWeek()}>
-          {aiBusy ? (
-            <ActivityIndicator color={theme.colors.onSurfaceVariant} />
-          ) : (
-            <Text style={styles.aiWeekBtnTxt}>
-              {canUseAi ? 'Generate full week plan (AI)' : 'Upgrade for AI week plans'}
-            </Text>
-          )}
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -353,20 +325,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: theme.colors.error,
     letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  aiWeekBtn: {
-    marginTop: 20,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.outline,
-  },
-  aiWeekBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
 });

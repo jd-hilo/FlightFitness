@@ -32,23 +32,26 @@ type ActiveWorkoutState = {
     setRowIndex: number,
     patch: Partial<ExerciseSetRow>
   ) => void;
+  addExercise: (exercise: Exercise) => void;
   getElapsedSeconds: () => number;
 };
 
+export function cloneExerciseForSession(exercise: Exercise): Exercise {
+  const base = ensureExerciseSetRows(exercise);
+  return {
+    ...base,
+    id: newId('ex'),
+    setRows: base.setRows?.map((row) => ({
+      ...row,
+      id: newId('set'),
+      completed: false,
+      actualReps: row.actualReps ?? String(parseTargetReps(row.targetReps)),
+    })),
+  };
+}
+
 function cloneExercisesForSession(exercises: Exercise[]): Exercise[] {
-  return exercises.map((ex) => {
-    const base = ensureExerciseSetRows(ex);
-    return {
-      ...base,
-      id: newId('ex'),
-      setRows: base.setRows?.map((row) => ({
-        ...row,
-        id: newId('set'),
-        completed: false,
-        actualReps: row.actualReps ?? String(parseTargetReps(row.targetReps)),
-      })),
-    };
-  });
+  return exercises.map(cloneExerciseForSession);
 }
 
 export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
@@ -144,9 +147,22 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
             const rows = (normalized.setRows ?? []).map((row, ri) =>
               ri === setRowIndex ? { ...row, ...patch } : row
             );
-            return { ...normalized, setRows: rows };
+            return syncExerciseAggregateFromSetRows({ ...normalized, setRows: rows });
           });
           return { session: { ...s, exercises } };
+        });
+      },
+
+      addExercise: (exercise) => {
+        set((state) => {
+          const s = state.session;
+          if (!s) return state;
+          return {
+            session: {
+              ...s,
+              exercises: [...s.exercises, cloneExerciseForSession(exercise)],
+            },
+          };
         });
       },
 

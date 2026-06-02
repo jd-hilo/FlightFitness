@@ -285,8 +285,26 @@ export function isStepComplete(
   switch (stepId) {
     case 'firstName':
       return answers.firstName.trim().length > 0;
+    case 'bodyMetrics':
+      return (
+        answers.currentWeightLb >= 80 &&
+        answers.currentWeightLb <= 400 &&
+        answers.targetWeightLb >= 80 &&
+        answers.targetWeightLb <= 400
+      );
+    case 'aboutYou':
+      return (
+        answers.sex.length > 0 &&
+        answers.ageYears >= 16 &&
+        answers.ageYears <= 90 &&
+        answers.heightInches >= 54 &&
+        answers.heightInches <= 84
+      );
     case 'goal':
+    case 'bodyGoals':
       return answers.goal.length > 0;
+    case 'training':
+      return answers.experience.length > 0 && answers.equipment.length > 0;
     case 'aboutSex':
       return answers.sex.length > 0;
     case 'aboutAge':
@@ -297,31 +315,10 @@ export function isStepComplete(
       return answers.experience.length > 0;
     case 'equipment':
       return answers.equipment.length > 0;
-    case 'sessionInjury':
-      return answers.sessionLengthId.length > 0;
-    case 'dietPattern':
-      return answers.dietPattern.length > 0;
-    case 'dietModifiers':
-      return true;
-    case 'foodPreferences':
-      return true;
-    case 'dietOtherNotes':
-      return true;
-    case 'allergies':
-      return answers.allergyIds.length > 0;
-    case 'trainingDays':
-      return answers.trainingDaysPerWeek.length > 0;
-    case 'trainingTimes':
-      return answers.trainingTimePrefs.length > 0;
-    case 'paceKitchen':
-      return (
-        answers.nutritionPaceId.length > 0 &&
-        answers.mealsPerDayId.length > 0 &&
-        answers.cookingSkillId.length > 0
-      );
     case 'weightCurrent':
+      return answers.currentWeightLb >= 80 && answers.currentWeightLb <= 400;
     case 'weightTarget':
-      return true;
+      return answers.targetWeightLb >= 80 && answers.targetWeightLb <= 400;
     default:
       return false;
   }

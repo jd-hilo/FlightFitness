@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/constants/theme';
@@ -17,8 +16,8 @@ export function PlanStripEmptyHint({ variant, onBuildManual }: Props) {
       <View style={styles.wrap}>
         <Text style={styles.line}>
           {variant === 'fuel'
-            ? 'Add meals yourself or wait for Jude to assign your plan.'
-            : 'Build a workout or wait for Jude to assign your plan.'}
+            ? 'Add meals yourself for this week.'
+            : 'Build a workout for this week.'}
         </Text>
         {onBuildManual ? (
           <Pressable onPress={onBuildManual} style={styles.manualBtn}>
@@ -35,7 +34,7 @@ export function PlanStripEmptyHint({ variant, onBuildManual }: Props) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.line}>
-        Start manual — add your own {noun}s for this week, or use AI when you are ready.
+        Add your own {noun}s for this week to get started.
       </Text>
       {onBuildManual ? (
         <Pressable onPress={onBuildManual} style={styles.manualBtn}>
@@ -44,12 +43,6 @@ export function PlanStripEmptyHint({ variant, onBuildManual }: Props) {
           </Text>
         </Pressable>
       ) : null}
-      <Pressable
-        onPress={() => router.push('/paywall')}
-        accessibilityRole="button"
-        accessibilityLabel="Upgrade for AI plans">
-        <Text style={styles.subLink}>Generate with AI (Essentials)</Text>
-      </Pressable>
     </View>
   );
 }
@@ -76,14 +69,5 @@ const styles = StyleSheet.create({
     color: theme.colors.gold,
     textTransform: 'uppercase',
     textAlign: 'center',
-  },
-  subLink: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginTop: 10,
   },
 });

@@ -195,10 +195,7 @@ export function MealEditorModal({
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={[styles.sheet, { paddingTop: insets.top + 8 }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 52 : 0}>
+      <View style={styles.sheet}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Text style={styles.headerBtn}>Cancel</Text>
@@ -211,14 +208,18 @@ export function MealEditorModal({
           </Pressable>
         </View>
 
-        <ScrollView
-          style={styles.scrollFlex}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
-            paddingBottom: insets.bottom + 24 + keyboardOffset,
-            paddingHorizontal: 20,
-            paddingTop: 16,
-          }}>
+        <KeyboardAvoidingView
+          style={styles.body}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+          <ScrollView
+            style={styles.scrollFlex}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingBottom: insets.bottom + 24 + keyboardOffset,
+              paddingHorizontal: 20,
+              paddingTop: 16,
+            }}>
           {mode === 'add' ? (
             <View style={styles.templateSection}>
               <Text style={styles.templateSectionLabel}>Saved meal</Text>
@@ -431,23 +432,27 @@ export function MealEditorModal({
             </Text>
           ) : null}
           {error ? <Text style={styles.err}>{error}</Text> : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: theme.colors.background },
+  body: { flex: 1 },
   scrollFlex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.outline,
+    backgroundColor: theme.colors.background,
   },
   headerTitle: {
     fontFamily: theme.fonts.headlineBold,

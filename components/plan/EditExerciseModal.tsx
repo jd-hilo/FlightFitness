@@ -164,8 +164,8 @@ export function EditExerciseModal({ visible, exercise, onClose, onSave }: Props)
           />
 
           <Text style={styles.hint}>
-            Changes apply to this week on your device. They do not call the AI to
-            generate a new movement — adjust the details you want to follow.
+            Changes apply to this week on your device. Adjust the details you want to
+            follow.
           </Text>
 
           {error ? <Text style={styles.err}>{error}</Text> : null}

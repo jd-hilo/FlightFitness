@@ -46,6 +46,54 @@ When setRows is provided, sets/reps/restSec should match the row count and first
 dayIndex on each workout MUST equal its 0-based array index. Every training day MUST have a non-empty exercises array.
 workoutsByDay layout: spread training and rest across Mon–Sun (see TRAINING WEEK LAYOUT below).`;
 
+const MACRO_SYSTEM_PROMPT = `You are Flight Fitness AI — a registered sports dietitian.
+Given an athlete profile, recommend daily macro targets (calories, protein, carbs, fat in grams).
+
+Return ONLY valid JSON with this exact shape — no markdown, no extra keys:
+{
+  "macroTargets": {
+    "calories": number,
+    "proteinG": number,
+    "carbsG": number,
+    "fatG": number
+  }
+}
+
+Guidelines:
+• Use Mifflin–St Jeor with moderate activity unless profile suggests otherwise.
+• Adjust calories for stated goals (fat loss deficit, muscle gain surplus, recomp slight deficit).
+• Protein ≥ 0.7–1.0 g/lb bodyweight when building muscle or recomp; at least 0.6 g/lb when cutting.
+• Keep calories between 1500 and 4000 unless profile clearly requires otherwise.
+• Macros should be internally consistent (~4 kcal/g protein, ~4 kcal/g carbs, ~9 kcal/g fat).`;
+
+function parseMacroTargetsPayload(raw: unknown): Record<string, number> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const root = raw as Record<string, unknown>;
+  const mt =
+    root.macroTargets && typeof root.macroTargets === 'object'
+      ? (root.macroTargets as Record<string, unknown>)
+      : root;
+  const calories = Number(mt.calories);
+  const proteinG = Number(mt.proteinG);
+  const carbsG = Number(mt.carbsG);
+  const fatG = Number(mt.fatG);
+  if (
+    !Number.isFinite(calories) ||
+    !Number.isFinite(proteinG) ||
+    !Number.isFinite(carbsG) ||
+    !Number.isFinite(fatG)
+  ) {
+    return null;
+  }
+  if (calories < 400 || proteinG < 20 || carbsG < 20 || fatG < 10) return null;
+  return {
+    calories: Math.round(calories),
+    proteinG: Math.round(proteinG),
+    carbsG: Math.round(carbsG),
+    fatG: Math.round(fatG),
+  };
+}
+
 const SYSTEM_PROMPT = `You are Flight Fitness AI — a certified strength & conditioning coach (CSCS) and registered sports dietitian.
 You create complete, evidence-based 7-day meal + training plans personalized to each athlete.
 
@@ -177,6 +225,60 @@ serve(async (req) => {
       typeof body.onboardingSummary === 'string' && body.onboardingSummary.length > 0
         ? body.onboardingSummary
         : JSON.stringify(body.onboarding ?? {});
+
+    if (body.action === 'recommendMacros') {
+      const macroPrompt = `Recommend daily macro targets for this athlete.\n\n--- ATHLETE PROFILE ---\n${profileBlock}`;
+
+      const macroRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: MACRO_SYSTEM_PROMPT },
+            { role: 'user', content: macroPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 256,
+        }),
+      });
+
+      if (!macroRes.ok) {
+        const errText = await macroRes.text();
+        return new Response(
+          JSON.stringify({ error: 'OpenAI error', detail: errText.slice(0, 500) }),
+          {
+            status: 502,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const macroData = await macroRes.json();
+      const macroContent = macroData.choices?.[0]?.message?.content;
+      if (!macroContent || typeof macroContent !== 'string') {
+        return new Response(JSON.stringify({ error: 'Empty model response' }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const macroTargets = parseMacroTargetsPayload(JSON.parse(macroContent));
+      if (!macroTargets) {
+        return new Response(JSON.stringify({ error: 'Invalid macro targets from model' }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ macroTargets }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const isCustomization =
       Boolean(body.action && body.action !== 'full' && body.currentPlan);

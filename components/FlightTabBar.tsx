@@ -15,7 +15,7 @@ const ITEMS: {
   { name: 'train', label: 'Train', icon: 'fitness-center' },
   { name: 'fuel', label: 'Fuel', icon: 'restaurant' },
   { name: 'faith', label: 'Faith', icon: 'menu-book' },
-  { name: 'elite', label: 'Profile', icon: 'person' },
+  { name: 'elite', label: 'Track', icon: 'insights' },
 ];
 
 export function FlightTabBar({ state, descriptors, navigation }: BottomTabBarProps) {

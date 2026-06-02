@@ -128,6 +128,10 @@ function toSlug(query: string) {
  * User-input style passage: e.g. `"john 3:16"`, `"matt 5:3-5"`, `"psalm+23"` (slug).
  * @see https://bible-api.com/
  */
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export async function fetchPassage(
   query: string,
   options?: { translation?: string }
@@ -140,14 +144,21 @@ export async function fetchPassage(
     ? `${BASE}/${slug}?translation=${encodeURIComponent(tid)}`
     : `${BASE}/${slug}`;
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = (await res.json()) as UserApiJson;
-    return mapUserApi(data);
-  } catch {
-    return null;
+  const retryDelaysMs = [0, 450, 1100];
+  for (let attempt = 0; attempt < retryDelaysMs.length; attempt++) {
+    const delay = retryDelaysMs[attempt]!;
+    if (delay > 0) await sleep(delay);
+    try {
+      const res = await fetch(url);
+      if (res.status === 429 || res.status >= 500) continue;
+      if (!res.ok) return null;
+      const data = (await res.json()) as UserApiJson;
+      return mapUserApi(data);
+    } catch {
+      /* retry */
+    }
   }
+  return null;
 }
 
 /** Same as fetchPassage with WEB translation forced (legacy shape). */

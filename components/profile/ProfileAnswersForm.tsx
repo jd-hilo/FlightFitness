@@ -101,8 +101,8 @@ export function ProfileAnswersForm() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}>
       <Text style={styles.lead}>
-        Changes save automatically. New AI plans will reflect these updates the next
-        time your week is generated.
+        Changes save automatically. They apply the next time your week plan is
+        updated.
       </Text>
 
       <Section title="Your name">

@@ -19,31 +19,27 @@ import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
 import { FLIGHT_FITNESS_PRIVACY_POLICY_URL, FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
+import { restVerseHeroText } from '@/lib/restVerseDisplay';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
+import type { MacroTargets, WorkoutDay } from '@/types/plan';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const WELCOME_SLIDE_COUNT = 4;
+const WELCOME_SLIDE_COUNT = 5;
 
 const DUMMY_VERSE = {
-  id: 'prov35',
-  tags: ['strength'],
-  bookId: 'PRO',
-  bookName: 'Proverbs',
-  chapter: 3,
-  verse: 5,
   text: 'Trust in Yahweh with all your heart, and don’t lean on your own understanding.',
   reference: 'Proverbs 3:5',
-} as any; // Typecast to bypass TS picking up internal types if necessary
+};
 
-const DUMMY_MACROS = {
+const DUMMY_MACROS: MacroTargets = {
   calories: 2200,
   proteinG: 185,
   carbsG: 200,
   fatG: 70,
 };
 
-const DUMMY_WORKOUT = {
+const DUMMY_WORKOUT: WorkoutDay = {
   dayIndex: 0,
   title: 'Push — Strength',
   exercises: [
@@ -62,6 +58,7 @@ export default function WelcomeScreen() {
   const { ready: authReady, registered } = useRegisteredAuth();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const canGetStarted = carouselIndex >= WELCOME_SLIDE_COUNT - 1;
+  const restVerse = restVerseHeroText(DUMMY_VERSE.text);
 
   const ctaOp = useSharedValue(0);
   const ctaScale = useSharedValue(0.94);
@@ -107,9 +104,7 @@ export default function WelcomeScreen() {
   const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
     const idx = Math.round(x / SCREEN_WIDTH);
-    setCarouselIndex(
-      Math.min(WELCOME_SLIDE_COUNT - 1, Math.max(0, idx))
-    );
+    setCarouselIndex(Math.min(WELCOME_SLIDE_COUNT - 1, Math.max(0, idx)));
   };
 
   const onGetStarted = () => {
@@ -156,8 +151,8 @@ export default function WelcomeScreen() {
               <View style={styles.cardWrapper}>
                 <View style={styles.uiHeader}>
                   <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText}>
-                    Daily verse with study context — right in your plan.
+                  <Text style={styles.uiHeaderText} numberOfLines={1}>
+                    Daily verse & study
                   </Text>
                 </View>
                 <View style={styles.wordCard}>
@@ -179,8 +174,8 @@ export default function WelcomeScreen() {
               <View style={styles.cardWrapper}>
                 <View style={styles.uiHeader}>
                   <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText}>
-                    Macro targets and what you’ve logged today, at a glance.
+                  <Text style={styles.uiHeaderText} numberOfLines={1}>
+                    Track your macros
                   </Text>
                 </View>
                 <MacroDashboard
@@ -198,8 +193,8 @@ export default function WelcomeScreen() {
               <View style={styles.cardWrapper}>
                 <View style={styles.uiHeader}>
                   <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText}>
-                    Workouts with exercises, sets, reps, and rest — structured for you.
+                  <Text style={styles.uiHeaderText} numberOfLines={1}>
+                    Structured workouts
                   </Text>
                 </View>
                 <WorkoutBlock
@@ -213,6 +208,33 @@ export default function WelcomeScreen() {
               </View>
             </View>
 
+            <View style={styles.carouselItem}>
+              <View style={styles.cardWrapper}>
+                <View style={styles.uiHeader}>
+                  <View style={styles.uiHeaderRule} />
+                  <Text style={styles.uiHeaderText} numberOfLines={1}>
+                    Study between sets
+                  </Text>
+                </View>
+                <View style={styles.restCard}>
+                  <Text style={styles.restKicker}>Rest</Text>
+                  <Text style={styles.restTimer}>1:30</Text>
+                  <View style={styles.restProgressTrack}>
+                    <View style={styles.restProgressFill} />
+                  </View>
+                  <Text style={styles.restNext}>Next · Incline bench · Set 3</Text>
+                  <View style={styles.restVerseBlock}>
+                    <Text style={styles.restVerseLabel}>Today&apos;s word</Text>
+                    <Text style={styles.restVerseRef}>
+                      {DUMMY_VERSE.reference.toUpperCase()}
+                    </Text>
+                    <Text style={styles.restVerseText}>{restVerse.text}</Text>
+                    <Text style={styles.restVerseTap}>Tap to read in context ›</Text>
+                  </View>
+                  <Text style={styles.restBrand}>FLIGHT FITNESS</Text>
+                </View>
+              </View>
+            </View>
           </ScrollView>
         </View>
 
@@ -233,11 +255,7 @@ export default function WelcomeScreen() {
                 ? undefined
                 : 'Swipe through all welcome slides to the end to enable this button.'
             }>
-            <Text
-              style={[
-                styles.primaryTxt,
-                !canGetStarted && styles.primaryLockedTxt,
-              ]}>
+            <Text style={[styles.primaryTxt, !canGetStarted && styles.primaryLockedTxt]}>
               Get started
             </Text>
           </Pressable>
@@ -345,7 +363,7 @@ const styles = StyleSheet.create({
   uiHeaderText: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 20,
-    lineHeight: 26,
+    lineHeight: 24,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
@@ -437,5 +455,87 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: theme.colors.onGold,
     textTransform: 'uppercase',
+  },
+  restCard: {
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 14,
+    gap: 6,
+  },
+  restKicker: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  restTimer: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 48,
+    lineHeight: 50,
+    color: theme.colors.gold,
+    fontVariant: ['tabular-nums'],
+  },
+  restProgressTrack: {
+    height: 2,
+    backgroundColor: 'rgba(255, 215, 0, 0.18)',
+    marginVertical: 4,
+    overflow: 'hidden',
+  },
+  restProgressFill: {
+    width: '58%',
+    height: '100%',
+    backgroundColor: theme.colors.gold,
+  },
+  restNext: {
+    fontFamily: theme.fonts.label,
+    fontSize: 8,
+    letterSpacing: 1.2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+  },
+  restVerseBlock: {
+    marginTop: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+    gap: 4,
+  },
+  restVerseLabel: {
+    fontFamily: theme.fonts.label,
+    fontSize: 8,
+    letterSpacing: 2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+  },
+  restVerseRef: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  restVerseText: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: theme.colors.onBackground,
+    fontStyle: 'italic',
+  },
+  restVerseTap: {
+    fontFamily: theme.fonts.label,
+    fontSize: 8,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  restBrand: {
+    fontFamily: theme.fonts.label,
+    fontSize: 8,
+    letterSpacing: 3,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

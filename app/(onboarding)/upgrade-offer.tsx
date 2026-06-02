@@ -1,7 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CoachingWaitlistJoinedModal } from '@/components/CoachingWaitlistJoinedModal';
@@ -19,6 +20,8 @@ import {
 } from '@/lib/revenueCat';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { usePlanStore } from '@/stores/planStore';
+import { useOnboardingStore } from '@/stores/onboardingStore';
+import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { theme } from '@/constants/theme';
 
@@ -53,6 +56,14 @@ export default function OnboardingUpgradeOfferScreen() {
     usePlanStore.getState().ensureWeekPlanShell(viewWeekStartYmdLocal());
     router.replace('/(tabs)' as Href);
   }, []);
+
+  const skipPaywall = useCallback(() => {
+    const onboarding = useOnboardingStore.getState();
+    if (onboarding.completedAt == null) {
+      onboarding.complete(new Date().toISOString());
+    }
+    finishOnboarding();
+  }, [finishOnboarding]);
 
   const onGetOneWeekFree = useCallback(() => {
     grantOnboardingFreeAiWeek();
@@ -114,12 +125,20 @@ export default function OnboardingUpgradeOfferScreen() {
   }, [finishOnboarding]);
 
   return (
-    <>
+    <View style={styles.root}>
+      <Pressable
+        style={[styles.closeBtn, { top: insets.top + 8 }]}
+        onPress={skipPaywall}
+        accessibilityLabel="Skip paywall"
+        accessibilityRole="button"
+        hitSlop={12}>
+        <MaterialIcons name="close" size={28} color={theme.colors.onSurfaceVariant} />
+      </Pressable>
       <FlightUpgradeOffer
         tier={tier}
         topPadding={insets.top + 36}
         bottomPadding={insets.bottom + 28}
-        showFreeWeek
+        showFreeWeek={isAiWeekPlanEnabled()}
         showHandle={false}
         onEssentials={() => void onSelectEssentials()}
         onCoaching={() => void onJoinWaitlist()}
@@ -135,30 +154,19 @@ export default function OnboardingUpgradeOfferScreen() {
           setWaitlistJoinedOpen(false);
         }}
       />
-      <Pressable style={[styles.manualBtn, { bottom: insets.bottom + 24 }]} onPress={finishOnboarding}>
-        <Text style={styles.manualBtnTxt}>Start building manually</Text>
-      </Pressable>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  manualBtn: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)',
+  root: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
   },
-  manualBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+  closeBtn: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 10,
+    padding: 8,
   },
 });

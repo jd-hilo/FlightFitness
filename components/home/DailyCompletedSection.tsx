@@ -52,7 +52,6 @@ export function DailyCompletedSection({
   faith,
 }: Props) {
   const faithItems: { title: string; meta?: string }[] = [];
-  if (faith.verseRead) faithItems.push({ title: 'Daily verse', meta: 'Faith tab' });
   if (faith.studyRead) faithItems.push({ title: "Today's study", meta: 'Scripture reading' });
   if (faith.journalDone) faithItems.push({ title: 'Reflection journal', meta: 'Faith tab' });
 

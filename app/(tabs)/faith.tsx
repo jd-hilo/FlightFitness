@@ -14,13 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { VerseCard } from '@/components/VerseCard';
 import { theme } from '@/constants/theme';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
-import { getDailyVerse } from '@/lib/verses';
 import { formatYmdLocal } from '@/lib/weekUtils';
-import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 
 function TaskCheck({ done }: { done: boolean }) {
@@ -39,15 +36,9 @@ export default function FaithScreen() {
   const insets = useSafeAreaInsets();
   const dateKey = formatYmdLocal(new Date());
   const reading = useMemo(() => getDailyFaithReading(), []);
-  const dailyRemote = useDailyContentStore((s) => s.content);
-  const dailyVerse = useMemo(
-    () => dailyRemote?.verse ?? getDailyVerse(),
-    [dailyRemote]
-  );
 
   const byDay = useFaithDailyStore((s) => s.byDay);
   const faithStreak = useFaithDailyStore((s) => s.faithStreak);
-  const toggleVerseRead = useFaithDailyStore((s) => s.toggleVerseRead);
   const toggleStudyRead = useFaithDailyStore((s) => s.toggleStudyRead);
   const toggleJournalDone = useFaithDailyStore((s) => s.toggleJournalDone);
   const setJournalLine = useFaithDailyStore((s) => s.setJournalLine);
@@ -58,7 +49,6 @@ export default function FaithScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   const day = byDay[dateKey] ?? {
-    verseRead: false,
     studyRead: false,
     journalDone: false,
     journalLine: '',
@@ -122,33 +112,6 @@ export default function FaithScreen() {
         <View style={styles.streakCard}>
           <Text style={styles.streakLabel}>Faith streak</Text>
           <Text style={styles.streakNum}>{faithStreak}</Text>
-          <Text style={styles.streakSub}>
-            Grows when you mark <Text style={styles.streakEm}>Today&apos;s study</Text> as
-            read once per day (separate from workout streak).
-          </Text>
-        </View>
-
-        <Text style={styles.section}>Daily verse</Text>
-        <View
-          style={[styles.taskShell, day.verseRead && styles.taskShellDone]}>
-          <Pressable
-            style={styles.taskHeader}
-            onPress={() => toggleVerseRead(dateKey)}>
-            <TaskCheck done={day.verseRead} />
-            <View style={styles.taskHeaderText}>
-              <Text style={styles.taskHeaderTitle}>Read today&apos;s verse</Text>
-              <Text style={styles.taskHeaderSub}>
-                Tap the check when you&apos;ve read it
-              </Text>
-            </View>
-          </Pressable>
-          <View style={styles.taskBody}>
-            <VerseCard
-              verse={dailyVerse}
-              subtitle="Same verse for everyone today"
-              embedded
-            />
-          </View>
         </View>
 
         <Text style={styles.section}>Today&apos;s study</Text>
@@ -274,16 +237,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     marginVertical: 6,
   },
-  streakSub: {
-    fontFamily: theme.fonts.body,
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
-    lineHeight: 17,
-  },
-  streakEm: {
-    fontFamily: theme.fonts.label,
-    color: theme.colors.gold,
-  },
   section: {
     fontFamily: theme.fonts.headline,
     fontSize: 22,
@@ -291,12 +244,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 12,
     marginTop: 8,
-  },
-  taskShell: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    marginBottom: 8,
   },
   taskShellDone: {
     borderColor: 'rgba(255, 215, 0, 0.35)',
@@ -325,9 +272,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
     lineHeight: 17,
-  },
-  taskBody: {
-    paddingBottom: 4,
   },
   readingCard: {
     borderWidth: 1,

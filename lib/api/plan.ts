@@ -1,8 +1,8 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
-import { weekPlanSchema } from '@/types/plan';
-import type { OnboardingAnswers, WeekPlan } from '@/types/plan';
-import { buildMockWeekPlan } from '@/lib/mockPlan';
+import { weekPlanSchema, macroTargetsSchema } from '@/types/plan';
+import type { MacroTargets, OnboardingAnswers, WeekPlan } from '@/types/plan';
+import { buildMockWeekPlan, recommendMacroTargetsFromOnboarding } from '@/lib/mockPlan';
 import { summarizeOnboardingForAI } from '@/lib/onboardingSummarize';
 import {
   bootstrapAnonymousSession,
@@ -15,7 +15,7 @@ import { normalizeWeekPlanFromAI } from '@/lib/weekPlanAINormalize';
 export type GeneratePlanBody = {
   onboarding: OnboardingAnswers;
   weekStartHint?: string;
-  action?: 'full' | 'regenerateDay' | 'adjustMacros' | 'swapExercise';
+  action?: 'full' | 'regenerateDay' | 'adjustMacros' | 'swapExercise' | 'recommendMacros';
   regenerateDay?: { dayIndex: number };
   adjustMacros?: {
     calories: number;
@@ -29,6 +29,10 @@ export type GeneratePlanBody = {
 
 export type GenerateWeekPlanResult =
   | { ok: true; plan: WeekPlan }
+  | { ok: false; error: string };
+
+export type RecommendMacroResult =
+  | { ok: true; macroTargets: MacroTargets; source: 'ai' | 'formula' }
   | { ok: false; error: string };
 
 let fullWeekPlanInFlight: Promise<GenerateWeekPlanResult> | null = null;
@@ -47,6 +51,74 @@ export async function generateWeekPlan(
     return fullWeekPlanInFlight;
   }
   return run;
+}
+
+export async function recommendMacroTargets(
+  onboarding: OnboardingAnswers
+): Promise<RecommendMacroResult> {
+  const fallback = (): RecommendMacroResult => ({
+    ok: true,
+    macroTargets: recommendMacroTargetsFromOnboarding(onboarding),
+    source: 'formula',
+  });
+
+  if (!supabaseConfigured || !supabase) {
+    if (__DEV__) console.warn('[recommendMacroTargets] Supabase env missing — formula');
+    return fallback();
+  }
+
+  try {
+    await bootstrapAnonymousSession();
+  } catch {
+    /* best-effort */
+  }
+
+  let session: Awaited<ReturnType<typeof ensureFreshSessionForEdge>> = null;
+  try {
+    session = await ensureFreshSessionForEdge();
+  } catch {
+    return fallback();
+  }
+
+  const token = session?.access_token;
+  if (!token) {
+    if (__DEV__) console.warn('[recommendMacroTargets] No JWT — formula');
+    return fallback();
+  }
+
+  try {
+    const { data: json, error: fnError } = await supabase.functions.invoke(
+      'generate-plan',
+      {
+        body: {
+          onboardingSummary: summarizeOnboardingForAI(onboarding),
+          action: 'recommendMacros',
+        },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (fnError) {
+      if (__DEV__) console.warn('[recommendMacroTargets]', await extractFnError(fnError));
+      return fallback();
+    }
+
+    const raw =
+      json && typeof json === 'object' && json !== null && 'macroTargets' in json
+        ? (json as { macroTargets: unknown }).macroTargets
+        : json;
+
+    const parsed = macroTargetsSchema.safeParse(raw);
+    if (!parsed.success) {
+      if (__DEV__) console.warn('[recommendMacroTargets] invalid response — formula');
+      return fallback();
+    }
+
+    return { ok: true, macroTargets: parsed.data, source: 'ai' };
+  } catch (e) {
+    if (__DEV__) console.warn('[recommendMacroTargets]', e);
+    return fallback();
+  }
 }
 
 async function runGenerate(

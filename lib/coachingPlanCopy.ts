@@ -8,16 +8,16 @@ export const ESSENTIALS_WEEKLY_ONLY_CAPTION = 'Weekly subscription · full app a
 
 export const ESSENTIALS_FEATURES = [
   {
-    icon: 'menu-book',
-    label: 'Daily faith rooted in Scripture, in the app.',
-  },
-  {
     icon: 'fitness-center',
     label: 'Unlimited saved workouts and meals.',
   },
   {
+    icon: 'menu-book',
+    label: 'Daily faith rooted in Scripture, in the app.',
+  },
+  {
     icon: 'calendar-month',
-    label: 'Weeks of meals and training, built around your goals.',
+    label: 'Plan meals and training for your week.',
   },
   {
     icon: 'tune',
@@ -25,7 +25,7 @@ export const ESSENTIALS_FEATURES = [
   },
   {
     icon: 'shopping-cart',
-    label: 'Grocery list generated from your meal plan.',
+    label: 'Grocery list from your meal plan.',
   },
 ] as const;
 

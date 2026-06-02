@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NumberStepper } from '@/components/plan/NumberStepper';
 import { WeightProgressChart } from '@/components/home/WeightProgressChart';
 import { theme } from '@/constants/theme';
+import { buildWeightChartEntries } from '@/lib/weightChartEntries';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useWeightLogStore } from '@/stores/weightLogStore';
 
@@ -38,35 +39,10 @@ export function WeightLogSection({ dateKey }: Props) {
     setDraft(todayEntry?.weightLb ?? currentWeight);
   }, [dateKey, todayEntry?.weightLb, currentWeight]);
 
-  const chartEntries = useMemo(() => {
-    if (entries.length === 0) {
-      if (onboardingWeight > 0) {
-        return [
-          {
-            dateKey: 'start',
-            weightLb: onboardingWeight,
-            updatedAt: 'onboarding-baseline',
-          },
-        ];
-      }
-      return [];
-    }
-
-    const hasStartPoint = entries.some(
-      (e) => e.dateKey === 'start' || e.weightLb === onboardingWeight
-    );
-    if (onboardingWeight > 0 && !hasStartPoint) {
-      return [
-        {
-          dateKey: 'start',
-          weightLb: onboardingWeight,
-          updatedAt: 'onboarding-baseline',
-        },
-        ...entries,
-      ];
-    }
-    return entries;
-  }, [entries, onboardingWeight]);
+  const chartEntries = useMemo(
+    () => buildWeightChartEntries(entries, onboardingWeight),
+    [entries, onboardingWeight]
+  );
 
   const onSave = () => {
     logWeight(dateKey, draft);

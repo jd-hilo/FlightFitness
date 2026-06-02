@@ -80,6 +80,7 @@ export default function RootLayout() {
               headerStyle: { backgroundColor: '#000' },
               headerTintColor: '#FFD700',
               headerBackTitle: '',
+              headerBackButtonDisplayMode: 'minimal',
               headerTitleStyle: {
                 fontFamily: 'Epilogue_700Bold',
               },

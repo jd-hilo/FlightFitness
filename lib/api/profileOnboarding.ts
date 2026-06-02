@@ -3,7 +3,8 @@ import { normalizeWeekPlanFromAI } from '@/lib/weekPlanAINormalize';
 import { isRegisteredAppUser } from '@/lib/useRegisteredAuth';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
-import type { OnboardingAnswers } from '@/types/plan';
+import type { MacroTargets, OnboardingAnswers } from '@/types/plan';
+import { macroTargetsSchema } from '@/types/plan';
 import { weekPlanSchema } from '@/types/plan';
 
 type PersistedOnboardingJson = {
@@ -52,9 +53,15 @@ async function restoreLatestPlanIfPresent(userId: string): Promise<boolean> {
   }
 }
 
+function parseMacroTargets(raw: unknown): MacroTargets | null {
+  const parsed = macroTargetsSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 export async function persistProfileOnboarding(
   answers: OnboardingAnswers,
-  completedAt: string
+  completedAt: string,
+  macroTargets?: MacroTargets | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!supabaseConfigured || !supabase) {
     return { ok: false, error: 'Cloud is not configured on this device.' };
@@ -70,19 +77,21 @@ export async function persistProfileOnboarding(
 
   const trimmedFirstName =
     typeof answers.firstName === 'string' ? answers.firstName.trim() : '';
-  const { error } = await supabase.from('profiles').upsert(
-    {
-      id: user.id,
-      first_name: trimmedFirstName.length > 0 ? trimmedFirstName : null,
-      onboarding_json: {
-        version: 1,
-        completedAt,
-        answers,
-      },
-      updated_at: new Date().toISOString(),
+  const row: Record<string, unknown> = {
+    id: user.id,
+    first_name: trimmedFirstName.length > 0 ? trimmedFirstName : null,
+    onboarding_json: {
+      version: 1,
+      completedAt,
+      answers,
     },
-    { onConflict: 'id' }
-  );
+    updated_at: new Date().toISOString(),
+  };
+  if (macroTargets) {
+    row.macro_targets = macroTargets;
+  }
+
+  const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -100,7 +109,7 @@ export async function pullProfileOnboardingIntoStore(): Promise<boolean> {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('first_name, onboarding_json')
+      .select('first_name, onboarding_json, macro_targets')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -120,6 +129,11 @@ export async function pullProfileOnboardingIntoStore(): Promise<boolean> {
       });
     } else if (firstName) {
       useOnboardingStore.getState().setAnswers({ firstName });
+    }
+
+    const savedMacros = parseMacroTargets(data?.macro_targets);
+    if (savedMacros) {
+      usePlanStore.getState().setMacroTargets(savedMacros);
     }
 
     if (remote?.completedAt) {

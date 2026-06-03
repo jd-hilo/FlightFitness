@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ScrollView, Text, TextInput } from 'react-native';
 
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
 import { theme } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import {
   persistProfileFirstName,
   pullProfileFirstNameIntoStore,
@@ -22,10 +23,19 @@ export default function OnboardingNameScreen() {
   const answers = useOnboardingStore((s) => s.answers);
   const setAnswers = useOnboardingStore((s) => s.setAnswers);
   const canNext = answers.firstName.trim().length > 0;
+  const startedTracked = useRef(false);
 
   useEffect(() => {
     void pullProfileFirstNameIntoStore();
   }, []);
+
+  useEffect(() => {
+    if (startedTracked.current) return;
+    startedTracked.current = true;
+    track('onboarding started', {
+      entry_point: answers.firstName.trim().length > 0 ? 'resume' : 'welcome',
+    });
+  }, [answers.firstName]);
 
   const onNext = () => {
     if (!canNext) return;

@@ -28,7 +28,7 @@ export type GeneratePlanBody = {
 };
 
 export type GenerateWeekPlanResult =
-  | { ok: true; plan: WeekPlan }
+  | { ok: true; plan: WeekPlan; wasMock?: boolean }
   | { ok: false; error: string };
 
 export type RecommendMacroResult =
@@ -212,7 +212,7 @@ function mockResult(body: GeneratePlanBody): GenerateWeekPlanResult {
   const merged = applyCustomizationLocal(body, plan);
   const parsed = weekPlanSchema.safeParse(merged);
   if (!parsed.success) return { ok: false, error: parsed.error.message };
-  return { ok: true, plan: parsed.data };
+  return { ok: true, plan: parsed.data, wasMock: true };
 }
 
 /**

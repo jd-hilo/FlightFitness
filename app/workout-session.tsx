@@ -17,6 +17,7 @@ import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { RestTimerOverlay } from '@/components/workout/RestTimerOverlay';
 import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
+import { track } from '@/lib/analytics';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { parseTargetReps } from '@/lib/repUtils';
 import { resolveDailyVerse } from '@/lib/dailyVerse';
@@ -152,6 +153,22 @@ export default function WorkoutSessionScreen() {
   const finishAndExit = (saveProgress: boolean) => {
     if (!session) return;
     const durationSec = getElapsedSeconds();
+    const completed = session.exercises.reduce((acc, ex) => {
+      const rows = ensureExerciseSetRows(ex).setRows ?? [];
+      return acc + rows.filter((r) => r.completed).length;
+    }, 0);
+    const total = session.exercises.reduce(
+      (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
+      0
+    );
+    track('workout completed', {
+      duration_sec: durationSec,
+      sets_completed: completed,
+      total_sets: total,
+      completion_pct: total > 0 ? completed / total : 0,
+      saved_progress: saveProgress,
+      source_workout_id: session.sourceWorkoutId,
+    });
     if (saveProgress) {
       applySessionProgress(session.sourceWorkoutId, session.exercises);
     }
@@ -229,6 +246,19 @@ export default function WorkoutSessionScreen() {
                 text: 'Discard',
                 style: 'destructive',
                 onPress: () => {
+                  const completed = session.exercises.reduce((acc, ex) => {
+                    const rows = ensureExerciseSetRows(ex).setRows ?? [];
+                    return acc + rows.filter((r) => r.completed).length;
+                  }, 0);
+                  const total = session.exercises.reduce(
+                    (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
+                    0
+                  );
+                  track('workout discarded', {
+                    duration_sec: getElapsedSeconds(),
+                    sets_completed: completed,
+                    total_sets: total,
+                  });
                   cancelSession();
                   router.replace('/(tabs)/train');
                 },

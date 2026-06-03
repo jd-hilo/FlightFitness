@@ -1,4 +1,5 @@
 import { generateWeekPlan } from '@/lib/api/plan';
+import { trackPlanGenerated } from '@/lib/analytics';
 import { localPlanCoversWeek } from '@/lib/planCompleteness';
 import {
   ensureFreshSessionForEdge,
@@ -91,10 +92,17 @@ async function runEnsure(): Promise<EnsureResult> {
     }
 
     const onboarding = useOnboardingStore.getState().answers as OnboardingAnswers;
+    const started = Date.now();
     const res = await generateWeekPlan({
       onboarding,
       action: 'full',
       weekStartHint: target,
+    });
+    trackPlanGenerated({
+      source: 'ensure_week',
+      success: res.ok,
+      durationMs: Date.now() - started,
+      wasMock: res.ok ? Boolean(res.wasMock) : false,
     });
 
     if (!res.ok) {

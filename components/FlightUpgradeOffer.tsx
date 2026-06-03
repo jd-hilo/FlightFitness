@@ -64,17 +64,23 @@ export function FlightUpgradeOffer({
   coachingWaitlistJoined = false,
 }: Props) {
   const [selected, setSelected] = useState<Offer>(
-    tier === 'coaching' ? 'coaching' : 'essentials'
+    tier === 'coaching' || tier === 'essentials' ? 'coaching' : 'essentials'
   );
   const [weeklyPrice, setWeeklyPrice] = useState('$2.99');
   const coachingActive = tier === 'coaching';
   const essentialsActive = tier === 'essentials';
+  const essentialsCardLocked = essentialsActive && !coachingActive;
   const coachingCardLocked = coachingWaitlistJoined && !coachingActive;
 
   useEffect(() => {
-    if (!coachingWaitlistJoined) return;
-    setSelected((s) => (s === 'coaching' ? 'essentials' : s));
-  }, [coachingWaitlistJoined]);
+    if (coachingWaitlistJoined && !coachingActive) {
+      setSelected((s) => (s === 'coaching' ? 'essentials' : s));
+      return;
+    }
+    if (essentialsActive && !coachingActive) {
+      setSelected('coaching');
+    }
+  }, [coachingWaitlistJoined, coachingActive, essentialsActive]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,8 +105,14 @@ export function FlightUpgradeOffer({
       onCoaching();
       return;
     }
+    if (essentialsCardLocked) return;
     onEssentials();
   };
+
+  const continueDisabled =
+    selectedBusy ||
+    (selected === 'essentials' && essentialsCardLocked) ||
+    (selected === 'coaching' && coachingCardLocked);
 
   return (
     <View style={styles.root}>
@@ -139,31 +151,68 @@ export function FlightUpgradeOffer({
 
         <View style={styles.offerRow}>
           <Pressable
-            style={[
+            disabled={essentialsCardLocked}
+            style={({ pressed }) => [
               styles.offerCard,
-              selected === 'essentials' && styles.offerCardSelected,
+              selected === 'essentials' &&
+                !essentialsCardLocked &&
+                styles.offerCardSelected,
+              essentialsCardLocked && styles.offerCardLocked,
+              pressed && !essentialsCardLocked && styles.offerCardPressed,
             ]}
             onPress={() => setSelected('essentials')}>
             <MaterialIcons
               name={selected === 'essentials' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
-              color={selected === 'essentials' ? '#FFFFFF' : 'rgba(255,255,255,0.42)'}
+              color={
+                essentialsCardLocked
+                  ? 'rgba(255,255,255,0.18)'
+                  : selected === 'essentials'
+                    ? '#FFFFFF'
+                    : 'rgba(255,255,255,0.42)'
+              }
               style={styles.offerCheck}
             />
             <View style={styles.offerTop}>
               <View style={styles.offerTitleCol}>
-                <Text style={styles.offerName} numberOfLines={1} adjustsFontSizeToFit>
+                <Text
+                  style={[
+                    styles.offerName,
+                    essentialsCardLocked && styles.offerTextMuted,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit>
                   Essentials
                 </Text>
-                <Text style={styles.offerCaption}>{ESSENTIALS_WEEKLY_ONLY_CAPTION}</Text>
+                <Text
+                  style={[
+                    styles.offerCaption,
+                    essentialsCardLocked && styles.offerCaptionMuted,
+                  ]}>
+                  {ESSENTIALS_WEEKLY_ONLY_CAPTION}
+                </Text>
               </View>
             </View>
             <View style={styles.offerBottom}>
-              <Text style={styles.offerPrice}>{weeklyPrice}</Text>
-              <Text style={styles.offerPeriod}>/week</Text>
+              <Text
+                style={[
+                  styles.offerPrice,
+                  essentialsCardLocked && styles.offerTextMuted,
+                ]}>
+                {weeklyPrice}
+              </Text>
+              <Text
+                style={[
+                  styles.offerPeriod,
+                  essentialsCardLocked && styles.offerCaptionMuted,
+                ]}>
+                /week
+              </Text>
             </View>
-            <Text style={styles.offerNote}>
-              {essentialsActive || coachingActive ? 'Included' : ESSENTIALS_RENEWAL_FOOTNOTE}
+            <Text style={[styles.offerNote, essentialsCardLocked && styles.offerNoteMuted]}>
+              {essentialsActive || coachingActive
+                ? "You're in"
+                : ESSENTIALS_RENEWAL_FOOTNOTE}
             </Text>
           </Pressable>
 
@@ -234,20 +283,21 @@ export function FlightUpgradeOffer({
         <Pressable
           style={[
             styles.continueBtn,
-            selectedBusy && styles.continueBtnDisabled,
+            continueDisabled && styles.continueBtnDisabled,
           ]}
           onPress={onContinue}
-          disabled={selectedBusy}>
+          disabled={continueDisabled}>
           {selectedBusy ? (
             <AppLoadingCross size="small" />
           ) : (
             <Text style={styles.continueTxt}>
-              {continueLabel ?? (selected === 'coaching' ? 'Join waitlist' : 'Continue')}
+              {continueLabel ??
+                (selected === 'coaching' ? 'Join waitlist' : 'Continue')}
             </Text>
           )}
         </Pressable>
 
-        {showFreeWeek && onFreeWeek ? (
+        {showFreeWeek && onFreeWeek && !essentialsActive ? (
           <Pressable style={styles.freeWeek} onPress={onFreeWeek} disabled={coachingActive}>
             <Text
               style={[styles.freeWeekTxt, styles.freeWeekTxtCenter]}

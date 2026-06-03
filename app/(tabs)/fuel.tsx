@@ -24,6 +24,7 @@ import { MealCard } from '@/components/plan/MealCard';
 import { MealEditorModal } from '@/components/plan/MealEditorModal';
 import { WeekStrip } from '@/components/WeekStrip';
 import { theme } from '@/constants/theme';
+import { paywallHref } from '@/lib/analytics';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
 import {
   dateKeyForViewStripDay,
@@ -320,7 +321,7 @@ export default function FuelScreen() {
                 'Free includes up to 5 saved meals. Upgrade to Essentials for unlimited saved meals.',
                 [
                   { text: 'OK', style: 'cancel' },
-                  { text: 'Upgrade', onPress: () => router.push('/paywall') },
+                  { text: 'Upgrade', onPress: () => router.push(paywallHref('fuel_gate')) },
                 ]
               );
             }

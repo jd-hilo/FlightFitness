@@ -16,6 +16,7 @@ import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabScreenHeading } from '@/components/TabScreenHeading';
 import { theme } from '@/constants/theme';
+import { paywallHref } from '@/lib/analytics';
 import { formatDuration } from '@/lib/formatDuration';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
@@ -60,7 +61,7 @@ export default function TrainScreen() {
         'Free includes up to 3 saved workouts. Upgrade to Essentials for unlimited workouts.',
         [
           { text: 'Not now', style: 'cancel' },
-          { text: 'Upgrade', onPress: () => router.push('/paywall') },
+          { text: 'Upgrade', onPress: () => router.push(paywallHref('train_gate')) },
         ]
       );
       return;

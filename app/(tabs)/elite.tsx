@@ -12,6 +12,7 @@ import { WeeklyHabitChart } from '@/components/tracking/WeeklyHabitChart';
 import { theme } from '@/constants/theme';
 import { deleteAccount } from '@/lib/api/deleteAccount';
 import { generateWeekPlan } from '@/lib/api/plan';
+import { paywallHref, trackPlanGenerated } from '@/lib/analytics';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 import {
   buildLast7DayHabitScores,
@@ -146,7 +147,7 @@ export default function EliteScreen() {
 
   const onManagePlan = useCallback(() => {
     if (tier === 'free') {
-      router.push('/paywall' as Href);
+      router.push(paywallHref('elite'));
       return;
     }
     void (async () => {
@@ -172,10 +173,17 @@ export default function EliteScreen() {
         onPress: () => {
           void (async () => {
             setRegeneratingPlan(true);
+            const started = Date.now();
             const res = await generateWeekPlan({
               onboarding: answers,
               action: 'full',
               weekStartHint: viewWeekStartYmdLocal(),
+            });
+            trackPlanGenerated({
+              source: 'regenerate',
+              success: res.ok,
+              durationMs: Date.now() - started,
+              wasMock: res.ok ? Boolean(res.wasMock) : false,
             });
             setRegeneratingPlan(false);
             if (!res.ok) {
@@ -284,7 +292,7 @@ export default function EliteScreen() {
           {tier !== 'coaching' ? (
             <Pressable
               style={styles.actionRow}
-              onPress={() => router.push('/paywall' as Href)}>
+              onPress={() => router.push(paywallHref('elite'))}>
               <MaterialIcons name="upgrade" size={20} color={theme.colors.gold} />
               <Text style={styles.actionTxt}>Upgrade</Text>
               <MaterialIcons

@@ -23,11 +23,26 @@ const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY ?? ''
  * If the dashboard identifier differs, set EXPO_PUBLIC_REVENUECAT_ESSENTIALS_ENTITLEMENT_ID.
  */
 export const REVENUECAT_ESSENTIALS_ENTITLEMENT_ID =
-  process.env.EXPO_PUBLIC_REVENUECAT_ESSENTIALS_ENTITLEMENT_ID ?? 'essentials';
+  process.env.EXPO_PUBLIC_REVENUECAT_ESSENTIALS_ENTITLEMENT_ID ??
+  'Flight Fitness Essentials';
+
+/** Known dashboard identifiers — checked in order after the env override. */
+const ESSENTIALS_ENTITLEMENT_FALLBACK_IDS = [
+  'Flight Fitness Essentials',
+  'essentials',
+] as const;
 
 /** Current offering package identifier for the weekly Essentials product. */
 export const REVENUECAT_WEEKLY_PACKAGE_ID =
   process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PACKAGE_ID ?? 'weekly';
+
+function essentialsEntitlementIds(): string[] {
+  const ids = [
+    REVENUECAT_ESSENTIALS_ENTITLEMENT_ID,
+    ...ESSENTIALS_ENTITLEMENT_FALLBACK_IDS,
+  ];
+  return [...new Set(ids.filter(Boolean))];
+}
 
 let configured = false;
 let listenerAttached = false;
@@ -41,9 +56,12 @@ function getApiKey() {
 }
 
 function hasEssentials(customerInfo: CustomerInfo) {
-  return Boolean(
-    customerInfo.entitlements.active[REVENUECAT_ESSENTIALS_ENTITLEMENT_ID]
-  );
+  const active = customerInfo.entitlements.active;
+  return essentialsEntitlementIds().some((id) => Boolean(active[id]));
+}
+
+export function customerHasEssentialsEntitlement(customerInfo: CustomerInfo) {
+  return hasEssentials(customerInfo);
 }
 
 export function applyRevenueCatCustomerInfo(customerInfo: CustomerInfo) {
@@ -211,6 +229,11 @@ export function revenueCatPurchaseWasCancelled(error: unknown) {
     'userCancelled' in error &&
       (error as { userCancelled?: boolean }).userCancelled
   );
+}
+
+export function revenueCatPurchaseErrorCode(error: unknown): string {
+  const { code, message, underlying } = revenueCatErrorFields(error);
+  return code || message || underlying || 'unknown';
 }
 
 function revenueCatErrorFields(error: unknown) {

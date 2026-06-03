@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
-import type { Href } from 'expo-router';
-import { router } from 'expo-router';
+import { paywallHref } from '@/lib/analytics';
+import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -98,7 +98,7 @@ export default function CoachChatScreen() {
 
   useEffect(() => {
     if (coaching) return;
-    router.replace('/paywall' as Href);
+    router.replace(paywallHref('coach_chat'));
   }, [coaching]);
 
   const onSend = async () => {

@@ -1,8 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { PurchasesPackage } from 'react-native-purchases';
 
 import { CoachingWaitlistJoinedModal } from '@/components/CoachingWaitlistJoinedModal';
 import { FlightUpgradeOffer } from '@/components/FlightUpgradeOffer';
@@ -10,42 +11,94 @@ import {
   isCurrentUserOnCoachingWaitlist,
   submitCoachingWaitlistFromSession,
 } from '@/lib/api/coachingWaitlist';
+import { track, type PaywallSource } from '@/lib/analytics';
 import {
-  REVENUECAT_ESSENTIALS_ENTITLEMENT_ID,
+  customerHasEssentialsEntitlement,
+  getRevenueCatWeeklyPackage,
   purchaseWeeklyEssentials,
+  refreshRevenueCatCustomerInfo,
   restoreRevenueCatPurchases,
   revenueCatPurchaseWasCancelled,
+  revenueCatPurchaseErrorCode,
   formatRevenueCatPurchaseError,
+  REVENUECAT_WEEKLY_PACKAGE_ID,
 } from '@/lib/revenueCat';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
+function parsePaywallSource(raw: string | string[] | undefined): PaywallSource {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (
+    value === 'onboarding' ||
+    value === 'train_gate' ||
+    value === 'fuel_gate' ||
+    value === 'coach_chat' ||
+    value === 'badge' ||
+    value === 'elite'
+  ) {
+    return value;
+  }
+  return 'unknown';
+}
+
+function subscriptionPurchaseProps(
+  weeklyPackage: PurchasesPackage | null
+): { price?: number; currency?: string } {
+  if (!weeklyPackage) return {};
+  return {
+    price: weeklyPackage.product.price,
+    currency: weeklyPackage.product.currencyCode,
+  };
+}
+
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
+  const { source: sourceParam } = useLocalSearchParams<{ source?: string }>();
+  const source = parsePaywallSource(sourceParam);
   const [waitlistJoinedOpen, setWaitlistJoinedOpen] = useState(false);
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [essentialsBusy, setEssentialsBusy] = useState(false);
   const [coachingWaitlistJoined, setCoachingWaitlistJoined] = useState(false);
+  const [weeklyPackage, setWeeklyPackage] = useState<PurchasesPackage | null>(null);
   const tier = useSubscriptionStore((s) => s.tier);
 
   useFocusEffect(
     useCallback(() => {
+      track('paywall viewed', { source });
       let cancelled = false;
+      void refreshRevenueCatCustomerInfo();
       void (async () => {
         const on = await isCurrentUserOnCoachingWaitlist();
         if (!cancelled && on) setCoachingWaitlistJoined(true);
+        const pkg = await getRevenueCatWeeklyPackage();
+        if (!cancelled) setWeeklyPackage(pkg);
       })();
       return () => {
         cancelled = true;
       };
-    }, [])
+    }, [source])
   );
 
   const onBuyEssentials = useCallback(async () => {
+    if (tier === 'essentials' || tier === 'coaching') return;
+    track('subscription purchase started', {
+      source,
+      package: REVENUECAT_WEEKLY_PACKAGE_ID,
+    });
     setEssentialsBusy(true);
     try {
       await purchaseWeeklyEssentials();
+      track('subscription purchased', {
+        source,
+        package: REVENUECAT_WEEKLY_PACKAGE_ID,
+        ...subscriptionPurchaseProps(weeklyPackage),
+      });
       router.back();
     } catch (error) {
+      track('subscription purchase failed', {
+        source,
+        error_code: revenueCatPurchaseErrorCode(error),
+        cancelled: revenueCatPurchaseWasCancelled(error),
+      });
       if (revenueCatPurchaseWasCancelled(error)) return;
       const message = formatRevenueCatPurchaseError(error);
       if (!message) return;
@@ -53,7 +106,7 @@ export default function PaywallScreen() {
     } finally {
       setEssentialsBusy(false);
     }
-  }, []);
+  }, [source, tier, weeklyPackage]);
 
   const onJoinWaitlist = useCallback(async () => {
     if (coachingWaitlistJoined) return;
@@ -73,9 +126,7 @@ export default function PaywallScreen() {
       setEssentialsBusy(true);
       try {
         const customerInfo = await restoreRevenueCatPurchases();
-        const restored = Boolean(
-          customerInfo.entitlements.active[REVENUECAT_ESSENTIALS_ENTITLEMENT_ID]
-        );
+        const restored = customerHasEssentialsEntitlement(customerInfo);
         Alert.alert(
           restored ? 'Purchases restored' : 'No active Essentials purchase found',
           restored

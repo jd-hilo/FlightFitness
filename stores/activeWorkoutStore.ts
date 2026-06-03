@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { track } from '@/lib/analytics';
 import { ensureExerciseSetRows, newId, syncExerciseAggregateFromSetRows } from '@/lib/exerciseNormalize';
 import { parseTargetReps } from '@/lib/repUtils';
 import type { Exercise, ExerciseSetRow } from '@/types/plan';
@@ -60,12 +61,23 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
       session: null,
 
       startSession: (workout) => {
+        const exercises = cloneExercisesForSession(workout.exercises);
+        const totalSets = exercises.reduce(
+          (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
+          0
+        );
+        track('workout started', {
+          source_workout_id: workout.id,
+          title: workout.title,
+          exercise_count: workout.exercises.length,
+          total_sets: totalSets,
+        });
         set({
           session: {
             sessionId: newId('session'),
             sourceWorkoutId: workout.id,
             title: workout.title,
-            exercises: cloneExercisesForSession(workout.exercises),
+            exercises,
             startedAt: new Date().toISOString(),
             pausedAt: null,
             accumulatedPauseMs: 0,

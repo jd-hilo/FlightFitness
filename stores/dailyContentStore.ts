@@ -22,9 +22,17 @@ type DailyContentState = {
 
 let loadInFlight: Promise<void> | null = null;
 
-/** Avoid hanging the root router on slow or stuck network / image prefetch. */
+/** Avoid hanging the root router on slow or stuck network. */
 const DAILY_FETCH_TIMEOUT_MS = 14_000;
 const HERO_PREFETCH_TIMEOUT_MS = 10_000;
+
+function prefetchHeroInBackground(content: DailyContent | null) {
+  void raceTimeout(
+    prefetchDailyHeroImage(content),
+    HERO_PREFETCH_TIMEOUT_MS,
+    undefined
+  );
+}
 
 function raceTimeout<T>(promise: Promise<T>, ms: number, onTimeout: T): Promise<T> {
   return new Promise((resolve) => {
@@ -53,11 +61,7 @@ export const useDailyContentStore = create<DailyContentState>((set, get) => ({
       const existing = get().content;
       if (existing?.day === utcDay) {
         prefetchVersePassage(resolveDailyVerse(existing));
-        await raceTimeout(
-          prefetchDailyHeroImage(existing),
-          HERO_PREFETCH_TIMEOUT_MS,
-          undefined
-        );
+        prefetchHeroInBackground(existing);
         set({ dailyFetchSettled: true });
         return;
       }
@@ -65,13 +69,9 @@ export const useDailyContentStore = create<DailyContentState>((set, get) => ({
       set({ loading: true });
       try {
         const c = await raceTimeout(fetchDailyContent(), DAILY_FETCH_TIMEOUT_MS, null);
-        await raceTimeout(
-          prefetchDailyHeroImage(c),
-          HERO_PREFETCH_TIMEOUT_MS,
-          undefined
-        );
         set({ content: c });
         prefetchVersePassage(resolveDailyVerse(c));
+        prefetchHeroInBackground(c);
       } finally {
         prefetchVersePassage(resolveDailyVerse(get().content));
         set({ loading: false, dailyFetchSettled: true });
@@ -95,13 +95,9 @@ export const useDailyContentStore = create<DailyContentState>((set, get) => ({
         { ok: false as const, message: 'Daily content request timed out.' }
       );
       if (r.ok) {
-        await raceTimeout(
-          prefetchDailyHeroImage(r.data),
-          HERO_PREFETCH_TIMEOUT_MS,
-          undefined
-        );
         set({ content: r.data });
         prefetchVersePassage(resolveDailyVerse(r.data));
+        prefetchHeroInBackground(r.data);
       }
       return r;
     } finally {

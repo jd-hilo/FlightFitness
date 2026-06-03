@@ -4,6 +4,7 @@ import { router, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { PurchasesPackage } from 'react-native-purchases';
 
 import { CoachingWaitlistJoinedModal } from '@/components/CoachingWaitlistJoinedModal';
 import { FlightUpgradeOffer } from '@/components/FlightUpgradeOffer';
@@ -11,12 +12,16 @@ import {
   isCurrentUserOnCoachingWaitlist,
   submitCoachingWaitlistFromSession,
 } from '@/lib/api/coachingWaitlist';
+import { track } from '@/lib/analytics';
 import {
-  REVENUECAT_ESSENTIALS_ENTITLEMENT_ID,
+  customerHasEssentialsEntitlement,
+  getRevenueCatWeeklyPackage,
   purchaseWeeklyEssentials,
   restoreRevenueCatPurchases,
   revenueCatPurchaseWasCancelled,
+  revenueCatPurchaseErrorCode,
   formatRevenueCatPurchaseError,
+  REVENUECAT_WEEKLY_PACKAGE_ID,
 } from '@/lib/revenueCat';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { usePlanStore } from '@/stores/planStore';
@@ -24,6 +29,18 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { theme } from '@/constants/theme';
+
+type OnboardingExit = 'skip' | 'free_week' | 'purchase' | 'restore';
+
+function subscriptionPurchaseProps(
+  weeklyPackage: PurchasesPackage | null
+): { price?: number; currency?: string } {
+  if (!weeklyPackage) return {};
+  return {
+    price: weeklyPackage.product.price,
+    currency: weeklyPackage.product.currencyCode,
+  };
+}
 
 /**
  * Shown after onboarding questions. Subscription optional; no automatic AI week generation.
@@ -34,14 +51,18 @@ export default function OnboardingUpgradeOfferScreen() {
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [essentialsBusy, setEssentialsBusy] = useState(false);
   const [coachingWaitlistJoined, setCoachingWaitlistJoined] = useState(false);
+  const [weeklyPackage, setWeeklyPackage] = useState<PurchasesPackage | null>(null);
   const tier = useSubscriptionStore((s) => s.tier);
 
   useFocusEffect(
     useCallback(() => {
+      track('paywall viewed', { source: 'onboarding' });
       let cancelled = false;
       void (async () => {
         const on = await isCurrentUserOnCoachingWaitlist();
         if (!cancelled && on) setCoachingWaitlistJoined(true);
+        const pkg = await getRevenueCatWeeklyPackage();
+        if (!cancelled) setWeeklyPackage(pkg);
       })();
       return () => {
         cancelled = true;
@@ -52,30 +73,54 @@ export default function OnboardingUpgradeOfferScreen() {
     (s) => s.grantOnboardingFreeAiWeek
   );
 
-  const finishOnboarding = useCallback(() => {
+  const finishOnboarding = useCallback((exit: OnboardingExit) => {
+    const onboarding = useOnboardingStore.getState();
+    const { answers } = onboarding;
+    if (onboarding.completedAt == null) {
+      onboarding.complete(new Date().toISOString());
+    }
+    track('onboarding completed', {
+      goal: answers.goal,
+      experience: answers.experience,
+      training_days: answers.trainingDaysPerWeek,
+      equipment_count: answers.equipment.length,
+      had_ai_week: exit === 'free_week' || exit === 'purchase' || exit === 'restore',
+      exit,
+    });
     usePlanStore.getState().ensureWeekPlanShell(viewWeekStartYmdLocal());
     router.replace('/(tabs)' as Href);
   }, []);
 
   const skipPaywall = useCallback(() => {
-    const onboarding = useOnboardingStore.getState();
-    if (onboarding.completedAt == null) {
-      onboarding.complete(new Date().toISOString());
-    }
-    finishOnboarding();
+    finishOnboarding('skip');
   }, [finishOnboarding]);
 
   const onGetOneWeekFree = useCallback(() => {
     grantOnboardingFreeAiWeek();
-    finishOnboarding();
+    finishOnboarding('free_week');
   }, [finishOnboarding, grantOnboardingFreeAiWeek]);
 
   const onSelectEssentials = useCallback(async () => {
+    const source = 'onboarding';
+    track('subscription purchase started', {
+      source,
+      package: REVENUECAT_WEEKLY_PACKAGE_ID,
+    });
     setEssentialsBusy(true);
     try {
       await purchaseWeeklyEssentials();
-      finishOnboarding();
+      track('subscription purchased', {
+        source,
+        package: REVENUECAT_WEEKLY_PACKAGE_ID,
+        ...subscriptionPurchaseProps(weeklyPackage),
+      });
+      finishOnboarding('purchase');
     } catch (error) {
+      track('subscription purchase failed', {
+        source,
+        error_code: revenueCatPurchaseErrorCode(error),
+        cancelled: revenueCatPurchaseWasCancelled(error),
+      });
       if (revenueCatPurchaseWasCancelled(error)) return;
       const message = formatRevenueCatPurchaseError(error);
       if (!message) return;
@@ -83,7 +128,7 @@ export default function OnboardingUpgradeOfferScreen() {
     } finally {
       setEssentialsBusy(false);
     }
-  }, [finishOnboarding]);
+  }, [finishOnboarding, weeklyPackage]);
 
   const onJoinWaitlist = useCallback(async () => {
     if (coachingWaitlistJoined) return;
@@ -103,16 +148,14 @@ export default function OnboardingUpgradeOfferScreen() {
       setEssentialsBusy(true);
       try {
         const customerInfo = await restoreRevenueCatPurchases();
-        const restored = Boolean(
-          customerInfo.entitlements.active[REVENUECAT_ESSENTIALS_ENTITLEMENT_ID]
-        );
+        const restored = customerHasEssentialsEntitlement(customerInfo);
         Alert.alert(
           restored ? 'Purchases restored' : 'No active Essentials purchase found',
           restored
             ? 'Flight Fitness Essentials is active on this account.'
             : 'We did not find an active Essentials subscription for this App Store account.'
         );
-        if (restored) finishOnboarding();
+        if (restored) finishOnboarding('restore');
       } catch (error) {
         Alert.alert(
           'Could not restore purchases',

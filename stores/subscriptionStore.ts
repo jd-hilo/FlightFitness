@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { registerSuperProps } from '@/lib/analytics';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 
 export type SubscriptionTier = 'free' | 'essentials' | 'coaching';
@@ -61,7 +62,10 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       tier: 'free',
       freePlanUsed: false,
       freeAiWeekGenerationsRemaining: 0,
-      setTier: (tier) => set({ tier }),
+      setTier: (tier) => {
+        set({ tier });
+        registerSuperProps({ subscription_tier: tier });
+      },
       markFreePlanUsed: () => set({ freePlanUsed: true }),
       grantOnboardingFreeAiWeek: () =>
         set((s) =>

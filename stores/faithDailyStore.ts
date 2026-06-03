@@ -37,6 +37,22 @@ function bumpFaithStreak(
   return { faithStreak: next, lastFaithStreakDate: today };
 }
 
+/** Bump the streak only when a reflection is newly completed for today. */
+function streakUpdateForReflection(
+  get: () => FaithDailyState,
+  dateKey: string,
+  justCompleted: boolean
+): { faithStreak: number; lastFaithStreakDate: string | null } {
+  const current = {
+    faithStreak: get().faithStreak,
+    lastFaithStreakDate: get().lastFaithStreakDate,
+  };
+  const today = todayKey();
+  if (!justCompleted || dateKey !== today) return current;
+  if (get().lastFaithStreakDate === today) return current;
+  return bumpFaithStreak(get().lastFaithStreakDate, get().faithStreak, today);
+}
+
 type FaithDailyState = {
   byDay: Record<string, DayFaith>;
   faithStreak: number;
@@ -70,39 +86,23 @@ export const useFaithDailyStore = create<FaithDailyState>()(
       },
       toggleStudyRead: (dateKey) => {
         const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
-        const was = day.studyRead;
         day.studyRead = !day.studyRead;
-        const today = todayKey();
-        let streakUp: {
-          faithStreak: number;
-          lastFaithStreakDate: string | null;
-        } = {
-          faithStreak: get().faithStreak,
-          lastFaithStreakDate: get().lastFaithStreakDate,
-        };
-        if (!was && day.studyRead && dateKey === today) {
-          if (get().lastFaithStreakDate !== today) {
-            streakUp = bumpFaithStreak(
-              get().lastFaithStreakDate,
-              get().faithStreak,
-              today
-            );
-          }
-        }
-        set({
-          byDay: { ...get().byDay, [dateKey]: day },
-          ...streakUp,
-        });
+        set({ byDay: { ...get().byDay, [dateKey]: day } });
       },
       toggleJournalDone: (dateKey) => {
         const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
+        const wasDone = day.journalDone;
         if (day.journalDone) {
           day.journalDone = false;
           day.journalLine = '';
         } else if (day.journalLine.trim().length > 0) {
           day.journalDone = true;
         }
-        set({ byDay: { ...get().byDay, [dateKey]: day } });
+        const justCompleted = !wasDone && day.journalDone;
+        set({
+          byDay: { ...get().byDay, [dateKey]: day },
+          ...streakUpdateForReflection(get, dateKey, justCompleted),
+        });
       },
       setJournalLine: (dateKey, line) => {
         const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
@@ -113,8 +113,12 @@ export const useFaithDailyStore = create<FaithDailyState>()(
       markJournalReflectionComplete: (dateKey) => {
         const day = { ...(get().byDay[dateKey] ?? emptyDay()) };
         if (day.journalLine.trim().length === 0) return;
+        const wasDone = day.journalDone;
         day.journalDone = true;
-        set({ byDay: { ...get().byDay, [dateKey]: day } });
+        set({
+          byDay: { ...get().byDay, [dateKey]: day },
+          ...streakUpdateForReflection(get, dateKey, !wasDone),
+        });
       },
       reset: () =>
         set({ byDay: {}, faithStreak: 0, lastFaithStreakDate: null }),

@@ -213,6 +213,25 @@ export function revenueCatPurchaseWasCancelled(error: unknown) {
   );
 }
 
+function revenueCatErrorFields(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return { code: '', message: '', underlying: '' };
+  }
+  const e = error as {
+    code?: unknown;
+    message?: unknown;
+    underlyingErrorMessage?: unknown;
+  };
+  return {
+    code: String(e.code ?? ''),
+    message: typeof e.message === 'string' ? e.message : '',
+    underlying:
+      typeof e.underlyingErrorMessage === 'string'
+        ? e.underlyingErrorMessage
+        : '',
+  };
+}
+
 /** User-safe message for purchase / restore failures (never show SDK config strings in production UI). */
 export function formatRevenueCatPurchaseError(error: unknown): string {
   if (revenueCatPurchaseWasCancelled(error)) return '';
@@ -230,20 +249,49 @@ export function formatRevenueCatPurchaseError(error: unknown): string {
     }
   }
 
-  if (error && typeof error === 'object' && 'code' in error) {
-    const code = String((error as { code?: unknown }).code ?? '');
-    if (code.includes('PURCHASE_NOT_ALLOWED')) {
-      return 'Purchases are not allowed on this device.';
-    }
-    if (code.includes('PRODUCT_NOT_AVAILABLE')) {
-      return 'This subscription is not available in the App Store right now.';
-    }
-    if (code.includes('NETWORK')) {
-      return 'Network error. Check your connection and try again.';
-    }
-    if (code.includes('STORE_PROBLEM')) {
-      return 'The App Store is temporarily unavailable. Please try again later.';
-    }
+  const { code, message, underlying } = revenueCatErrorFields(error);
+  const haystack = `${code} ${message} ${underlying}`.toUpperCase();
+
+  if (haystack.includes('PURCHASE_NOT_ALLOWED')) {
+    return 'Purchases are not allowed on this device.';
+  }
+  if (
+    haystack.includes('PRODUCT_NOT_AVAILABLE') ||
+    haystack.includes('PRODUCT_NOT_FOUND')
+  ) {
+    return 'This subscription is not available in the App Store right now.';
+  }
+  if (haystack.includes('NETWORK')) {
+    return 'Network error. Check your connection and try again.';
+  }
+  if (haystack.includes('STORE_PROBLEM')) {
+    return 'The App Store is temporarily unavailable. Please try again later.';
+  }
+  if (
+    haystack.includes('PRODUCT_ALREADY_PURCHASED') ||
+    haystack.includes('ALREADY_PURCHASED')
+  ) {
+    return 'You already have this subscription on this Apple ID. Try Restore purchases.';
+  }
+  if (haystack.includes('RECEIPT_ALREADY_IN_USE')) {
+    return 'This Apple ID is linked to another account. Sign in with the account that originally purchased, or use Restore purchases.';
+  }
+  if (haystack.includes('PAYMENT_PENDING')) {
+    return 'Your payment is pending approval. Check back in a few minutes or in Settings → Apple ID → Subscriptions.';
+  }
+  if (
+    haystack.includes('PURCHASE_INVALID') ||
+    haystack.includes('INVALID_RECEIPT') ||
+    haystack.includes('CONFIGURATION')
+  ) {
+    return 'Subscription setup is incomplete. Confirm the Essentials product is approved in App Store Connect and linked in RevenueCat.';
+  }
+  if (haystack.includes('INSUFFICIENT_PERMISSIONS')) {
+    return 'This Apple ID cannot make purchases. Check Screen Time or App Store restrictions.';
+  }
+
+  if (__DEV__ && (message || underlying)) {
+    console.warn('[RevenueCat] purchase error detail:', { code, message, underlying });
   }
 
   return 'Could not complete your purchase. Please try again.';

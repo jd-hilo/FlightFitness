@@ -159,7 +159,11 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
                   targetReps: nextTargetReps,
                 };
               });
-              return syncExerciseAggregateFromSetRows({ ...saved, setRows });
+              return syncExerciseAggregateFromSetRows({
+                ...saved,
+                setRows,
+                notes: sess.notes ?? saved.notes,
+              });
             });
             return { ...w, exercises, updatedAt: new Date().toISOString() };
           }),

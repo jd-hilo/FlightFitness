@@ -34,6 +34,7 @@ type ActiveWorkoutState = {
     patch: Partial<ExerciseSetRow>
   ) => void;
   addExercise: (exercise: Exercise) => void;
+  updateExercise: (exerciseIndex: number, patch: Partial<Exercise>) => void;
   getElapsedSeconds: () => number;
 };
 
@@ -175,6 +176,24 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
               exercises: [...s.exercises, cloneExerciseForSession(exercise)],
             },
           };
+        });
+      },
+
+      updateExercise: (exerciseIndex, patch) => {
+        set((state) => {
+          const s = state.session;
+          if (!s) return state;
+          const exercises = s.exercises.map((ex, ei) => {
+            if (ei !== exerciseIndex) return ex;
+            const normalized = ensureExerciseSetRows(ex);
+            const next: Exercise = { ...normalized, ...patch };
+            if ('notes' in patch) {
+              const trimmed = patch.notes?.trim();
+              next.notes = trimmed ? trimmed : undefined;
+            }
+            return syncExerciseAggregateFromSetRows(next);
+          });
+          return { session: { ...s, exercises } };
         });
       },
 

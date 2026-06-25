@@ -8,6 +8,8 @@ export type PaywallSource =
   | 'coach_chat'
   | 'badge'
   | 'elite'
+  | 'insights_gate'
+  | 'rest_verses_gate'
   | 'unknown';
 
 /** JSON-safe event properties for PostHog capture. */

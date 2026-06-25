@@ -42,7 +42,8 @@
           "resizeMode": "contain",
           "imageWidth": 50
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

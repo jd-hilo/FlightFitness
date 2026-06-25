@@ -5,114 +5,104 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
-import { PlanFeatureRow } from '@/components/EssentialsPlanFeatureRow';
 import { theme } from '@/constants/theme';
 import {
-  COACHING_FEATURES,
-  ESSENTIALS_FEATURES,
-  ESSENTIALS_RENEWAL_FOOTNOTE,
-  ESSENTIALS_WEEKLY_ONLY_CAPTION,
+  ESSENTIALS_LIFETIME_FOOTNOTE,
+  ESSENTIALS_MONTHLY_FOOTNOTE,
+  ESSENTIALS_MONTHLY_TRIAL_FOOTNOTE,
+  ESSENTIALS_PAYWALL_HIGHLIGHTS,
 } from '@/lib/coachingPlanCopy';
 import {
   FLIGHT_FITNESS_PRIVACY_POLICY_URL,
   FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
 } from '@/lib/legalUrls';
 import {
-  getEssentialsWeeklyPriceLabel,
+  getRevenueCatEssentialsPackages,
   warmRevenueCatOfferings,
+  type EssentialsPurchasePlan,
 } from '@/lib/revenueCat';
-import { essentialsPaywallLegalCopy } from '@/lib/subscriptionLegalCopy';
+import { essentialsPaywallLegalCopy, type PaywallVariant } from '@/lib/subscriptionLegalCopy';
 import type { SubscriptionTier } from '@/stores/subscriptionStore';
-
-type Offer = 'essentials' | 'coaching';
 
 type Props = {
   tier: SubscriptionTier;
   topPadding: number;
   bottomPadding: number;
   continueLabel?: string;
-  showFreeWeek?: boolean;
   showHandle?: boolean;
-  onEssentials: () => void;
-  onCoaching: () => void;
-  onFreeWeek?: () => void;
+  /** Onboarding: emphasize 3-day monthly trial CTA. */
+  variant?: PaywallVariant;
+  onEssentials: (plan: EssentialsPurchasePlan) => void;
+  onCoachingInfo: () => void;
   onRestore: () => void;
-  /** When true, main CTA shows a spinner (e.g. joining waitlist). */
-  continueBusy?: boolean;
   essentialsBusy?: boolean;
-  coachingBusy?: boolean;
-  /** After user joins the coaching waitlist; coaching card is locked, Essentials / free week stay available. */
-  coachingWaitlistJoined?: boolean;
 };
 
 const APP_ICON = require('../assets/images/icon.png');
+const FALLBACK_MONTHLY_PRICE = '$4.99';
+const FALLBACK_LIFETIME_PRICE = '$99.99';
 
 export function FlightUpgradeOffer({
   tier,
   topPadding,
   bottomPadding,
   continueLabel,
-  showFreeWeek,
   showHandle = true,
+  variant = 'default',
   onEssentials,
-  onCoaching,
-  onFreeWeek,
+  onCoachingInfo,
   onRestore,
-  continueBusy,
-  essentialsBusy,
-  coachingBusy,
-  coachingWaitlistJoined = false,
+  essentialsBusy = false,
 }: Props) {
-  const [selected, setSelected] = useState<Offer>(
-    tier === 'coaching' || tier === 'essentials' ? 'coaching' : 'essentials'
-  );
-  const [weeklyPrice, setWeeklyPrice] = useState('$2.99');
+  const [selected, setSelected] = useState<EssentialsPurchasePlan>('monthly');
+  const [monthlyPrice, setMonthlyPrice] = useState(FALLBACK_MONTHLY_PRICE);
+  const [lifetimePrice, setLifetimePrice] = useState(FALLBACK_LIFETIME_PRICE);
+
   const coachingActive = tier === 'coaching';
   const essentialsActive = tier === 'essentials';
-  const essentialsCardLocked = essentialsActive && !coachingActive;
-  const coachingCardLocked = coachingWaitlistJoined && !coachingActive;
-
-  useEffect(() => {
-    if (coachingWaitlistJoined && !coachingActive) {
-      setSelected((s) => (s === 'coaching' ? 'essentials' : s));
-      return;
-    }
-    if (essentialsActive && !coachingActive) {
-      setSelected('coaching');
-    }
-  }, [coachingWaitlistJoined, coachingActive, essentialsActive]);
+  const essentialsLocked = essentialsActive || coachingActive;
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       await warmRevenueCatOfferings();
-      const price = await getEssentialsWeeklyPriceLabel();
-      if (!cancelled && price) setWeeklyPrice(price);
+      const packages = await getRevenueCatEssentialsPackages();
+      if (cancelled) return;
+      if (packages.monthly?.product.priceString) {
+        setMonthlyPrice(packages.monthly.product.priceString);
+      }
+      if (packages.lifetime?.product.priceString) {
+        setLifetimePrice(packages.lifetime.product.priceString);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
-  const visibleBenefits =
-    selected === 'coaching' ? COACHING_FEATURES : ESSENTIALS_FEATURES;
-  const selectedBusy =
-    selected === 'coaching'
-      ? Boolean(coachingBusy ?? continueBusy)
-      : Boolean(essentialsBusy);
 
   const onContinue = () => {
-    if (selected === 'coaching') {
-      onCoaching();
-      return;
-    }
-    if (essentialsCardLocked) return;
-    onEssentials();
+    if (essentialsLocked) return;
+    onEssentials(selected);
   };
 
-  const continueDisabled =
-    selectedBusy ||
-    (selected === 'essentials' && essentialsCardLocked) ||
-    (selected === 'coaching' && coachingCardLocked);
+  const isOnboarding = variant === 'onboarding';
+  const monthlyFootnote =
+    isOnboarding && !essentialsLocked
+      ? ESSENTIALS_MONTHLY_TRIAL_FOOTNOTE
+      : ESSENTIALS_MONTHLY_FOOTNOTE;
+
+  const primaryCtaLabel = (() => {
+    if (continueLabel) return continueLabel;
+    if (essentialsLocked) return "You're in";
+    if (isOnboarding && selected === 'monthly') return 'Start 3-day free trial';
+    if (isOnboarding && selected === 'lifetime') return 'Get lifetime access';
+    return 'Upgrade to Essentials';
+  })();
+
+  const ctaSubtext =
+    isOnboarding && selected === 'monthly' && !essentialsLocked
+      ? `Then ${monthlyPrice}/month · cancel anytime`
+      : null;
 
   return (
     <View style={styles.root}>
@@ -139,177 +129,162 @@ export function FlightUpgradeOffer({
           <View style={styles.logoFrame}>
             <Image source={APP_ICON} style={styles.logo} resizeMode="cover" />
           </View>
-          <Text style={styles.headline}>Unlock your full potential</Text>
-          <Text style={styles.subhead}>Faith, fuel, and training without limits</Text>
+          <Text style={styles.headline}>
+            {isOnboarding ? 'Try Essentials free' : 'Unlock your full potential'}
+          </Text>
+          <Text style={styles.subhead}>
+            {isOnboarding
+              ? '3 days on us — full access to workouts, meals, insights, and rest verses'
+              : 'Faith, fuel, and training without limits'}
+          </Text>
         </View>
 
-        <View style={styles.benefits}>
-          {visibleBenefits.map((feature) => (
-            <PlanFeatureRow key={feature.label} feature={feature} />
+        <View style={styles.showcase}>
+          <Text style={styles.showcaseHeading}>What you unlock</Text>
+          {ESSENTIALS_PAYWALL_HIGHLIGHTS.map((item) => (
+            <View key={item.title} style={styles.showcaseCard}>
+              <View style={styles.showcaseIconWrap}>
+                <MaterialIcons name={item.icon} size={22} color={theme.colors.gold} />
+              </View>
+              <View style={styles.showcaseText}>
+                <Text style={styles.showcaseTitle}>{item.title}</Text>
+                <Text style={styles.showcaseDesc}>{item.description}</Text>
+              </View>
+            </View>
           ))}
         </View>
 
+        <Text style={styles.essentialsHeading}>Upgrade to Essentials</Text>
+
         <View style={styles.offerRow}>
           <Pressable
-            disabled={essentialsCardLocked}
+            disabled={essentialsLocked}
             style={({ pressed }) => [
               styles.offerCard,
-              selected === 'essentials' &&
-                !essentialsCardLocked &&
-                styles.offerCardSelected,
-              essentialsCardLocked && styles.offerCardLocked,
-              pressed && !essentialsCardLocked && styles.offerCardPressed,
+              selected === 'monthly' && !essentialsLocked && styles.offerCardSelected,
+              essentialsLocked && styles.offerCardLocked,
+              pressed && !essentialsLocked && styles.offerCardPressed,
             ]}
-            onPress={() => setSelected('essentials')}>
+            onPress={() => setSelected('monthly')}>
             <MaterialIcons
-              name={selected === 'essentials' ? 'check-circle' : 'radio-button-unchecked'}
+              name={selected === 'monthly' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
               color={
-                essentialsCardLocked
+                essentialsLocked
                   ? 'rgba(255,255,255,0.18)'
-                  : selected === 'essentials'
+                  : selected === 'monthly'
                     ? '#FFFFFF'
                     : 'rgba(255,255,255,0.42)'
               }
               style={styles.offerCheck}
             />
             <View style={styles.offerTop}>
-              <View style={styles.offerTitleCol}>
-                <Text
-                  style={[
-                    styles.offerName,
-                    essentialsCardLocked && styles.offerTextMuted,
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit>
-                  Essentials
-                </Text>
-                <Text
-                  style={[
-                    styles.offerCaption,
-                    essentialsCardLocked && styles.offerCaptionMuted,
-                  ]}>
-                  {ESSENTIALS_WEEKLY_ONLY_CAPTION}
-                </Text>
-              </View>
+              <Text
+                style={[styles.offerName, essentialsLocked && styles.offerTextMuted]}
+                numberOfLines={1}>
+                Monthly
+              </Text>
             </View>
             <View style={styles.offerBottom}>
-              <Text
-                style={[
-                  styles.offerPrice,
-                  essentialsCardLocked && styles.offerTextMuted,
-                ]}>
-                {weeklyPrice}
+              <Text style={[styles.offerPrice, essentialsLocked && styles.offerTextMuted]}>
+                {monthlyPrice}
               </Text>
               <Text
-                style={[
-                  styles.offerPeriod,
-                  essentialsCardLocked && styles.offerCaptionMuted,
-                ]}>
-                /week
+                style={[styles.offerPeriod, essentialsLocked && styles.offerCaptionMuted]}>
+                /month
               </Text>
             </View>
-            <Text style={[styles.offerNote, essentialsCardLocked && styles.offerNoteMuted]}>
-              {essentialsActive || coachingActive
-                ? "You're in"
-                : ESSENTIALS_RENEWAL_FOOTNOTE}
+            <Text style={[styles.offerNote, essentialsLocked && styles.offerNoteMuted]}>
+              {essentialsLocked ? "You're in" : monthlyFootnote}
             </Text>
           </Pressable>
 
           <Pressable
-            disabled={coachingCardLocked}
+            disabled={essentialsLocked}
             style={({ pressed }) => [
               styles.offerCard,
-              selected === 'coaching' && !coachingCardLocked && styles.offerCardSelected,
-              coachingCardLocked && styles.offerCardLocked,
-              pressed && !coachingCardLocked && styles.offerCardPressed,
+              selected === 'lifetime' && !essentialsLocked && styles.offerCardSelected,
+              essentialsLocked && styles.offerCardLocked,
+              pressed && !essentialsLocked && styles.offerCardPressed,
             ]}
-            onPress={() => setSelected('coaching')}>
+            onPress={() => setSelected('lifetime')}>
             <MaterialIcons
-              name={selected === 'coaching' ? 'check-circle' : 'radio-button-unchecked'}
+              name={selected === 'lifetime' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
               color={
-                coachingCardLocked
+                essentialsLocked
                   ? 'rgba(255,255,255,0.18)'
-                  : selected === 'coaching'
+                  : selected === 'lifetime'
                     ? '#FFFFFF'
                     : 'rgba(255,255,255,0.42)'
               }
               style={styles.offerCheck}
             />
             <View style={styles.offerTop}>
-              <View style={styles.offerTitleCol}>
-                <Text
-                  style={[
-                    styles.offerName,
-                    coachingCardLocked && styles.offerTextMuted,
-                  ]}
-                  numberOfLines={2}>
-                  Custom Coaching
-                </Text>
-                <Text
-                  style={[styles.offerCaption, coachingCardLocked && styles.offerCaptionMuted]}
-                  numberOfLines={2}>
-                  Coach-led plan
-                </Text>
-              </View>
-            </View>
-            <View style={[styles.offerBottom, styles.offerBottomTight]}>
               <Text
-                style={[styles.offerPrice, coachingCardLocked && styles.offerTextMuted]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.55}>
-                $199
-              </Text>
-              <Text
-                style={[styles.offerPeriod, coachingCardLocked && styles.offerCaptionMuted]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}>
-                /month
+                style={[styles.offerName, essentialsLocked && styles.offerTextMuted]}
+                numberOfLines={1}>
+                Lifetime
               </Text>
             </View>
-            <Text style={[styles.offerNote, coachingCardLocked && styles.offerNoteMuted]}>
-              {coachingActive
-                ? "You're in"
-                : coachingWaitlistJoined
-                  ? 'Waitlist joined'
-                  : 'At capacity — join waitlist'}
+            <View style={styles.offerBottom}>
+              <Text
+                style={[styles.offerPrice, essentialsLocked && styles.offerTextMuted]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}>
+                {lifetimePrice}
+              </Text>
+            </View>
+            <Text style={[styles.offerNote, essentialsLocked && styles.offerNoteMuted]}>
+              {essentialsLocked ? "You're in" : ESSENTIALS_LIFETIME_FOOTNOTE}
             </Text>
           </Pressable>
         </View>
 
         <Pressable
-          style={[
-            styles.continueBtn,
-            continueDisabled && styles.continueBtnDisabled,
+          style={({ pressed }) => [
+            styles.coachingInfoCard,
+            pressed && styles.coachingInfoPressed,
           ]}
+          onPress={onCoachingInfo}
+          accessibilityRole="button"
+          accessibilityLabel="Custom Coaching, see more info">
+          <View style={styles.coachingInfoText}>
+            <Text style={styles.coachingInfoTitle}>Custom Coaching</Text>
+            <Text style={styles.coachingInfoSub}>
+              {coachingActive
+                ? 'Your coach-led plan is active'
+                : 'Coach-led workouts, meals, and faith practices'}
+            </Text>
+          </View>
+          <View style={styles.coachingInfoAction}>
+            <Text style={styles.coachingInfoLink}>
+              {coachingActive ? 'Open' : 'See more info'}
+            </Text>
+            <MaterialIcons name="arrow-forward" size={16} color={theme.colors.gold} />
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={[styles.continueBtn, (essentialsBusy || essentialsLocked) && styles.continueBtnDisabled]}
           onPress={onContinue}
-          disabled={continueDisabled}>
-          {selectedBusy ? (
+          disabled={essentialsBusy || essentialsLocked}>
+          {essentialsBusy ? (
             <AppLoadingCross size="small" />
           ) : (
-            <Text style={styles.continueTxt}>
-              {continueLabel ??
-                (selected === 'coaching' ? 'Join waitlist' : 'Continue')}
-            </Text>
+            <>
+              <Text style={styles.continueTxt}>{primaryCtaLabel}</Text>
+              {ctaSubtext ? (
+                <Text style={styles.continueSubtext}>{ctaSubtext}</Text>
+              ) : null}
+            </>
           )}
         </Pressable>
 
-        {showFreeWeek && onFreeWeek && !essentialsActive ? (
-          <Pressable style={styles.freeWeek} onPress={onFreeWeek} disabled={coachingActive}>
-            <Text
-              style={[styles.freeWeekTxt, styles.freeWeekTxtCenter]}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.86}>
-              Start with one free essentials week
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <Text style={styles.legal}>{essentialsPaywallLegalCopy()}</Text>
+        <Text style={styles.legal}>
+          {essentialsPaywallLegalCopy(selected, { variant, monthlyPrice })}
+        </Text>
 
         <Text style={styles.terms}>
           By continuing, you agree to our{' '}
@@ -413,21 +388,75 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 12,
   },
-  benefits: {
+  showcase: {
     gap: 10,
-    minHeight: 220,
     marginBottom: 22,
-    paddingHorizontal: 8,
+  },
+  showcaseHeading: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 2.4,
+    color: 'rgba(255,255,255,0.45)',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  showcaseCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  showcaseIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.22)',
+  },
+  showcaseText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  showcaseTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  showcaseDesc: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.58)',
+    lineHeight: 18,
+  },
+  essentialsHeading: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 18,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 14,
+    letterSpacing: 0.5,
   },
   offerRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   offerCard: {
     flex: 1,
-    minHeight: 146,
+    minHeight: 132,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.09)',
@@ -465,15 +494,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   offerTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
     paddingRight: 30,
-    minHeight: 52,
-  },
-  offerTitleCol: {
-    flex: 1,
-    minWidth: 0,
+    minHeight: 28,
   },
   offerName: {
     fontFamily: theme.fonts.headline,
@@ -482,22 +504,11 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textTransform: 'uppercase',
   },
-  offerCaption: {
-    marginTop: 5,
-    fontFamily: theme.fonts.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    lineHeight: 14,
-  },
   offerBottom: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginTop: 18,
+    marginTop: 14,
     minHeight: 31,
-  },
-  offerBottomTight: {
-    minWidth: 0,
-    flexShrink: 1,
   },
   offerPrice: {
     fontFamily: theme.fonts.headlineBold,
@@ -519,37 +530,76 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.56)',
     lineHeight: 14,
   },
+  coachingInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.22)',
+    backgroundColor: 'rgba(255, 215, 0, 0.06)',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 16,
+  },
+  coachingInfoPressed: {
+    opacity: 0.9,
+  },
+  coachingInfoText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  coachingInfoTitle: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 15,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  coachingInfoSub: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.55)',
+    lineHeight: 16,
+  },
+  coachingInfoAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
+  },
+  coachingInfoLink: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
   continueBtn: {
     borderWidth: 1.4,
     borderColor: 'rgba(255,255,255,0.9)',
     borderRadius: 999,
-    paddingVertical: 17,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 54,
     marginBottom: 14,
+    gap: 4,
   },
   continueBtnDisabled: {
     opacity: 0.72,
   },
   continueTxt: {
     fontFamily: theme.fonts.headline,
-    fontSize: 18,
+    fontSize: 17,
     color: '#FFFFFF',
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
-  freeWeek: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  freeWeekTxt: {
-    fontFamily: theme.fonts.label,
+  continueSubtext: {
+    fontFamily: theme.fonts.body,
     fontSize: 12,
-    letterSpacing: 1.4,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  freeWeekTxtCenter: {
+    color: 'rgba(255,255,255,0.58)',
     textAlign: 'center',
   },
   restoreWrap: {

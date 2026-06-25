@@ -46,6 +46,7 @@ export default function TabLayout() {
   const visible = useVerseModalStore((s) => s.visible);
   const verse = useVerseModalStore((s) => s.verse);
   const reflection = useVerseModalStore((s) => s.reflection);
+  const confetti = useVerseModalStore((s) => s.confetti);
   const hide = useVerseModalStore((s) => s.hide);
 
   if (!authReady) {
@@ -79,6 +80,7 @@ export default function TabLayout() {
         visible={visible}
         verse={verse}
         reflection={reflection ?? undefined}
+        confetti={confetti}
         onClose={hide}
       />
     </View>

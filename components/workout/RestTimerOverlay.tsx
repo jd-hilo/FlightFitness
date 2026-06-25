@@ -12,10 +12,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { theme } from '@/constants/theme';
 import type { BiblePassage } from '@/lib/bibleApi';
 import { formatDuration } from '@/lib/formatDuration';
 import { formatRestNextLabel, restVerseHeroText } from '@/lib/restVerseDisplay';
+import { playRestTimerDing, prepareRestTimerDing } from '@/lib/restTimerDing';
+import { hapticNotify } from '@/lib/haptics';
 import {
   getCachedVersePassage,
   loadVersePassage,
@@ -30,7 +33,11 @@ type Props = {
   visible: boolean;
   seconds: number;
   verse: VerseEntry;
+  verseSubtitle?: string;
+  verseUpgradeLabel?: string;
+  onVerseUpgradePress?: () => void;
   nextLabel: string;
+  celebrateKey?: number;
   onSkip: () => void;
   onComplete: () => void;
 };
@@ -48,7 +55,11 @@ export function RestTimerOverlay({
   visible,
   seconds,
   verse,
+  verseSubtitle = "Today's word",
+  verseUpgradeLabel,
+  onVerseUpgradePress,
   nextLabel,
+  celebrateKey = 0,
   onSkip,
   onComplete,
 }: Props) {
@@ -73,6 +84,7 @@ export function RestTimerOverlay({
       setReaderOpen(false);
       return;
     }
+    prepareRestTimerDing();
     setRemaining(seconds);
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
@@ -88,6 +100,8 @@ export function RestTimerOverlay({
       setRemaining((r) => {
         if (r <= 1) {
           clearInterval(id);
+          void playRestTimerDing();
+          hapticNotify();
           onCompleteRef.current();
           return 0;
         }
@@ -161,27 +175,28 @@ export function RestTimerOverlay({
             paddingBottom: insets.bottom + 12,
           },
         ]}>
-        {readerOpen ? (
-          <>
-            <View style={styles.readerTopBar}>
-              <Pressable
-                style={styles.readerBackBtn}
-                onPress={() => setReaderOpen(false)}
-                hitSlop={8}>
-                <MaterialIcons name="arrow-back" size={20} color={theme.colors.gold} />
-                <Text style={styles.readerBackTxt}>Back</Text>
-              </Pressable>
-              <View style={styles.readerTopSpacer} />
-              <RestTimerPill remaining={remaining} />
-            </View>
+        <View style={styles.stage}>
+          {readerOpen ? (
+            <View style={styles.readerStage}>
+              <View style={styles.readerTopBar}>
+                <Pressable
+                  style={styles.readerBackBtn}
+                  onPress={() => setReaderOpen(false)}
+                  hitSlop={8}>
+                  <MaterialIcons name="arrow-back" size={20} color={theme.colors.gold} />
+                  <Text style={styles.readerBackTxt}>Back</Text>
+                </Pressable>
+                <View style={styles.readerTopSpacer} />
+                <RestTimerPill remaining={remaining} />
+              </View>
 
-            <ScrollView
-              style={styles.readerScroll}
-              contentContainerStyle={[
-                styles.readerContent,
-                { paddingBottom: insets.bottom + 72 },
-              ]}
-              showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.readerScroll}
+                contentContainerStyle={[
+                  styles.readerContent,
+                  { paddingBottom: 24 },
+                ]}
+                showsVerticalScrollIndicator={false}>
               <Text style={styles.readerKicker}>Today&apos;s word</Text>
               <Text style={styles.readerTitle}>{referenceDisplay}</Text>
               {passage?.translationName ? (
@@ -211,17 +226,20 @@ export function RestTimerOverlay({
               </View>
             </ScrollView>
 
-            <View style={[styles.heroFooter, { paddingBottom: insets.bottom + 8 }]}>
-              <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
-              <Pressable onPress={onSkip} hitSlop={12}>
-                <Text style={styles.skipGhost}>Skip rest</Text>
-              </Pressable>
+              <View style={styles.heroFooter}>
+                <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
+                <Pressable onPress={onSkip} hitSlop={12}>
+                  <Text style={styles.skipGhost}>Skip rest</Text>
+                </Pressable>
+              </View>
             </View>
-          </>
-        ) : (
+          ) : (
+          <>
+            <Text style={styles.restKickerPinned} pointerEvents="none">
+              Rest
+            </Text>
           <Animated.View style={[styles.hero, { opacity: fadeAnim }]}>
-            <View style={styles.heroTop}>
-              <Text style={styles.restKicker}>Rest</Text>
+            <View style={styles.timerBlock}>
               <Text
                 style={[styles.timer, urgent && styles.timerUrgent]}
                 adjustsFontSizeToFit
@@ -238,12 +256,23 @@ export function RestTimerOverlay({
               ) : null}
             </View>
 
+            <View style={styles.verseBlock}>
+              {onVerseUpgradePress && verseUpgradeLabel ? (
+                <Pressable
+                  onPress={onVerseUpgradePress}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={verseUpgradeLabel}>
+                  <Text style={styles.verseUpgrade}>{verseUpgradeLabel}</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.verseKicker}>{verseSubtitle}</Text>
+              )}
             <Pressable
-              style={styles.verseBlock}
+              style={styles.verseBody}
               onPress={openReader}
               accessibilityRole="button"
               accessibilityLabel="Open full scripture passage">
-              <Text style={styles.verseKicker}>Today&apos;s word</Text>
               <Text style={styles.verseRef}>{referenceDisplay}</Text>
               <Text style={styles.verseText}>{verseHero.text}</Text>
               <View style={styles.verseTapRow}>
@@ -260,15 +289,19 @@ export function RestTimerOverlay({
                 />
               ) : null}
             </Pressable>
+            </View>
 
-            <View style={[styles.heroFooter, { paddingBottom: insets.bottom + 8 }]}>
+            <View style={styles.heroFooter}>
               <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
               <Pressable onPress={onSkip} hitSlop={12}>
                 <Text style={styles.skipGhost}>Skip rest</Text>
               </Pressable>
             </View>
           </Animated.View>
+          </>
         )}
+          <ConfettiBurst playKey={celebrateKey} />
+        </View>
       </View>
     </Modal>
   );
@@ -280,20 +313,31 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     paddingHorizontal: 28,
   },
+  stage: {
+    flex: 1,
+    position: 'relative',
+  },
+  readerStage: {
+    flex: 1,
+  },
   hero: {
     flex: 1,
     justifyContent: 'space-between',
   },
-  heroTop: {
-    paddingTop: 8,
-  },
-  restKicker: {
+  restKickerPinned: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 2,
     fontFamily: theme.fonts.label,
     fontSize: 11,
     letterSpacing: 4,
     color: theme.colors.gold,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    paddingBottom: 12,
+  },
+  timerBlock: {
+    paddingTop: 44,
   },
   timer: {
     fontFamily: theme.fonts.headline,
@@ -301,7 +345,8 @@ const styles = StyleSheet.create({
     lineHeight: 132,
     color: theme.colors.gold,
     letterSpacing: -2,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 24,
     fontVariant: ['tabular-nums'],
   },
   timerUrgent: {
@@ -331,6 +376,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.outline,
   },
+  verseBody: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   verseKicker: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
@@ -338,6 +387,16 @@ const styles = StyleSheet.create({
     color: theme.colors.gold,
     textTransform: 'uppercase',
     marginBottom: 12,
+  },
+  verseUpgrade: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 2.2,
+    color: 'rgba(255, 215, 0, 0.82)',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+    textDecorationLine: 'underline',
+    textDecorationColor: 'rgba(255, 215, 0, 0.45)',
   },
   verseRef: {
     fontFamily: theme.fonts.label,
@@ -379,6 +438,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.outline,
     paddingTop: 14,
+    paddingBottom: 4,
   },
   brandMark: {
     fontFamily: theme.fonts.headlineBold,

@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExerciseEditorModal } from '@/components/plan/ExerciseEditorModal';
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
+import { ExerciseNotesButton } from '@/components/plan/ExerciseNotesButton';
+import { ExerciseNotesModal } from '@/components/plan/ExerciseNotesModal';
 import { theme } from '@/constants/theme';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
@@ -21,6 +23,8 @@ import type { Exercise } from '@/types/plan';
 type EditorState =
   | { mode: 'add' }
   | { mode: 'edit'; exerciseIndex: number; exercise: Exercise };
+
+type NotesEditorState = { exerciseIndex: number; exercise: Exercise };
 
 export default function WorkoutDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +35,7 @@ export default function WorkoutDetailScreen() {
   const updateExercise = useWorkoutLibraryStore((s) => s.updateExercise);
   const removeExercise = useWorkoutLibraryStore((s) => s.removeExercise);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [notesEditor, setNotesEditor] = useState<NotesEditorState | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
 
   const workout = useMemo(
@@ -110,7 +115,18 @@ export default function WorkoutDetailScreen() {
                 <Text style={styles.exMeta}>
                   {normalized.sets} sets · {normalized.reps}
                 </Text>
+                {normalized.notes ? (
+                  <Text style={styles.exNotes} numberOfLines={1}>
+                    {normalized.notes}
+                  </Text>
+                ) : null}
               </View>
+              <ExerciseNotesButton
+                hasNotes={Boolean(normalized.notes)}
+                onPress={() =>
+                  setNotesEditor({ exerciseIndex: index, exercise: normalized })
+                }
+              />
               <Text style={styles.link}>Edit</Text>
             </Pressable>
           );
@@ -140,6 +156,21 @@ export default function WorkoutDetailScreen() {
               }
             : undefined
         }
+      />
+
+      <ExerciseNotesModal
+        visible={notesEditor != null}
+        exerciseName={notesEditor?.exercise.name ?? ''}
+        notes={notesEditor?.exercise.notes ?? ''}
+        onClose={() => setNotesEditor(null)}
+        onSave={(notes) => {
+          if (!notesEditor) return;
+          updateExercise(workout.id, notesEditor.exerciseIndex, {
+            ...notesEditor.exercise,
+            notes,
+          });
+          setNotesEditor(null);
+        }}
       />
     </View>
   );
@@ -265,5 +296,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
     marginTop: 2,
+  },
+  exNotes: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });

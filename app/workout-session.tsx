@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { hapticImpact } from '@/lib/haptics';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -11,19 +12,30 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ExerciseEditorModal } from '@/components/plan/ExerciseEditorModal';
+import { ExerciseNotesButton } from '@/components/plan/ExerciseNotesButton';
+import { ExerciseNotesModal } from '@/components/plan/ExerciseNotesModal';
 import { NumberStepper } from '@/components/plan/NumberStepper';
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { RestTimerOverlay } from '@/components/workout/RestTimerOverlay';
 import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
-import { track } from '@/lib/analytics';
+import { paywallHref, track } from '@/lib/analytics';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { parseTargetReps } from '@/lib/repUtils';
 import { resolveDailyVerse } from '@/lib/dailyVerse';
+import {
+  buildWorkoutVerseCycle,
+  verseForRestIndex,
+  WORKOUT_VERSE_CYCLE_SIZE,
+} from '@/lib/workoutVerseCycle';
 import { prefetchVersePassage } from '@/lib/versePassageCache';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
+import { useExerciseHistoryStore } from '@/stores/exerciseHistoryStore';
+import { useRestVerseModeStore } from '@/stores/restVerseModeStore';
+import { hasEssentialsAccess, useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
@@ -35,9 +47,12 @@ type RestState = {
   seconds: number;
   nextLabel: string;
   nextFocus: Focus | null;
+  verseIndex: number;
 };
 
 type EditorState = { mode: 'add' };
+
+type NotesEditorState = { exerciseIndex: number; exercise: Exercise };
 
 function findNextIncompleteSet(
   exercises: Exercise[],
@@ -82,6 +97,7 @@ export default function WorkoutSessionScreen() {
   const toggleSetComplete = useActiveWorkoutStore((s) => s.toggleSetComplete);
   const completeSetRow = useActiveWorkoutStore((s) => s.completeSetRow);
   const updateSetRow = useActiveWorkoutStore((s) => s.updateSetRow);
+  const updateExercise = useActiveWorkoutStore((s) => s.updateExercise);
   const addExercise = useActiveWorkoutStore((s) => s.addExercise);
   const getElapsedSeconds = useActiveWorkoutStore((s) => s.getElapsedSeconds);
   const applySessionProgress = useWorkoutLibraryStore((s) => s.applySessionProgress);
@@ -91,10 +107,34 @@ export default function WorkoutSessionScreen() {
     () => resolveDailyVerse(dailyContent),
     [dailyContent]
   );
+  const restVerseMode = useRestVerseModeStore((s) => s.mode);
+  const tier = useSubscriptionStore((s) => s.tier);
+  const canUseRestVerseCycle = hasEssentialsAccess(tier);
+  const restVerseCounterRef = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [rest, setRest] = useState<RestState | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [notesEditor, setNotesEditor] = useState<NotesEditorState | null>(null);
+  const [celebrateKey, setCelebrateKey] = useState(0);
+  const workoutVerseCycle = useMemo(() => {
+    if (!session) return [];
+    return buildWorkoutVerseCycle(session.sessionId, dailyVerse);
+  }, [session?.sessionId, dailyVerse]);
+  const restVerse = useMemo(() => {
+    if (!canUseRestVerseCycle || restVerseMode === 'daily' || rest == null) return dailyVerse;
+    return verseForRestIndex(workoutVerseCycle, rest.verseIndex);
+  }, [canUseRestVerseCycle, restVerseMode, dailyVerse, rest?.verseIndex, workoutVerseCycle]);
+  const restVerseSubtitle = useMemo(() => {
+    if (!canUseRestVerseCycle) return "Today's word";
+    if (restVerseMode === 'daily') return "Today's word";
+    if (rest == null) return 'Word for this rest';
+    const position = (rest.verseIndex % WORKOUT_VERSE_CYCLE_SIZE) + 1;
+    return `Word for this rest · ${position} of ${WORKOUT_VERSE_CYCLE_SIZE}`;
+  }, [canUseRestVerseCycle, restVerseMode, rest?.verseIndex]);
+  const onRestVerseUpgrade = useCallback(() => {
+    router.push(paywallHref('rest_verses_gate'));
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -109,12 +149,22 @@ export default function WorkoutSessionScreen() {
   }, [session?.sessionId, getElapsedSeconds]);
 
   useEffect(() => {
+    if (!session) return;
+    restVerseCounterRef.current = 0;
+  }, [session?.sessionId]);
+
+  useEffect(() => {
     void useDailyContentStore.getState().load();
   }, []);
 
   useEffect(() => {
     prefetchVersePassage(dailyVerse);
-  }, [dailyVerse.id, dailyVerse.reference]);
+    if (canUseRestVerseCycle && restVerseMode === 'cycle') {
+      for (const verse of workoutVerseCycle) {
+        prefetchVersePassage(verse);
+      }
+    }
+  }, [dailyVerse, canUseRestVerseCycle, restVerseMode, workoutVerseCycle]);
 
   const endRest = useCallback(() => {
     setRest((current) => {
@@ -133,6 +183,8 @@ export default function WorkoutSessionScreen() {
     const exercise = ensureExerciseSetRows(session.exercises[exerciseIndex]!);
     const row = exercise.setRows?.[setRowIndex];
     completeSetRow(exerciseIndex, setRowIndex);
+    hapticImpact();
+    setCelebrateKey((k) => k + 1);
 
     const updated = useActiveWorkoutStore.getState().session;
     if (!updated) return;
@@ -140,10 +192,13 @@ export default function WorkoutSessionScreen() {
     const restSec = row?.restSec ?? exercise.restSec ?? 90;
 
     if (nextFocus) {
+      const verseIndex = restVerseCounterRef.current;
+      restVerseCounterRef.current += 1;
       setRest({
         seconds: restSec,
         nextLabel: focusLabel(updated.exercises, nextFocus),
         nextFocus,
+        verseIndex,
       });
     } else {
       setFocus(null);
@@ -152,6 +207,7 @@ export default function WorkoutSessionScreen() {
 
   const finishAndExit = (saveProgress: boolean) => {
     if (!session) return;
+    const finishedAt = new Date().toISOString();
     const durationSec = getElapsedSeconds();
     const completed = session.exercises.reduce((acc, ex) => {
       const rows = ensureExerciseSetRows(ex).setRows ?? [];
@@ -172,10 +228,17 @@ export default function WorkoutSessionScreen() {
     if (saveProgress) {
       applySessionProgress(session.sourceWorkoutId, session.exercises);
     }
+    useExerciseHistoryStore.getState().logSession({
+      sessionId: session.sessionId,
+      sourceWorkoutId: session.sourceWorkoutId,
+      exercises: session.exercises,
+      finishedAt,
+    });
     useWorkoutSessionLogStore.getState().logCompletedSession({
       title: session.title,
       sourceWorkoutId: session.sourceWorkoutId,
       durationSec,
+      finishedAt,
     });
     finishSession();
     showVerse(dailyVerse, 'Whatever you do, work at it with all your heart.');
@@ -279,7 +342,14 @@ export default function WorkoutSessionScreen() {
               <View style={styles.exHead}>
                 <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} />
                 <Text style={styles.exName}>{normalized.name}</Text>
+                <ExerciseNotesButton
+                  hasNotes={Boolean(normalized.notes)}
+                  onPress={() => setNotesEditor({ exerciseIndex: exIndex, exercise: normalized })}
+                />
               </View>
+              {normalized.notes ? (
+                <Text style={styles.exNotes}>{normalized.notes}</Text>
+              ) : null}
               {rows.map((row, rowIndex) => {
                 const isFocused =
                   focus?.exerciseIndex === exIndex && focus?.setRowIndex === rowIndex;
@@ -367,14 +437,31 @@ export default function WorkoutSessionScreen() {
         }}
       />
 
+      <ExerciseNotesModal
+        visible={notesEditor != null}
+        exerciseName={notesEditor?.exercise.name ?? ''}
+        notes={notesEditor?.exercise.notes ?? ''}
+        onClose={() => setNotesEditor(null)}
+        onSave={(notes) => {
+          if (!notesEditor) return;
+          updateExercise(notesEditor.exerciseIndex, { notes });
+          setNotesEditor(null);
+        }}
+      />
+
       <RestTimerOverlay
         visible={rest != null}
         seconds={rest?.seconds ?? 90}
-        verse={dailyVerse}
+        verse={restVerse}
+        verseSubtitle={restVerseSubtitle}
+        verseUpgradeLabel={canUseRestVerseCycle ? undefined : 'Upgrade for more verses'}
+        onVerseUpgradePress={canUseRestVerseCycle ? undefined : onRestVerseUpgrade}
         nextLabel={rest?.nextLabel ?? ''}
+        celebrateKey={celebrateKey}
         onSkip={endRest}
         onComplete={endRest}
       />
+      {rest == null ? <ConfettiBurst playKey={celebrateKey} /> : null}
     </View>
   );
 }
@@ -466,6 +553,13 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
     flex: 1,
+  },
+  exNotes: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    fontStyle: 'italic',
+    marginBottom: 4,
   },
   setCard: {
     borderWidth: 1,

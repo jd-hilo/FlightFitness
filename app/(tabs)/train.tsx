@@ -21,7 +21,7 @@ import { formatDuration } from '@/lib/formatDuration';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { usePlanStore } from '@/stores/planStore';
-import { useSubscriptionStore, savedWorkoutLimit } from '@/stores/subscriptionStore';
+import { useSubscriptionStore, hasEssentialsAccess, savedWorkoutLimit } from '@/stores/subscriptionStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 
 export default function TrainScreen() {
@@ -88,6 +88,14 @@ export default function TrainScreen() {
     }
     if (!session) startSession(workout);
     router.push('/workout-session');
+  };
+
+  const onInsights = (workoutId: string) => {
+    if (!hasEssentialsAccess(tier)) {
+      router.push(paywallHref('insights_gate'));
+      return;
+    }
+    router.push(`/workout-insights/${workoutId}`);
   };
 
   return (
@@ -157,6 +165,16 @@ export default function TrainScreen() {
                 <View style={styles.cardActions}>
                   <Pressable onPress={() => router.push(`/workout/${workout.id}`)}>
                     <Text style={styles.cardLink}>Edit</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.cardLinkRow}
+                    onPress={() => onInsights(workout.id)}>
+                    <MaterialIcons
+                      name="insights"
+                      size={13}
+                      color={theme.colors.gold}
+                    />
+                    <Text style={styles.cardLink}>Insights</Text>
                   </Pressable>
                   <Pressable
                     onPress={() =>
@@ -321,6 +339,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  cardLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardLinkDanger: {
     fontFamily: theme.fonts.label,
     fontSize: 10,

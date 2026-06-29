@@ -116,6 +116,12 @@ export default function FuelScreen() {
   const hasPlanShell =
     weekStart != null && macroTargets != null && mealsByDay != null;
 
+  useEffect(() => {
+    if (!hasPlanShell && !weekPlanEnsuring) {
+      ensureWeekPlanShell(viewWeekYmd);
+    }
+  }, [hasPlanShell, weekPlanEnsuring, viewWeekYmd, ensureWeekPlanShell]);
+
   const planMealIndex =
     hasPlanShell && weekStart
       ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay)

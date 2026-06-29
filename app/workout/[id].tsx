@@ -109,7 +109,7 @@ export default function WorkoutDetailScreen() {
               key={exercise.id}
               style={styles.exRow}
               onPress={() => setEditor({ mode: 'edit', exerciseIndex: index, exercise })}>
-              <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} />
+              <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} size={28} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.exName}>{normalized.name}</Text>
                 <Text style={styles.exMeta}>

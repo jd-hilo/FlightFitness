@@ -276,7 +276,8 @@ export default function WorkoutSessionScreen() {
     0
   );
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+    <View style={styles.screen}>
+      <View style={[styles.content, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <MaterialIcons name="arrow-back" size={24} color={theme.colors.gold} />
@@ -340,7 +341,7 @@ export default function WorkoutSessionScreen() {
           return (
             <View key={exercise.id} style={styles.exCard}>
               <View style={styles.exHead}>
-                <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} />
+                <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} size={28} />
                 <Text style={styles.exName}>{normalized.name}</Text>
                 <ExerciseNotesButton
                   hasNotes={Boolean(normalized.notes)}
@@ -449,6 +450,8 @@ export default function WorkoutSessionScreen() {
         }}
       />
 
+      </View>
+
       <RestTimerOverlay
         visible={rest != null}
         seconds={rest?.seconds ?? 90}
@@ -468,6 +471,7 @@ export default function WorkoutSessionScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
+  content: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

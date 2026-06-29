@@ -1,4 +1,5 @@
 import { router, type Href } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +18,10 @@ import { deleteAccount } from '@/lib/api/deleteAccount';
 import { generateWeekPlan } from '@/lib/api/plan';
 import { paywallHref, trackPlanGenerated } from '@/lib/analytics';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
+import {
+  CC_BY_SA_4_LICENSE_URL,
+  WGER_EXERCISE_DATA_URL,
+} from '@/lib/legalUrls';
 import {
   buildLast7DayHabitScores,
   buildLast7DaySessionMinutes,
@@ -290,6 +295,23 @@ export default function EliteScreen() {
           </Pressable>
         ) : null}
 
+        <Text style={styles.attribution}>
+          Exercise data from{' '}
+          <Text
+            style={styles.attributionLink}
+            onPress={() => void WebBrowser.openBrowserAsync(WGER_EXERCISE_DATA_URL)}>
+            wger.de
+          </Text>
+          ,{' '}
+          <Text
+            style={styles.attributionLink}
+            onPress={() =>
+              void WebBrowser.openBrowserAsync(CC_BY_SA_4_LICENSE_URL)
+            }>
+            CC-BY-SA 4.0
+          </Text>
+        </Text>
+
         <Pressable
           style={styles.signOutBtn}
           onPress={onSignOut}
@@ -442,5 +464,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     textAlign: 'center',
     marginBottom: 24,
+  },
+  attribution: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    lineHeight: 16,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  attributionLink: {
+    color: theme.colors.gold,
+    textDecorationLine: 'underline',
   },
 });

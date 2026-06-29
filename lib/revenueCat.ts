@@ -169,8 +169,18 @@ export async function refreshRevenueCatCustomerInfo() {
 async function getCurrentOffering(): Promise<PurchasesOffering | null> {
   const ready = await configureRevenueCat();
   if (!ready) return null;
-  const offerings = await Purchases.getOfferings();
-  return offerings.current ?? null;
+  try {
+    const offerings = await Purchases.getOfferings();
+    return offerings.current ?? null;
+  } catch (error) {
+    // Empty / misconfigured offerings (e.g. Test Store key with no products,
+    // or products not yet linked) should degrade gracefully instead of throwing
+    // an uncaught rejection. The paywall falls back to its default price labels.
+    if (__DEV__) {
+      console.warn('[RevenueCat] getOfferings failed:', error);
+    }
+    return null;
+  }
 }
 
 function findPackage(

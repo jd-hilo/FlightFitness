@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -165,17 +164,19 @@ export function RestTimerOverlay({
 
   const referenceDisplay = verse.reference.trim().toUpperCase();
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
-      <View
-        style={[
-          styles.screen,
-          {
-            paddingTop: insets.top + (readerOpen ? 8 : 16),
-            paddingBottom: insets.bottom + 12,
-          },
-        ]}>
-        <View style={styles.stage}>
+    <Animated.View
+      style={[
+        styles.screen,
+        {
+          opacity: fadeAnim,
+          paddingTop: insets.top + (readerOpen ? 8 : 16),
+          paddingBottom: insets.bottom + 12,
+        },
+      ]}>
+      <View style={styles.stage}>
           {readerOpen ? (
             <View style={styles.readerStage}>
               <View style={styles.readerTopBar}>
@@ -238,7 +239,7 @@ export function RestTimerOverlay({
             <Text style={styles.restKickerPinned} pointerEvents="none">
               Rest
             </Text>
-          <Animated.View style={[styles.hero, { opacity: fadeAnim }]}>
+          <View style={styles.hero}>
             <View style={styles.timerBlock}>
               <Text
                 style={[styles.timer, urgent && styles.timerUrgent]}
@@ -297,19 +298,20 @@ export function RestTimerOverlay({
                 <Text style={styles.skipGhost}>Skip rest</Text>
               </Pressable>
             </View>
-          </Animated.View>
+          </View>
           </>
         )}
           <ConfettiBurst playKey={celebrateKey} />
         </View>
-      </View>
-    </Modal>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    elevation: 100,
     backgroundColor: theme.colors.background,
     paddingHorizontal: 28,
   },

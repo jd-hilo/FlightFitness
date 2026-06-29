@@ -53,6 +53,11 @@ async function fetchSavedPlanForWeek(
   return parseRemotePayload(data[0]?.payload);
 }
 
+/** Manual-first week shell so Fuel/Train always have macros and day slots. */
+function ensureManualWeekShell(weekStart: string) {
+  usePlanStore.getState().ensureWeekPlanShell(weekStart);
+}
+
 async function runEnsure(): Promise<EnsureResult> {
   const target = viewWeekStartYmdLocal();
 
@@ -63,10 +68,16 @@ async function runEnsure(): Promise<EnsureResult> {
   const setEnsuring = usePlanWeekEnsureStore.getState().setInProgress;
   setEnsuring(true);
   try {
-    if (!supabaseConfigured || !supabase) return 'skipped_no_session';
+    if (!supabaseConfigured || !supabase) {
+      ensureManualWeekShell(target);
+      return 'skipped_no_session';
+    }
 
     const session = await ensureFreshSessionForEdge();
-    if (!session?.access_token) return 'skipped_no_session';
+    if (!session?.access_token) {
+      ensureManualWeekShell(target);
+      return 'skipped_no_session';
+    }
 
     if (localPlanCoversWeek(usePlanStore.getState(), target)) {
       return 'local_ok';
@@ -88,6 +99,7 @@ async function runEnsure(): Promise<EnsureResult> {
           '[ensureCurrentWeekPlan] skip AI full-week gen (tier / free trial)'
         );
       }
+      ensureManualWeekShell(target);
       return 'skipped_ai_not_entitled';
     }
 
@@ -107,6 +119,7 @@ async function runEnsure(): Promise<EnsureResult> {
 
     if (!res.ok) {
       if (__DEV__) console.warn('[ensureCurrentWeekPlan]', res.error);
+      ensureManualWeekShell(target);
       return 'generate_failed';
     }
 

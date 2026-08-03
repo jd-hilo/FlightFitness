@@ -6,7 +6,7 @@ import { ensureExerciseSetRows, newId } from '@/lib/exerciseNormalize';
 import { parseTargetReps } from '@/lib/repUtils';
 import { formatYmdLocal } from '@/lib/weekUtils';
 import { scheduleTrackingRemoteSave } from '@/lib/api/trackingPersistence';
-import type { Exercise } from '@/types/plan';
+import type { Exercise, ExerciseSetRow } from '@/types/plan';
 
 export type LoggedSetSnapshot = {
   weightLb?: number;
@@ -38,11 +38,22 @@ export function exerciseHistoryKey(exercise: {
   return `name:${exercise.name.trim().toLowerCase()}`;
 }
 
+/**
+ * A set counts as performed if checked complete, or if the athlete logged
+ * actual reps (checkmark or reps stepper). Weight alone is not enough —
+ * previous-session weights are prefilled on Begin.
+ */
+export function setWasPerformed(row: ExerciseSetRow): boolean {
+  if (row.completed === true) return true;
+  if (row.actualReps?.trim()) return true;
+  return false;
+}
+
 function snapshotExercise(exercise: Exercise): LoggedSetSnapshot[] {
   const normalized = ensureExerciseSetRows(exercise);
   const rows = normalized.setRows ?? [];
   return rows
-    .filter((row) => row.completed)
+    .filter((row) => setWasPerformed(row))
     .map((row) => {
       const reps = parseTargetReps(row.actualReps ?? row.targetReps);
       const weightLb =
@@ -58,7 +69,7 @@ type ExerciseHistoryState = {
     sourceWorkoutId: string;
     exercises: Exercise[];
     finishedAt?: string;
-  }) => void;
+  }) => number;
   entriesForWorkout: (sourceWorkoutId: string) => ExerciseHistoryEntry[];
   reset: () => void;
 };
@@ -89,9 +100,10 @@ export const useExerciseHistoryStore = create<ExerciseHistoryState>()(
           });
         }
 
-        if (newEntries.length === 0) return;
+        if (newEntries.length === 0) return 0;
         set({ entries: [...newEntries, ...get().entries].slice(0, MAX_ENTRIES) });
-        scheduleTrackingRemoteSave();
+        scheduleTrackingRemoteSave(0);
+        return newEntries.length;
       },
 
       entriesForWorkout: (sourceWorkoutId) =>

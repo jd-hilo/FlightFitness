@@ -1,12 +1,62 @@
+import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
+import { formatDuration } from '@/lib/formatDuration';
+import { parseTargetReps } from '@/lib/repUtils';
 import { formatYmdLocal, mondayOfWeekContainingLocal, parseYmdLocal } from '@/lib/weekUtils';
-import type { ExerciseHistoryEntry } from '@/stores/exerciseHistoryStore';
+import {
+  setWasPerformed,
+  type ExerciseHistoryEntry,
+} from '@/stores/exerciseHistoryStore';
 import type { WorkoutSessionLogEntry } from '@/stores/workoutSessionLogStore';
+import type { Exercise } from '@/types/plan';
 
 /** Epley estimated one-rep max. */
 export function estimateOneRepMax(weightLb: number, reps: number): number {
   if (weightLb <= 0 || reps <= 0) return 0;
   if (reps === 1) return weightLb;
   return weightLb * (1 + reps / 30);
+}
+
+/** Weight moved in a live session: sum of performed set weight × reps. */
+export function volumeLbFromExercises(exercises: Exercise[]): number {
+  let total = 0;
+  for (const exercise of exercises) {
+    const rows = ensureExerciseSetRows(exercise).setRows ?? [];
+    for (const row of rows) {
+      if (!setWasPerformed(row)) continue;
+      const reps = parseTargetReps(row.actualReps ?? row.targetReps);
+      const weight =
+        typeof row.weightLb === 'number' && row.weightLb > 0 ? row.weightLb : 0;
+      total += weight * reps;
+    }
+  }
+  return Math.round(total);
+}
+
+export function volumeLbFromHistoryEntries(entries: ExerciseHistoryEntry[]): number {
+  return Math.round(
+    entries.reduce(
+      (sum, e) =>
+        sum + e.sets.reduce((s, set) => s + (set.weightLb ?? 0) * set.reps, 0),
+      0
+    )
+  );
+}
+
+function volumeBySessionId(
+  entries: ExerciseHistoryEntry[]
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const entry of entries) {
+    const vol = entry.sets.reduce(
+      (s, set) => s + (set.weightLb ?? 0) * set.reps,
+      0
+    );
+    map.set(entry.sessionId, (map.get(entry.sessionId) ?? 0) + vol);
+  }
+  for (const [id, vol] of map) {
+    map.set(id, Math.round(vol));
+  }
+  return map;
 }
 
 export type ExerciseSessionPoint = {
@@ -80,7 +130,6 @@ export function buildExerciseProgress(
     });
   }
 
-  // Most-tracked movements first.
   return result.sort((a, b) => b.points.length - a.points.length);
 }
 
@@ -90,7 +139,49 @@ export type OverviewStats = {
   avgDurationSec: number;
   bestDurationSec: number;
   totalVolumeLb: number;
+  lastVolumeLb: number;
 };
+
+const DUPLICATE_SESSION_WINDOW_MS = 90_000;
+
+function dedupeNearDuplicateSessions(
+  sessions: WorkoutSessionLogEntry[]
+): WorkoutSessionLogEntry[] {
+  const sorted = [...sessions].sort(
+    (a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime()
+  );
+  const out: WorkoutSessionLogEntry[] = [];
+  for (const session of sorted) {
+    const matchIdx = out.findIndex((existing) => {
+      if (existing.sourceWorkoutId !== session.sourceWorkoutId) return false;
+      return (
+        Math.abs(
+          new Date(existing.finishedAt).getTime() -
+            new Date(session.finishedAt).getTime()
+        ) < DUPLICATE_SESSION_WINDOW_MS
+      );
+    });
+    if (matchIdx < 0) {
+      out.push(session);
+      continue;
+    }
+    const existing = out[matchIdx]!;
+    const preferSession =
+      session.durationSec > existing.durationSec ||
+      (session.durationSec === existing.durationSec &&
+        !!session.title &&
+        !existing.title);
+    const preferred = preferSession ? session : existing;
+    const other = preferSession ? existing : session;
+    out[matchIdx] = {
+      ...preferred,
+      title: preferred.title || other.title,
+      durationSec: Math.max(existing.durationSec, session.durationSec),
+      volumeLb: Math.max(existing.volumeLb ?? 0, session.volumeLb ?? 0),
+    };
+  }
+  return out;
+}
 
 /** Combine logged sessions with session ids inferred from exercise history. */
 export function mergeSessionsForInsights(
@@ -99,9 +190,10 @@ export function mergeSessionsForInsights(
 ): WorkoutSessionLogEntry[] {
   const byId = new Map<string, WorkoutSessionLogEntry>();
   for (const session of sessions) {
-    byId.set(session.id, session);
+    byId.set(session.id, { ...session, volumeLb: session.volumeLb ?? 0 });
   }
 
+  const historyVolume = volumeBySessionId(entries);
   const entriesBySession = new Map<string, ExerciseHistoryEntry[]>();
   for (const entry of entries) {
     const list = entriesBySession.get(entry.sessionId) ?? [];
@@ -110,7 +202,15 @@ export function mergeSessionsForInsights(
   }
 
   for (const [sessionId, sessionEntries] of entriesBySession) {
-    if (byId.has(sessionId)) continue;
+    const histVol = historyVolume.get(sessionId) ?? 0;
+    const existing = byId.get(sessionId);
+    if (existing) {
+      byId.set(sessionId, {
+        ...existing,
+        volumeLb: Math.max(existing.volumeLb ?? 0, histVol),
+      });
+      continue;
+    }
     const sorted = [...sessionEntries].sort(
       (a, b) => new Date(a.finishedAt).getTime() - new Date(b.finishedAt).getTime()
     );
@@ -122,12 +222,32 @@ export function mergeSessionsForInsights(
       dateKey: first.dateKey,
       finishedAt: first.finishedAt,
       durationSec: 0,
+      volumeLb: histVol,
     });
   }
 
-  return [...byId.values()].sort(
-    (a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime()
-  );
+  const merged = dedupeNearDuplicateSessions([...byId.values()]);
+  return merged.map((session) => {
+    if ((session.volumeLb ?? 0) > 0) return session;
+    const histVol = historyVolume.get(session.id) ?? 0;
+    if (histVol > 0) return { ...session, volumeLb: histVol };
+    const dayVol = entries
+      .filter(
+        (e) =>
+          e.sourceWorkoutId === session.sourceWorkoutId &&
+          e.dateKey === session.dateKey &&
+          Math.abs(
+            new Date(e.finishedAt).getTime() -
+              new Date(session.finishedAt).getTime()
+          ) < DUPLICATE_SESSION_WINDOW_MS
+      )
+      .reduce(
+        (sum, e) =>
+          sum + e.sets.reduce((s, set) => s + (set.weightLb ?? 0) * set.reps, 0),
+        0
+      );
+    return { ...session, volumeLb: Math.round(dayVol) };
+  });
 }
 
 export function buildOverview(
@@ -137,11 +257,13 @@ export function buildOverview(
   const mergedSessions = mergeSessionsForInsights(sessions, entries);
   const timedSessions = mergedSessions.filter((s) => s.durationSec > 0);
 
-  const totalVolumeLb = entries.reduce((sum, e) => {
-    return (
-      sum + e.sets.reduce((s, set) => s + (set.weightLb ?? 0) * set.reps, 0)
-    );
-  }, 0);
+  const sessionVolume = mergedSessions.reduce(
+    (sum, s) => sum + (s.volumeLb ?? 0),
+    0
+  );
+  const historyVolume = volumeLbFromHistoryEntries(entries);
+  const totalVolumeLb = Math.max(sessionVolume, historyVolume);
+
   const avgDurationSec =
     timedSessions.length > 0
       ? Math.round(
@@ -155,12 +277,14 @@ export function buildOverview(
       : 0;
   const lastPerformedKey =
     mergedSessions.length > 0 ? mergedSessions[0]!.dateKey : null;
+  const lastVolumeLb = mergedSessions[0]?.volumeLb ?? 0;
   return {
     timesPerformed: mergedSessions.length,
     lastPerformedKey,
     avgDurationSec,
     bestDurationSec,
     totalVolumeLb: Math.round(totalVolumeLb),
+    lastVolumeLb: Math.round(lastVolumeLb),
   };
 }
 
@@ -170,7 +294,6 @@ export type WeekFrequencyPoint = {
   count: number;
 };
 
-/** Sessions per week for the last `weeks` weeks (oldest → newest). */
 export function buildWeeklyFrequency(
   sessions: WorkoutSessionLogEntry[],
   entries: ExerciseHistoryEntry[] = [],
@@ -205,15 +328,17 @@ export type DurationPoint = {
   durationSec: number;
 };
 
-/** Most recent `limit` timed sessions (oldest → newest) for the duration trend. */
 export function buildDurationTrend(
   sessions: WorkoutSessionLogEntry[],
   entries: ExerciseHistoryEntry[] = [],
-  limit = 10
+  limit = 3
 ): DurationPoint[] {
   return mergeSessionsForInsights(sessions, entries)
     .filter((s) => s.durationSec > 0)
-    .sort((a, b) => new Date(a.finishedAt).getTime() - new Date(b.finishedAt).getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.finishedAt).getTime() - new Date(b.finishedAt).getTime()
+    )
     .slice(-limit)
     .map((s) => {
       const d = parseYmdLocal(s.dateKey);
@@ -225,7 +350,82 @@ export function buildDurationTrend(
     });
 }
 
+/** Short, scannable lines for a single workout's insights. */
+export function buildWorkoutTakeaways(
+  sessions: WorkoutSessionLogEntry[],
+  entries: ExerciseHistoryEntry[]
+): string[] {
+  const overview = buildOverview(sessions, entries);
+  const merged = mergeSessionsForInsights(sessions, entries);
+  const progress = buildExerciseProgress(entries);
+  const lines: string[] = [];
+
+  if (overview.timesPerformed <= 0) {
+    return ['Finish this workout once to unlock insights.'];
+  }
+
+  lines.push(
+    overview.timesPerformed === 1
+      ? 'Completed once so far.'
+      : `Completed ${overview.timesPerformed} times.`
+  );
+
+  if (overview.totalVolumeLb > 0) {
+    lines.push(`Moved ${formatVolume(overview.totalVolumeLb)} total.`);
+  } else {
+    lines.push('Mark sets complete with weight to track weight moved.');
+  }
+
+  if (overview.avgDurationSec > 0) {
+    lines.push(`Average session ${formatDuration(overview.avgDurationSec)}.`);
+  }
+
+  const lifter = progress.find(
+    (p) => p.points.length >= 2 && p.latestTopWeightLb > 0
+  );
+  if (lifter) {
+    const first = lifter.points[0]!.topWeightLb;
+    const last = lifter.latestTopWeightLb;
+    const delta = Math.round(last - first);
+    if (delta > 0) {
+      lines.push(`${lifter.name}: +${delta} lb on your top set.`);
+    } else if (delta < 0) {
+      lines.push(
+        `${lifter.name}: top set is ${Math.abs(delta)} lb under your first log.`
+      );
+    } else if (last > 0) {
+      lines.push(
+        `${lifter.name}: holding ${Math.round(last)} lb on your top set.`
+      );
+    }
+  } else if (progress[0]?.latestTopWeightLb) {
+    lines.push(
+      `${progress[0].name}: last top set ${Math.round(progress[0].latestTopWeightLb)} lb.`
+    );
+  }
+
+  const recent = merged.slice(0, 2);
+  if (
+    recent.length === 2 &&
+    (recent[0]!.volumeLb ?? 0) > 0 &&
+    (recent[1]!.volumeLb ?? 0) > 0
+  ) {
+    const delta = (recent[0]!.volumeLb ?? 0) - (recent[1]!.volumeLb ?? 0);
+    if (delta > 50) {
+      lines.push(
+        `Last session moved ${formatVolume(delta)} more than the one before.`
+      );
+    }
+  }
+
+  return lines.slice(0, 4);
+}
+
 export function formatVolume(lb: number): string {
+  if (lb >= 1000) {
+    const k = lb / 1000;
+    return `${k >= 10 ? Math.round(k) : Math.round(k * 10) / 10}k lb`;
+  }
   return `${Math.round(lb).toLocaleString()} lb`;
 }
 

@@ -14,10 +14,12 @@ export default function Index() {
   const hydrated = useStoresHydrated();
   const { ready: authReady, registered: authRegistered } = useRegisteredAuth();
   const completed = useOnboardingStore((s) => s.completedAt != null);
-  const dailyFetchSettled = useDailyContentStore((s) => s.dailyFetchSettled);
   const [remoteOnboardingChecked, setRemoteOnboardingChecked] = useState(false);
 
-  /** Prefetch daily hero for Home/Faith even when Fuel/Train have no plan yet. */
+  /**
+   * Warm daily verse + hero in the background. Do not block routing on this —
+   * the edge function can take many seconds when it must generate today's image.
+   */
   useEffect(() => {
     if (!hydrated || !completed) return;
     void useDailyContentStore.getState().load();
@@ -75,14 +77,6 @@ export default function Index() {
 
   if (!completed) {
     return <Redirect href="/(onboarding)" />;
-  }
-
-  if (!dailyFetchSettled) {
-    return (
-      <View style={styles.center}>
-        <AppLoadingCross size="large" />
-      </View>
-    );
   }
 
   return <Redirect href="/(tabs)" />;

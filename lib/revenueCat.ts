@@ -49,12 +49,79 @@ export type EssentialsPackages = {
   lifetime: PurchasesPackage | null;
 };
 
+/** Which Essentials SKUs the customer already owns / is subscribed to. */
+export type EssentialsOwnership = {
+  hasMonthly: boolean;
+  hasLifetime: boolean;
+};
+
 function essentialsEntitlementIds(): string[] {
   const ids = [
     REVENUECAT_ESSENTIALS_ENTITLEMENT_ID,
     ...ESSENTIALS_ENTITLEMENT_FALLBACK_IDS,
   ];
   return [...new Set(ids.filter(Boolean))];
+}
+
+function productIdLooksLifetime(productId: string): boolean {
+  return productId.toLowerCase().includes('lifetime');
+}
+
+function productIdLooksRecurring(productId: string): boolean {
+  const id = productId.toLowerCase();
+  return (
+    id.includes('monthly') ||
+    id.includes('week') ||
+    id.includes('annual') ||
+    id.includes('year')
+  );
+}
+
+export function getEssentialsOwnership(customerInfo: CustomerInfo): EssentialsOwnership {
+  if (!hasEssentials(customerInfo)) {
+    return { hasMonthly: false, hasLifetime: false };
+  }
+
+  const productIds = new Set<string>();
+  for (const entitlementId of essentialsEntitlementIds()) {
+    const ent = customerInfo.entitlements.active[entitlementId];
+    if (ent?.productIdentifier) productIds.add(ent.productIdentifier);
+  }
+  for (const id of customerInfo.activeSubscriptions ?? []) {
+    productIds.add(id);
+  }
+  for (const tx of customerInfo.nonSubscriptionTransactions ?? []) {
+    if (tx.productIdentifier) productIds.add(tx.productIdentifier);
+  }
+
+  let hasLifetime = [...productIds].some(productIdLooksLifetime);
+  if (!hasLifetime) {
+    // Lifetime / non-renewing unlocks typically have no expiration on the entitlement.
+    hasLifetime = essentialsEntitlementIds().some((entitlementId) => {
+      const ent = customerInfo.entitlements.active[entitlementId];
+      return ent != null && ent.expirationDate == null;
+    });
+  }
+
+  const hasRecurringProduct = [...productIds].some(productIdLooksRecurring);
+  // Essentials without lifetime is treated as a recurring plan (monthly / legacy weekly).
+  const hasMonthly = hasRecurringProduct || !hasLifetime;
+
+  return { hasMonthly, hasLifetime };
+}
+
+export async function fetchEssentialsOwnership(): Promise<EssentialsOwnership> {
+  const ready = await configureRevenueCat();
+  if (!ready) return { hasMonthly: false, hasLifetime: false };
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    return getEssentialsOwnership(customerInfo);
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[RevenueCat] fetchEssentialsOwnership failed:', error);
+    }
+    return { hasMonthly: false, hasLifetime: false };
+  }
 }
 
 let configured = false;

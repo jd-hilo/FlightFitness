@@ -189,6 +189,7 @@ async function pushWorkoutSessions(uid: string, sessions: WorkoutSessionLogEntry
     date_key: s.dateKey,
     finished_at: s.finishedAt,
     duration_sec: s.durationSec,
+    volume_lb: Math.max(0, Math.round(s.volumeLb ?? 0)),
   }));
   const { error } = await supabase.from('workout_sessions').upsert(rows, {
     onConflict: 'user_id,id',
@@ -281,7 +282,7 @@ export async function pushAllTrackingToRemote(): Promise<void> {
 export function scheduleTrackingRemoteSave(delayMs = 800) {
   if (shouldSkipRemoteSave()) return;
   saveChain = saveChain.then(async () => {
-    await new Promise((r) => setTimeout(r, delayMs));
+    if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     await pushAllTrackingToRemote();
   });
 }
@@ -315,7 +316,7 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
         .order('updated_at', { ascending: false }),
       supabase
         .from('workout_sessions')
-        .select('id,source_workout_id,title,date_key,finished_at,duration_sec')
+        .select('id,source_workout_id,title,date_key,finished_at,duration_sec,volume_lb')
         .eq('user_id', uid)
         .order('finished_at', { ascending: false })
         .limit(200),
@@ -356,6 +357,7 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
       dateKey: r.date_key,
       finishedAt: r.finished_at,
       durationSec: Math.max(0, Number(r.duration_sec) || 0),
+      volumeLb: Math.max(0, Number(r.volume_lb) || 0),
     }));
 
     const remoteHistory: ExerciseHistoryEntry[] = (historyRes.data ?? []).map((r) => ({

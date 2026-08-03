@@ -17,8 +17,10 @@ import {
   FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
 } from '@/lib/legalUrls';
 import {
+  fetchEssentialsOwnership,
   getRevenueCatEssentialsPackages,
   warmRevenueCatOfferings,
+  type EssentialsOwnership,
   type EssentialsPurchasePlan,
 } from '@/lib/revenueCat';
 import { essentialsPaywallLegalCopy, type PaywallVariant } from '@/lib/subscriptionLegalCopy';
@@ -41,6 +43,10 @@ type Props = {
 const APP_ICON = require('../assets/images/icon.png');
 const FALLBACK_MONTHLY_PRICE = '$4.99';
 const FALLBACK_LIFETIME_PRICE = '$99.99';
+const EMPTY_OWNERSHIP: EssentialsOwnership = {
+  hasMonthly: false,
+  hasLifetime: false,
+};
 
 export function FlightUpgradeOffer({
   tier,
@@ -54,19 +60,31 @@ export function FlightUpgradeOffer({
   onRestore,
   essentialsBusy = false,
 }: Props) {
-  const [selected, setSelected] = useState<EssentialsPurchasePlan>('monthly');
+  const [selected, setSelected] = useState<EssentialsPurchasePlan>(
+    tier === 'essentials' ? 'lifetime' : 'monthly'
+  );
   const [monthlyPrice, setMonthlyPrice] = useState(FALLBACK_MONTHLY_PRICE);
   const [lifetimePrice, setLifetimePrice] = useState(FALLBACK_LIFETIME_PRICE);
+  const [ownership, setOwnership] = useState<EssentialsOwnership>(EMPTY_OWNERSHIP);
 
   const coachingActive = tier === 'coaching';
-  const essentialsActive = tier === 'essentials';
-  const essentialsLocked = essentialsActive || coachingActive;
+  // Monthly subscribers can still buy lifetime; lifetime / coaching lock Essentials CTAs.
+  const monthlyLocked =
+    coachingActive ||
+    ownership.hasMonthly ||
+    ownership.hasLifetime ||
+    tier === 'essentials';
+  const lifetimeLocked = coachingActive || ownership.hasLifetime;
+  const purchaseLocked = selected === 'monthly' ? monthlyLocked : lifetimeLocked;
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       await warmRevenueCatOfferings();
-      const packages = await getRevenueCatEssentialsPackages();
+      const [packages, nextOwnership] = await Promise.all([
+        getRevenueCatEssentialsPackages(),
+        fetchEssentialsOwnership(),
+      ]);
       if (cancelled) return;
       if (packages.monthly?.product.priceString) {
         setMonthlyPrice(packages.monthly.product.priceString);
@@ -74,33 +92,45 @@ export function FlightUpgradeOffer({
       if (packages.lifetime?.product.priceString) {
         setLifetimePrice(packages.lifetime.product.priceString);
       }
+      setOwnership(nextOwnership);
+      // Already on monthly (or Essentials without lifetime): default to lifetime upgrade.
+      if (
+        (nextOwnership.hasMonthly || tier === 'essentials') &&
+        !nextOwnership.hasLifetime
+      ) {
+        setSelected('lifetime');
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tier]);
 
   const onContinue = () => {
-    if (essentialsLocked) return;
+    if (purchaseLocked) return;
     onEssentials(selected);
   };
 
   const isOnboarding = variant === 'onboarding';
   const monthlyFootnote =
-    isOnboarding && !essentialsLocked
+    isOnboarding && !monthlyLocked
       ? ESSENTIALS_MONTHLY_TRIAL_FOOTNOTE
       : ESSENTIALS_MONTHLY_FOOTNOTE;
 
   const primaryCtaLabel = (() => {
     if (continueLabel) return continueLabel;
-    if (essentialsLocked) return "You're in";
+    if (purchaseLocked) return "You're in";
+    if (selected === 'lifetime' && (ownership.hasMonthly || tier === 'essentials')) {
+      return 'Get lifetime access';
+    }
     if (isOnboarding && selected === 'monthly') return 'Start 3-day free trial';
     if (isOnboarding && selected === 'lifetime') return 'Get lifetime access';
+    if (selected === 'lifetime') return 'Get lifetime access';
     return 'Upgrade to Essentials';
   })();
 
   const ctaSubtext =
-    isOnboarding && selected === 'monthly' && !essentialsLocked
+    isOnboarding && selected === 'monthly' && !purchaseLocked
       ? `Then ${monthlyPrice}/month · cancel anytime`
       : null;
 
@@ -158,19 +188,19 @@ export function FlightUpgradeOffer({
 
         <View style={styles.offerRow}>
           <Pressable
-            disabled={essentialsLocked}
+            disabled={monthlyLocked}
             style={({ pressed }) => [
               styles.offerCard,
-              selected === 'monthly' && !essentialsLocked && styles.offerCardSelected,
-              essentialsLocked && styles.offerCardLocked,
-              pressed && !essentialsLocked && styles.offerCardPressed,
+              selected === 'monthly' && !monthlyLocked && styles.offerCardSelected,
+              monthlyLocked && styles.offerCardLocked,
+              pressed && !monthlyLocked && styles.offerCardPressed,
             ]}
             onPress={() => setSelected('monthly')}>
             <MaterialIcons
               name={selected === 'monthly' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
               color={
-                essentialsLocked
+                monthlyLocked
                   ? 'rgba(255,255,255,0.18)'
                   : selected === 'monthly'
                     ? '#FFFFFF'
@@ -180,39 +210,39 @@ export function FlightUpgradeOffer({
             />
             <View style={styles.offerTop}>
               <Text
-                style={[styles.offerName, essentialsLocked && styles.offerTextMuted]}
+                style={[styles.offerName, monthlyLocked && styles.offerTextMuted]}
                 numberOfLines={1}>
                 Monthly
               </Text>
             </View>
             <View style={styles.offerBottom}>
-              <Text style={[styles.offerPrice, essentialsLocked && styles.offerTextMuted]}>
+              <Text style={[styles.offerPrice, monthlyLocked && styles.offerTextMuted]}>
                 {monthlyPrice}
               </Text>
               <Text
-                style={[styles.offerPeriod, essentialsLocked && styles.offerCaptionMuted]}>
+                style={[styles.offerPeriod, monthlyLocked && styles.offerCaptionMuted]}>
                 /month
               </Text>
             </View>
-            <Text style={[styles.offerNote, essentialsLocked && styles.offerNoteMuted]}>
-              {essentialsLocked ? "You're in" : monthlyFootnote}
+            <Text style={[styles.offerNote, monthlyLocked && styles.offerNoteMuted]}>
+              {monthlyLocked ? "You're in" : monthlyFootnote}
             </Text>
           </Pressable>
 
           <Pressable
-            disabled={essentialsLocked}
+            disabled={lifetimeLocked}
             style={({ pressed }) => [
               styles.offerCard,
-              selected === 'lifetime' && !essentialsLocked && styles.offerCardSelected,
-              essentialsLocked && styles.offerCardLocked,
-              pressed && !essentialsLocked && styles.offerCardPressed,
+              selected === 'lifetime' && !lifetimeLocked && styles.offerCardSelected,
+              lifetimeLocked && styles.offerCardLocked,
+              pressed && !lifetimeLocked && styles.offerCardPressed,
             ]}
             onPress={() => setSelected('lifetime')}>
             <MaterialIcons
               name={selected === 'lifetime' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
               color={
-                essentialsLocked
+                lifetimeLocked
                   ? 'rgba(255,255,255,0.18)'
                   : selected === 'lifetime'
                     ? '#FFFFFF'
@@ -222,22 +252,22 @@ export function FlightUpgradeOffer({
             />
             <View style={styles.offerTop}>
               <Text
-                style={[styles.offerName, essentialsLocked && styles.offerTextMuted]}
+                style={[styles.offerName, lifetimeLocked && styles.offerTextMuted]}
                 numberOfLines={1}>
                 Lifetime
               </Text>
             </View>
             <View style={styles.offerBottom}>
               <Text
-                style={[styles.offerPrice, essentialsLocked && styles.offerTextMuted]}
+                style={[styles.offerPrice, lifetimeLocked && styles.offerTextMuted]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}>
                 {lifetimePrice}
               </Text>
             </View>
-            <Text style={[styles.offerNote, essentialsLocked && styles.offerNoteMuted]}>
-              {essentialsLocked ? "You're in" : ESSENTIALS_LIFETIME_FOOTNOTE}
+            <Text style={[styles.offerNote, lifetimeLocked && styles.offerNoteMuted]}>
+              {lifetimeLocked ? "You're in" : ESSENTIALS_LIFETIME_FOOTNOTE}
             </Text>
           </Pressable>
         </View>
@@ -267,9 +297,12 @@ export function FlightUpgradeOffer({
         </Pressable>
 
         <Pressable
-          style={[styles.continueBtn, (essentialsBusy || essentialsLocked) && styles.continueBtnDisabled]}
+          style={[
+            styles.continueBtn,
+            (essentialsBusy || purchaseLocked) && styles.continueBtnDisabled,
+          ]}
           onPress={onContinue}
-          disabled={essentialsBusy || essentialsLocked}>
+          disabled={essentialsBusy || purchaseLocked}>
           {essentialsBusy ? (
             <AppLoadingCross size="small" />
           ) : (

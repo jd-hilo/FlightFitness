@@ -11,6 +11,7 @@ import { theme } from '@/constants/theme';
 import { track, type PaywallSource } from '@/lib/analytics';
 import {
   customerHasEssentialsEntitlement,
+  fetchEssentialsOwnership,
   getRevenueCatEssentialsPackages,
   packageIdForEssentialsPlan,
   purchaseEssentials,
@@ -78,7 +79,11 @@ export default function PaywallScreen() {
 
   const onBuyEssentials = useCallback(
     async (plan: EssentialsPurchasePlan) => {
-      if (tier === 'essentials' || tier === 'coaching') return;
+      if (tier === 'coaching') return;
+      const ownership = await fetchEssentialsOwnership();
+      if (plan === 'monthly' && (ownership.hasMonthly || ownership.hasLifetime)) return;
+      if (plan === 'lifetime' && ownership.hasLifetime) return;
+
       const packageId = packageIdForEssentialsPlan(plan);
       track('subscription purchase started', { source, package: packageId });
       setEssentialsBusy(true);

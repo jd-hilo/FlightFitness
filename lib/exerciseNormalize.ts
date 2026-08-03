@@ -92,6 +92,11 @@ export function normalizeExerciseRecord(
   } else if (typeof e.catalogExerciseId !== 'string') {
     e.catalogExerciseId = String(e.catalogExerciseId);
   }
+  if (e.supersetGroupId === null || e.supersetGroupId === undefined || e.supersetGroupId === '') {
+    delete e.supersetGroupId;
+  } else if (typeof e.supersetGroupId !== 'string') {
+    e.supersetGroupId = String(e.supersetGroupId);
+  }
 
   if (Array.isArray(e.setRows)) {
     e.setRows = e.setRows

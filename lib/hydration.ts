@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useCompletionStore } from '@/stores/completionStore';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useWeightLogStore } from '@/stores/weightLogStore';
@@ -24,6 +25,7 @@ export function useStoresHydrated(): boolean {
       useWeightLogStore.persist.rehydrate(),
       useWorkoutLibraryStore.persist.rehydrate(),
       useWorkoutSessionLogStore.persist.rehydrate(),
+      useDailyContentStore.persist.rehydrate(),
     ]).then(() => {
       if (!cancelled) setReady(true);
     });

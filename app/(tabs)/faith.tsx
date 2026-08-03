@@ -18,6 +18,10 @@ import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
+import {
+  fetchCoachReflectionForDate,
+  type CoachReflectionPrompt,
+} from '@/lib/api/coachReflection';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { formatYmdLocal } from '@/lib/weekUtils';
@@ -62,6 +66,20 @@ export default function FaithScreen() {
   const [apiLoading, setApiLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
   const [studyConfettiKey, setStudyConfettiKey] = useState(0);
+  const [coachPrompt, setCoachPrompt] = useState<CoachReflectionPrompt | null>(
+    null
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const prompt = await fetchCoachReflectionForDate(dateKey);
+      if (!cancelled) setCoachPrompt(prompt);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dateKey]);
 
   const onToggleStudyRead = useCallback(() => {
     const wasRead = day.studyRead;
@@ -173,8 +191,15 @@ export default function FaithScreen() {
             )}
             <Text style={styles.readingReflect}>{reading.reflection}</Text>
             <View style={styles.promptBox}>
-              <Text style={styles.promptLabel}>Reflect</Text>
-              <Text style={styles.promptText}>{reading.studyPrompt}</Text>
+              <Text style={styles.promptLabel}>
+                {coachPrompt ? 'From your coach' : 'Reflect'}
+              </Text>
+              {coachPrompt?.title ? (
+                <Text style={styles.promptText}>{coachPrompt.title}</Text>
+              ) : null}
+              <Text style={styles.promptText}>
+                {coachPrompt?.body ?? reading.studyPrompt}
+              </Text>
             </View>
             <Text style={styles.apiNote}>
               Passage from <Text style={styles.apiNoteEm}>bible-api.com</Text> (public

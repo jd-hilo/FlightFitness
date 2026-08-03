@@ -1,8 +1,9 @@
 import { useEffect, useMemo } from 'react';
 
-import { isWgerCatalogId } from '@/lib/wgerCatalog';
+import { isRepdbCatalogId } from '@/lib/repdbCatalog';
 import { useExerciseCatalogStore } from '@/stores/exerciseCatalogStore';
 
+/** Warm RepDB stills for exercises in a workout (local — no network). */
 export function usePrefetchWorkoutExerciseMuscles(
   catalogExerciseIds: (string | undefined)[]
 ) {
@@ -10,7 +11,7 @@ export function usePrefetchWorkoutExerciseMuscles(
   const key = useMemo(
     () =>
       catalogExerciseIds
-        .filter((id): id is string => Boolean(id) && isWgerCatalogId(id))
+        .filter((id): id is string => Boolean(id) && isRepdbCatalogId(id))
         .sort()
         .join(','),
     [catalogExerciseIds]

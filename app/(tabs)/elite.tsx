@@ -19,8 +19,7 @@ import { generateWeekPlan } from '@/lib/api/plan';
 import { paywallHref, trackPlanGenerated } from '@/lib/analytics';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 import {
-  CC_BY_SA_4_LICENSE_URL,
-  WGER_EXERCISE_DATA_URL,
+  REPDB_URL,
 } from '@/lib/legalUrls';
 import {
   buildLast7DayHabitScores,
@@ -296,19 +295,11 @@ export default function EliteScreen() {
         ) : null}
 
         <Text style={styles.attribution}>
-          Exercise data from{' '}
+          Exercise data by{' '}
           <Text
             style={styles.attributionLink}
-            onPress={() => void WebBrowser.openBrowserAsync(WGER_EXERCISE_DATA_URL)}>
-            wger.de
-          </Text>
-          ,{' '}
-          <Text
-            style={styles.attributionLink}
-            onPress={() =>
-              void WebBrowser.openBrowserAsync(CC_BY_SA_4_LICENSE_URL)
-            }>
-            CC-BY-SA 4.0
+            onPress={() => void WebBrowser.openBrowserAsync(REPDB_URL)}>
+            RepDB (repdb.co)
           </Text>
         </Text>
 

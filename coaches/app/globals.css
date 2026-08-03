@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;
+  --on-background: #e2e2e2;
+  --surface: #000000;
+  --surface-low: #121212;
+  --surface-high: #1a1a1a;
+  --on-surface-variant: #c6c9ab;
+  --outline: rgba(255, 255, 255, 0.1);
+  --outline-strong: rgba(255, 255, 255, 0.05);
+  --gold: #ffd700;
+  --gold-dim: #e9c400;
+  --on-gold: #000000;
+  --error: #ffb4ab;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-on-background: var(--on-background);
+  --color-surface: var(--surface);
+  --color-surface-low: var(--surface-low);
+  --color-surface-high: var(--surface-high);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-strong: var(--outline-strong);
+  --color-gold: var(--gold);
+  --color-gold-dim: var(--gold-dim);
+  --color-on-gold: var(--on-gold);
+  --color-error: var(--error);
+  --font-headline: var(--font-epilogue), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--on-background);
+  font-family: var(--font-body);
+}
+
+.font-headline {
+  font-family: var(--font-headline);
+}
+
+.label-caps {
+  font-family: var(--font-headline);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -23,8 +23,21 @@ import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
 import { paywallHref, track } from '@/lib/analytics';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
+import { volumeLbFromExercises } from '@/lib/insights/workoutInsights';
 import { parseTargetReps } from '@/lib/repUtils';
 import { resolveDailyVerse } from '@/lib/dailyVerse';
+import {
+  findFirstIncompleteSet,
+  findNextIncompleteSet,
+  focusLabel,
+  getContiguousSupersetIndices,
+  isFirstInSuperset,
+  isIntraSupersetAdvance,
+  isLastInSuperset,
+  isSupersetMember,
+  supersetLetter,
+  type SetFocus,
+} from '@/lib/superset';
 import {
   buildWorkoutVerseCycle,
   verseForRestIndex,
@@ -41,7 +54,7 @@ import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 import type { Exercise } from '@/types/plan';
 
-type Focus = { exerciseIndex: number; setRowIndex: number };
+type Focus = SetFocus;
 
 type RestState = {
   seconds: number;
@@ -53,39 +66,6 @@ type RestState = {
 type EditorState = { mode: 'add' };
 
 type NotesEditorState = { exerciseIndex: number; exercise: Exercise };
-
-function findNextIncompleteSet(
-  exercises: Exercise[],
-  afterExerciseIndex: number,
-  afterSetRowIndex: number
-): Focus | null {
-  const normalized = exercises.map(ensureExerciseSetRows);
-  const currentRows = normalized[afterExerciseIndex]?.setRows ?? [];
-  for (let rowIndex = afterSetRowIndex + 1; rowIndex < currentRows.length; rowIndex++) {
-    if (!currentRows[rowIndex]?.completed) {
-      return { exerciseIndex: afterExerciseIndex, setRowIndex: rowIndex };
-    }
-  }
-  for (let exerciseIndex = afterExerciseIndex + 1; exerciseIndex < normalized.length; exerciseIndex++) {
-    const rows = normalized[exerciseIndex]?.setRows ?? [];
-    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-      if (!rows[rowIndex]?.completed) {
-        return { exerciseIndex, setRowIndex: rowIndex };
-      }
-    }
-  }
-  return null;
-}
-
-function findFirstIncompleteSet(exercises: Exercise[]): Focus | null {
-  return findNextIncompleteSet(exercises, -1, -1);
-}
-
-function focusLabel(exercises: Exercise[], focus: Focus | null): string {
-  if (!focus) return 'All sets complete';
-  const ex = ensureExerciseSetRows(exercises[focus.exerciseIndex]!);
-  return `Next: ${ex.name} · Set ${focus.setRowIndex + 1}`;
-}
 
 export default function WorkoutSessionScreen() {
   const insets = useSafeAreaInsets();
@@ -188,67 +168,112 @@ export default function WorkoutSessionScreen() {
 
     const updated = useActiveWorkoutStore.getState().session;
     if (!updated) return;
+    const from: Focus = { exerciseIndex, setRowIndex };
     const nextFocus = findNextIncompleteSet(updated.exercises, exerciseIndex, setRowIndex);
-    const restSec = row?.restSec ?? exercise.restSec ?? 90;
 
-    if (nextFocus) {
-      const verseIndex = restVerseCounterRef.current;
-      restVerseCounterRef.current += 1;
-      setRest({
-        seconds: restSec,
-        nextLabel: focusLabel(updated.exercises, nextFocus),
-        nextFocus,
-        verseIndex,
-      });
-    } else {
+    if (!nextFocus) {
       setFocus(null);
+      return;
     }
+
+    // A → B inside the same round: keep momentum, skip full rest overlay.
+    if (isIntraSupersetAdvance(updated.exercises, from, nextFocus)) {
+      setFocus(nextFocus);
+      return;
+    }
+
+    const restSec = row?.restSec ?? exercise.restSec ?? 90;
+    const verseIndex = restVerseCounterRef.current;
+    restVerseCounterRef.current += 1;
+    setRest({
+      seconds: restSec,
+      nextLabel: focusLabel(updated.exercises, nextFocus),
+      nextFocus,
+      verseIndex,
+    });
   };
 
   const finishAndExit = (saveProgress: boolean) => {
-    if (!session) return;
+    const live = useActiveWorkoutStore.getState().session;
+    if (!live) return;
     const finishedAt = new Date().toISOString();
     const durationSec = getElapsedSeconds();
-    const completed = session.exercises.reduce((acc, ex) => {
+    const volumeLb = volumeLbFromExercises(live.exercises);
+    const completed = live.exercises.reduce((acc, ex) => {
       const rows = ensureExerciseSetRows(ex).setRows ?? [];
       return acc + rows.filter((r) => r.completed).length;
     }, 0);
-    const total = session.exercises.reduce(
+    const performed = live.exercises.reduce((acc, ex) => {
+      const rows = ensureExerciseSetRows(ex).setRows ?? [];
+      return (
+        acc +
+        rows.filter(
+          (r) => r.completed === true || !!r.actualReps?.trim()
+        ).length
+      );
+    }, 0);
+    const total = live.exercises.reduce(
       (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
       0
     );
     track('workout completed', {
       duration_sec: durationSec,
       sets_completed: completed,
+      sets_performed: performed,
       total_sets: total,
+      volume_lb: volumeLb,
       completion_pct: total > 0 ? completed / total : 0,
       saved_progress: saveProgress,
-      source_workout_id: session.sourceWorkoutId,
+      source_workout_id: live.sourceWorkoutId,
     });
     if (saveProgress) {
-      applySessionProgress(session.sourceWorkoutId, session.exercises);
+      applySessionProgress(live.sourceWorkoutId, live.exercises);
     }
-    useExerciseHistoryStore.getState().logSession({
-      sessionId: session.sessionId,
-      sourceWorkoutId: session.sourceWorkoutId,
-      exercises: session.exercises,
+    const logged = useExerciseHistoryStore.getState().logSession({
+      sessionId: live.sessionId,
+      sourceWorkoutId: live.sourceWorkoutId,
+      exercises: live.exercises,
       finishedAt,
     });
     useWorkoutSessionLogStore.getState().logCompletedSession({
-      title: session.title,
-      sourceWorkoutId: session.sourceWorkoutId,
+      id: live.sessionId,
+      title: live.title,
+      sourceWorkoutId: live.sourceWorkoutId,
       durationSec,
+      volumeLb,
       finishedAt,
     });
+    if (__DEV__ && performed > 0 && logged === 0) {
+      console.warn(
+        '[workout] performed sets were not written to exercise history',
+        { performed, volumeLb, sessionId: live.sessionId }
+      );
+    }
     finishSession();
     showVerse(dailyVerse, 'Whatever you do, work at it with all your heart.');
     router.replace('/(tabs)/train');
   };
 
+  if (!session) return null;
+
+  const paused = session.pausedAt != null;
+  const completedSets = session.exercises.reduce((acc, ex) => {
+    const rows = ensureExerciseSetRows(ex).setRows ?? [];
+    return acc + rows.filter((r) => r.completed).length;
+  }, 0);
+  const totalSets = session.exercises.reduce(
+    (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
+    0
+  );
+
   const onFinish = () => {
+    const setsNote =
+      completedSets === 0
+        ? ' No sets checked yet — change weight/reps or tap the checkmark so weight moved is saved.'
+        : ` ${completedSets}/${totalSets} sets complete.`;
     Alert.alert(
       'Finish workout?',
-      `${formatDuration(elapsed)} logged. Save your weights and reps to this workout for next time?`,
+      `${formatDuration(elapsed)} logged.${setsNote} Save your weights and reps to this workout for next time?`,
       [
         { text: 'Keep going', style: 'cancel' },
         {
@@ -264,17 +289,6 @@ export default function WorkoutSessionScreen() {
     );
   };
 
-  if (!session) return null;
-
-  const paused = session.pausedAt != null;
-  const completedSets = session.exercises.reduce((acc, ex) => {
-    const rows = ensureExerciseSetRows(ex).setRows ?? [];
-    return acc + rows.filter((r) => r.completed).length;
-  }, 0);
-  const totalSets = session.exercises.reduce(
-    (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? 0),
-    0
-  );
   return (
     <View style={styles.screen}>
       <View style={[styles.content, { paddingTop: insets.top + 8 }]}>
@@ -338,13 +352,42 @@ export default function WorkoutSessionScreen() {
         {session.exercises.map((exercise, exIndex) => {
           const normalized = ensureExerciseSetRows(exercise);
           const rows = normalized.setRows ?? [];
+          const inSuperset = isSupersetMember(normalized);
+          const first = isFirstInSuperset(session.exercises, exIndex);
+          const last = isLastInSuperset(session.exercises, exIndex);
+          const letter = supersetLetter(session.exercises, exIndex);
+          const groupSize = getContiguousSupersetIndices(session.exercises, exIndex).length;
           return (
-            <View key={exercise.id} style={styles.exCard}>
+            <View
+              key={exercise.id}
+              style={[
+                styles.exCard,
+                inSuperset && styles.exCardSuperset,
+                first && styles.exCardSupersetFirst,
+                last && styles.exCardSupersetLast,
+              ]}>
+              {first ? (
+                <View style={styles.supersetBanner}>
+                  <MaterialIcons name="link" size={14} color={theme.colors.gold} />
+                  <Text style={styles.supersetBannerTxt}>
+                    Superset · {groupSize} moves · A→B then rest
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.exHead}>
-                <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} size={28} />
+                {letter ? (
+                  <View style={styles.letterBadge}>
+                    <Text style={styles.letterBadgeTxt}>{letter}</Text>
+                  </View>
+                ) : null}
+                <ExerciseIcon
+                  catalogExerciseId={normalized.catalogExerciseId}
+                  size={28}
+                  fallback={Boolean(normalized.catalogExerciseId)}
+                />
                 <Text style={styles.exName}>{normalized.name}</Text>
                 <ExerciseNotesButton
-                  hasNotes={Boolean(normalized.notes)}
+                  noteCount={normalized.notes?.trim() ? 1 : 0}
                   onPress={() => setNotesEditor({ exerciseIndex: exIndex, exercise: normalized })}
                 />
               </View>
@@ -386,7 +429,9 @@ export default function WorkoutSessionScreen() {
                         suffix="lb"
                         value={weightValue}
                         onChange={(n) =>
-                          updateSetRow(exIndex, rowIndex, { weightLb: n || undefined })
+                          updateSetRow(exIndex, rowIndex, {
+                            weightLb: n || undefined,
+                          })
                         }
                         min={0}
                         max={500}
@@ -399,7 +444,9 @@ export default function WorkoutSessionScreen() {
                         label="Reps"
                         value={repValue}
                         onChange={(n) =>
-                          updateSetRow(exIndex, rowIndex, { actualReps: String(n) })
+                          updateSetRow(exIndex, rowIndex, {
+                            actualReps: String(n),
+                          })
                         }
                         min={1}
                         max={50}
@@ -549,6 +596,45 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
     gap: 10,
+  },
+  exCardSuperset: {
+    borderColor: theme.colors.goldDim,
+    marginBottom: 0,
+  },
+  exCardSupersetFirst: {
+    borderBottomWidth: 0,
+    paddingBottom: 8,
+  },
+  exCardSupersetLast: {
+    marginBottom: 14,
+    borderTopWidth: 0,
+    paddingTop: 8,
+  },
+  supersetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  supersetBannerTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  letterBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: theme.colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  letterBadgeTxt: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 14,
+    color: theme.colors.onGold,
   },
   exHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
   exName: {

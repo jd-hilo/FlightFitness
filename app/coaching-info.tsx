@@ -2,12 +2,21 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { CoachingWaitlistJoinedModal } from '@/components/CoachingWaitlistJoinedModal';
 import { theme } from '@/constants/theme';
+import { acceptCoachInvite } from '@/lib/api/coachInvite';
 import {
   isCurrentUserOnCoachingWaitlist,
   submitCoachingWaitlistFromSession,
@@ -17,15 +26,21 @@ import {
   COACHING_INFO_HIGHLIGHTS,
   COACHING_WAITLIST_HINT,
 } from '@/lib/coachingPlanCopy';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import {
+  type SubscriptionTier,
+  useSubscriptionStore,
+} from '@/stores/subscriptionStore';
 
 export default function CoachingInfoScreen() {
   const insets = useSafeAreaInsets();
   const tier = useSubscriptionStore((s) => s.tier);
+  const setTier = useSubscriptionStore((s) => s.setTier);
   const coachingActive = tier === 'coaching';
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   const loadWaitlist = useCallback(() => {
     void (async () => {
@@ -58,6 +73,30 @@ export default function CoachingInfoScreen() {
     }
     void onJoinWaitlist();
   };
+
+  const onAcceptInvite = useCallback(async () => {
+    setInviteBusy(true);
+    const res = await acceptCoachInvite(inviteCode);
+    setInviteBusy(false);
+    if (!res.ok) {
+      Alert.alert('Could not join', res.error);
+      return;
+    }
+    if (
+      res.subscriptionTier === 'free' ||
+      res.subscriptionTier === 'essentials' ||
+      res.subscriptionTier === 'coaching'
+    ) {
+      setTier(res.subscriptionTier as SubscriptionTier);
+    }
+    Alert.alert(
+      'You\'re connected',
+      res.coachDisplayName
+        ? `You're on ${res.coachDisplayName}'s roster. Open chat anytime.`
+        : 'Your coach can now push plans and messages to you.',
+      [{ text: 'Message coach', onPress: () => router.push('/coach-chat') }]
+    );
+  }, [inviteCode, setTier]);
 
   return (
     <View style={styles.root}>
@@ -101,6 +140,30 @@ export default function CoachingInfoScreen() {
         </View>
 
         <Text style={styles.hint}>{COACHING_WAITLIST_HINT}</Text>
+
+        <View style={styles.inviteBox}>
+          <Text style={styles.inviteLabel}>Have a coach invite code?</Text>
+          <TextInput
+            style={styles.inviteInput}
+            value={inviteCode}
+            onChangeText={(t) => setInviteCode(t.toUpperCase())}
+            placeholder="e.g. AB12CD34"
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={12}
+          />
+          <Pressable
+            style={[styles.inviteBtn, inviteBusy && styles.ctaMuted]}
+            onPress={() => void onAcceptInvite()}
+            disabled={inviteBusy || !inviteCode.trim()}>
+            {inviteBusy ? (
+              <AppLoadingCross size="small" />
+            ) : (
+              <Text style={styles.inviteBtnTxt}>Join my coach</Text>
+            )}
+          </Pressable>
+        </View>
 
         <Pressable
           style={[styles.cta, (waitlistBusy || waitlistJoined) && !coachingActive && styles.ctaMuted]}
@@ -244,6 +307,51 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginBottom: 20,
     paddingHorizontal: 8,
+  },
+  inviteBox: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,215,0,0.28)',
+    backgroundColor: 'rgba(255,215,0,0.06)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    gap: 10,
+  },
+  inviteLabel: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+  inviteInput: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 18,
+    letterSpacing: 3,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  inviteBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  inviteBtnTxt: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 14,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   cta: {
     borderWidth: 1.4,

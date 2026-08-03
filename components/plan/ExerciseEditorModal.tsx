@@ -150,6 +150,7 @@ export function ExerciseEditorModal({
       restSec,
       notes: notes.trim() ? notes.trim() : undefined,
       catalogExerciseId,
+      supersetGroupId: exercise?.supersetGroupId,
       setRows: rows,
     });
 
@@ -223,7 +224,7 @@ export function ExerciseEditorModal({
                   onPress={() => pickCatalogEntry(entry)}>
                   <ExerciseIcon
                     catalogExerciseId={entry.id}
-                    thumbnailUrl={entry.thumbnailUrl}
+                    imageModule={entry.imageModule}
                     size={56}
                   />
                   <Text style={styles.catalogName} numberOfLines={2}>

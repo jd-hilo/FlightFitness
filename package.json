@@ -1,7 +1,7 @@
 {
   "name": "flight-fitness",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
@@ -20,7 +20,10 @@
     "build:dev:ios-device": "eas build --profile development-device --platform ios",
     "submit:ios": "eas build --platform ios --profile production --auto-submit",
     "icons:ingest": "node scripts/ingest-exercise-icons.mjs",
-    "seed:wger": "npx tsx scripts/seed-wger-exercises.ts"
+    "gen:repdb-images": "node scripts/gen-repdb-images.cjs",
+    "recolor:repdb": "python3 scripts/recolor-repdb-flight.py",
+    "seed:wger": "npx tsx scripts/seed-wger-exercises.ts",
+    "coaches": "npm --prefix coaches run dev"
   },
   "dependencies": {
     "@expo-google-fonts/epilogue": "^0.4.2",

@@ -252,7 +252,10 @@ export const useOnboardingStore = create<OnboardingState>()(
           ...(p.answers ?? {}),
         };
         merged.goal = normalizeStringList((p.answers as { goal?: unknown } | undefined)?.goal).slice(0, 2);
-        if (!merged.sex) merged.sex = 'sex_prefer_not';
+        // Drop legacy sex values that are no longer offered (non-binary / prefer not to say).
+        if (merged.sex === 'sex_nonbinary' || merged.sex === 'sex_prefer_not') {
+          merged.sex = '';
+        }
         if (!merged.sessionLengthId) merged.sessionLengthId = 'session_45';
         if (!merged.nutritionPaceId) merged.nutritionPaceId = 'pace_sustainable';
         if (!merged.mealsPerDayId) merged.mealsPerDayId = 'meals_3_snack';

@@ -311,27 +311,17 @@ export function isTrainingTimeWindowId(id: string): boolean {
   return (TIME_WINDOW_IDS as readonly string[]).includes(id);
 }
 
-/** Inclusive; used only for nutrition estimates — copy stays respectful. */
+/** Used only for nutrition estimates — copy stays respectful. */
 export const SEX_OPTIONS = [
   {
     id: 'sex_woman',
-    label: 'Woman',
+    label: 'Female',
     ai: 'Use female-typical BMR/energy estimation priors; avoid gendered assumptions in coaching copy.',
   },
   {
     id: 'sex_man',
-    label: 'Man',
+    label: 'Male',
     ai: 'Use male-typical BMR/energy estimation priors; avoid gendered assumptions in coaching copy.',
-  },
-  {
-    id: 'sex_nonbinary',
-    label: 'Non-binary',
-    ai: 'Use middle-of-road energy estimates between typical male/female averages; use neutral language in copy.',
-  },
-  {
-    id: 'sex_prefer_not',
-    label: 'Prefer not to say',
-    ai: 'Use conservative middle-of-road calorie estimates; do not assume sex-specific physiology in wording.',
   },
 ] as const;
 

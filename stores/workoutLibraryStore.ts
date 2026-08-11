@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { ensureExerciseSetRows, newId, syncExerciseAggregateFromSetRows } from '@/lib/exerciseNormalize';
 import { deleteRemoteWorkout, scheduleTrackingRemoteSave } from '@/lib/api/trackingPersistence';
+import { cleanupSupersetGroups } from '@/lib/superset';
 import { canAddSavedWorkout, useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { Exercise } from '@/types/plan';
 
@@ -23,6 +24,9 @@ type WorkoutLibraryState = {
   addExercise: (workoutId: string, exercise: Exercise) => void;
   updateExercise: (workoutId: string, exerciseIndex: number, exercise: Exercise) => void;
   removeExercise: (workoutId: string, exerciseIndex: number) => void;
+  /** Link exercise at index with the one above into a superset (joins existing group if present). */
+  linkWithPreviousAsSuperset: (workoutId: string, exerciseIndex: number) => void;
+  unlinkSuperset: (workoutId: string, exerciseIndex: number) => void;
   applySessionProgress: (workoutId: string, sessionExercises: Exercise[]) => void;
   importFromLegacyTemplates: (
     templates: { id: string; title: string; exercises: Exercise[]; createdAt: string }[]
@@ -99,15 +103,68 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
 
       removeExercise: (workoutId, exerciseIndex) => {
         set((s) => ({
-          workouts: s.workouts.map((w) =>
-            w.id === workoutId
-              ? {
-                  ...w,
-                  exercises: w.exercises.filter((_, i) => i !== exerciseIndex),
-                  updatedAt: new Date().toISOString(),
-                }
-              : w
-          ),
+          workouts: s.workouts.map((w) => {
+            if (w.id !== workoutId) return w;
+            const exercises = cleanupSupersetGroups(
+              w.exercises.filter((_, i) => i !== exerciseIndex)
+            );
+            return { ...w, exercises, updatedAt: new Date().toISOString() };
+          }),
+        }));
+        scheduleTrackingRemoteSave();
+      },
+
+      linkWithPreviousAsSuperset: (workoutId, exerciseIndex) => {
+        if (exerciseIndex <= 0) return;
+        set((s) => ({
+          workouts: s.workouts.map((w) => {
+            if (w.id !== workoutId) return w;
+            const prev = w.exercises[exerciseIndex - 1];
+            const curr = w.exercises[exerciseIndex];
+            if (!prev || !curr) return w;
+
+            const prevId = prev.supersetGroupId?.trim();
+            const currId = curr.supersetGroupId?.trim();
+            const groupId = prevId || currId || newId('ss');
+            const mergeIds = new Set(
+              [prevId, currId].filter((id): id is string => Boolean(id))
+            );
+
+            const exercises = w.exercises.map((ex, i) => {
+              const id = ex.supersetGroupId?.trim();
+              if (i === exerciseIndex - 1 || i === exerciseIndex) {
+                return { ...ex, supersetGroupId: groupId };
+              }
+              if (id && mergeIds.has(id)) {
+                return { ...ex, supersetGroupId: groupId };
+              }
+              return ex;
+            });
+            return {
+              ...w,
+              exercises: cleanupSupersetGroups(exercises),
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        }));
+        scheduleTrackingRemoteSave();
+      },
+
+      unlinkSuperset: (workoutId, exerciseIndex) => {
+        set((s) => ({
+          workouts: s.workouts.map((w) => {
+            if (w.id !== workoutId) return w;
+            const groupId = w.exercises[exerciseIndex]?.supersetGroupId?.trim();
+            if (!groupId) return w;
+            const exercises = cleanupSupersetGroups(
+              w.exercises.map((ex) => {
+                if (ex.supersetGroupId?.trim() !== groupId) return ex;
+                const { supersetGroupId: _, ...rest } = ex;
+                return rest;
+              })
+            );
+            return { ...w, exercises, updatedAt: new Date().toISOString() };
+          }),
         }));
         scheduleTrackingRemoteSave();
       },
@@ -159,7 +216,12 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
                   targetReps: nextTargetReps,
                 };
               });
-              return syncExerciseAggregateFromSetRows({ ...saved, setRows });
+              return syncExerciseAggregateFromSetRows({
+                ...saved,
+                setRows,
+                notes: sess.notes ?? saved.notes,
+                supersetGroupId: saved.supersetGroupId ?? sess.supersetGroupId,
+              });
             });
             return { ...w, exercises, updatedAt: new Date().toISOString() };
           }),

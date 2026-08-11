@@ -1,5 +1,4 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
@@ -107,9 +106,7 @@ function ExerciseRow({
   onToggleCheck: () => void;
   onEdit?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const normalized = ensureExerciseSetRows(exercise);
-  const rows = normalized.setRows ?? [];
   const canEdit = onEdit && !readOnly;
   const iconColor = done
     ? readOnly
@@ -133,7 +130,7 @@ function ExerciseRow({
           color={iconColor}
         />
       </Pressable>
-      <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} size={compact ? 16 : 20} />
+      <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} size={compact ? 20 : 28} />
       <View style={{ flex: 1 }}>
         <View style={styles.exTitleRow}>
           <Text
@@ -154,24 +151,6 @@ function ExerciseRow({
         <Text style={[styles.exMeta, compact && styles.exMetaCompact, readOnly && styles.metaMuted]}>
           {normalized.sets} × {normalized.reps} · Rest {normalized.restSec}s
         </Text>
-        {rows.length > 0 ? (
-          <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8}>
-            <Text style={styles.expandLink}>
-              {expanded ? 'Hide sets' : `Show ${rows.length} sets`}
-            </Text>
-          </Pressable>
-        ) : null}
-        {expanded
-          ? rows.map((row, i) => (
-              <Text
-                key={row.id || i}
-                style={[styles.setLine, readOnly && styles.metaMuted]}>
-                Set {i + 1}: {row.targetReps} reps
-                {row.weightLb != null ? ` · ${row.weightLb} lb` : ''}
-                {row.actualReps ? ` · logged ${row.actualReps}` : ''}
-              </Text>
-            ))
-          : null}
         {exercise.notes ? (
           <Text
             style={[styles.exNotes, compact && styles.exNotesCompact, readOnly && styles.metaMuted]}>

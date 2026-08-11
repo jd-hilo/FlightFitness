@@ -32,9 +32,28 @@ const ESSENTIALS_ENTITLEMENT_FALLBACK_IDS = [
   'essentials',
 ] as const;
 
-/** Current offering package identifier for the weekly Essentials product. */
+export type EssentialsPurchasePlan = 'monthly' | 'lifetime';
+
+export const REVENUECAT_MONTHLY_PACKAGE_ID =
+  process.env.EXPO_PUBLIC_REVENUECAT_MONTHLY_PACKAGE_ID ?? 'rc_monthly';
+
+export const REVENUECAT_LIFETIME_PACKAGE_ID =
+  process.env.EXPO_PUBLIC_REVENUECAT_LIFETIME_PACKAGE_ID ?? 'rc_lifetime';
+
+/** Legacy weekly SKU — kept for existing subscribers, not sold in the paywall UI. */
 export const REVENUECAT_WEEKLY_PACKAGE_ID =
-  process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PACKAGE_ID ?? 'weekly';
+  process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PACKAGE_ID ?? 'rc_weekly';
+
+export type EssentialsPackages = {
+  monthly: PurchasesPackage | null;
+  lifetime: PurchasesPackage | null;
+};
+
+/** Which Essentials SKUs the customer already owns / is subscribed to. */
+export type EssentialsOwnership = {
+  hasMonthly: boolean;
+  hasLifetime: boolean;
+};
 
 function essentialsEntitlementIds(): string[] {
   const ids = [
@@ -42,6 +61,67 @@ function essentialsEntitlementIds(): string[] {
     ...ESSENTIALS_ENTITLEMENT_FALLBACK_IDS,
   ];
   return [...new Set(ids.filter(Boolean))];
+}
+
+function productIdLooksLifetime(productId: string): boolean {
+  return productId.toLowerCase().includes('lifetime');
+}
+
+function productIdLooksRecurring(productId: string): boolean {
+  const id = productId.toLowerCase();
+  return (
+    id.includes('monthly') ||
+    id.includes('week') ||
+    id.includes('annual') ||
+    id.includes('year')
+  );
+}
+
+export function getEssentialsOwnership(customerInfo: CustomerInfo): EssentialsOwnership {
+  if (!hasEssentials(customerInfo)) {
+    return { hasMonthly: false, hasLifetime: false };
+  }
+
+  const productIds = new Set<string>();
+  for (const entitlementId of essentialsEntitlementIds()) {
+    const ent = customerInfo.entitlements.active[entitlementId];
+    if (ent?.productIdentifier) productIds.add(ent.productIdentifier);
+  }
+  for (const id of customerInfo.activeSubscriptions ?? []) {
+    productIds.add(id);
+  }
+  for (const tx of customerInfo.nonSubscriptionTransactions ?? []) {
+    if (tx.productIdentifier) productIds.add(tx.productIdentifier);
+  }
+
+  let hasLifetime = [...productIds].some(productIdLooksLifetime);
+  if (!hasLifetime) {
+    // Lifetime / non-renewing unlocks typically have no expiration on the entitlement.
+    hasLifetime = essentialsEntitlementIds().some((entitlementId) => {
+      const ent = customerInfo.entitlements.active[entitlementId];
+      return ent != null && ent.expirationDate == null;
+    });
+  }
+
+  const hasRecurringProduct = [...productIds].some(productIdLooksRecurring);
+  // Essentials without lifetime is treated as a recurring plan (monthly / legacy weekly).
+  const hasMonthly = hasRecurringProduct || !hasLifetime;
+
+  return { hasMonthly, hasLifetime };
+}
+
+export async function fetchEssentialsOwnership(): Promise<EssentialsOwnership> {
+  const ready = await configureRevenueCat();
+  if (!ready) return { hasMonthly: false, hasLifetime: false };
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    return getEssentialsOwnership(customerInfo);
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[RevenueCat] fetchEssentialsOwnership failed:', error);
+    }
+    return { hasMonthly: false, hasLifetime: false };
+  }
 }
 
 let configured = false;
@@ -71,6 +151,12 @@ export function applyRevenueCatCustomerInfo(customerInfo: CustomerInfo) {
   // Coaching is currently a waitlist / manual tier; don't downgrade it from SDK info.
   if (tier === 'coaching') return;
   if (tier !== nextTier) setTier(nextTier);
+}
+
+export function packageIdForEssentialsPlan(plan: EssentialsPurchasePlan): string {
+  return plan === 'monthly'
+    ? REVENUECAT_MONTHLY_PACKAGE_ID
+    : REVENUECAT_LIFETIME_PACKAGE_ID;
 }
 
 export async function configureRevenueCat(appUserID?: string) {
@@ -147,41 +233,108 @@ export async function refreshRevenueCatCustomerInfo() {
   return customerInfo;
 }
 
-function getWeeklyPackage(offering: PurchasesOffering | null | undefined) {
-  if (!offering) return null;
-
-  const packages = offering.availablePackages ?? [];
-  return (
-    packages.find((pkg) => pkg.identifier === REVENUECAT_WEEKLY_PACKAGE_ID) ??
-    packages.find((pkg) => pkg.packageType === 'WEEKLY') ??
-    packages.find((pkg) =>
-      pkg.product.identifier.toLowerCase().includes('weekly')
-    ) ??
-    null
-  );
-}
-
-export async function getRevenueCatWeeklyPackage(): Promise<PurchasesPackage | null> {
+async function getCurrentOffering(): Promise<PurchasesOffering | null> {
   const ready = await configureRevenueCat();
   if (!ready) return null;
-
-  const offerings = await Purchases.getOfferings();
-  return getWeeklyPackage(offerings.current);
+  try {
+    const offerings = await Purchases.getOfferings();
+    return offerings.current ?? null;
+  } catch (error) {
+    // Empty / misconfigured offerings (e.g. Test Store key with no products,
+    // or products not yet linked) should degrade gracefully instead of throwing
+    // an uncaught rejection. The paywall falls back to its default price labels.
+    if (__DEV__) {
+      console.warn('[RevenueCat] getOfferings failed:', error);
+    }
+    return null;
+  }
 }
 
-export async function purchaseWeeklyEssentials() {
+function findPackage(
+  offering: PurchasesOffering | null | undefined,
+  packageId: string,
+  options: {
+    packageType?: string;
+    productIdIncludes?: string;
+  }[]
+): PurchasesPackage | null {
+  const packages = offering?.availablePackages ?? [];
+  const byId = packages.find((pkg) => pkg.identifier === packageId);
+  if (byId) return byId;
+
+  for (const option of options) {
+    if (option.packageType) {
+      const match = packages.find((pkg) => pkg.packageType === option.packageType);
+      if (match) return match;
+    }
+    if (option.productIdIncludes) {
+      const needle = option.productIdIncludes.toLowerCase();
+      const match = packages.find((pkg) =>
+        pkg.product.identifier.toLowerCase().includes(needle)
+      );
+      if (match) return match;
+    }
+  }
+
+  return null;
+}
+
+function getMonthlyPackage(offering: PurchasesOffering | null | undefined) {
+  return findPackage(offering, REVENUECAT_MONTHLY_PACKAGE_ID, [
+    { packageType: 'MONTHLY' },
+    { productIdIncludes: 'monthly' },
+  ]);
+}
+
+function getLifetimePackage(offering: PurchasesOffering | null | undefined) {
+  return findPackage(offering, REVENUECAT_LIFETIME_PACKAGE_ID, [
+    { packageType: 'LIFETIME' },
+    { productIdIncludes: 'lifetime' },
+  ]);
+}
+
+function getWeeklyPackage(offering: PurchasesOffering | null | undefined) {
+  return findPackage(offering, REVENUECAT_WEEKLY_PACKAGE_ID, [
+    { packageType: 'WEEKLY' },
+    { productIdIncludes: 'weekly' },
+  ]);
+}
+
+export async function getRevenueCatEssentialsPackages(): Promise<EssentialsPackages> {
+  const offering = await getCurrentOffering();
+  return {
+    monthly: getMonthlyPackage(offering),
+    lifetime: getLifetimePackage(offering),
+  };
+}
+
+export async function getRevenueCatMonthlyPackage(): Promise<PurchasesPackage | null> {
+  const offering = await getCurrentOffering();
+  return getMonthlyPackage(offering);
+}
+
+export async function getRevenueCatLifetimePackage(): Promise<PurchasesPackage | null> {
+  const offering = await getCurrentOffering();
+  return getLifetimePackage(offering);
+}
+
+/** @deprecated Legacy weekly SKU — use monthly/lifetime in the paywall. */
+export async function getRevenueCatWeeklyPackage(): Promise<PurchasesPackage | null> {
+  const offering = await getCurrentOffering();
+  return getWeeklyPackage(offering);
+}
+
+async function purchasePackage(pkg: PurchasesPackage | null) {
   const ready = await configureRevenueCat();
   if (!ready) {
     throw new Error('SUBSCRIPTION_UNAVAILABLE');
   }
-
-  const weeklyPackage = await getRevenueCatWeeklyPackage();
-  if (!weeklyPackage) {
+  if (!pkg) {
     throw new Error('SUBSCRIPTION_PRODUCT_UNAVAILABLE');
   }
 
   try {
-    const { customerInfo } = await Purchases.purchasePackage(weeklyPackage);
+    const { customerInfo } = await Purchases.purchasePackage(pkg);
     applyRevenueCatCustomerInfo(customerInfo);
     return customerInfo;
   } catch (error) {
@@ -193,6 +346,18 @@ export async function purchaseWeeklyEssentials() {
     }
     throw error;
   }
+}
+
+export async function purchaseEssentials(plan: EssentialsPurchasePlan) {
+  const packages = await getRevenueCatEssentialsPackages();
+  const pkg = plan === 'monthly' ? packages.monthly : packages.lifetime;
+  return purchasePackage(pkg);
+}
+
+/** @deprecated Use purchaseEssentials('monthly'). */
+export async function purchaseWeeklyEssentials() {
+  const pkg = await getRevenueCatWeeklyPackage();
+  return purchasePackage(pkg);
 }
 
 export async function restoreRevenueCatPurchases() {
@@ -267,8 +432,11 @@ export function formatRevenueCatPurchaseError(error: unknown): string {
     ) {
       return 'Subscriptions are not available right now. Please try again in a moment.';
     }
-    if (error.message.includes('No weekly package')) {
-      return 'This subscription is not available right now. Please try again later.';
+    if (
+      error.message.includes('No weekly package') ||
+      error.message.includes('package')
+    ) {
+      return 'This plan is not available right now. Please try again later.';
     }
   }
 
@@ -282,7 +450,7 @@ export function formatRevenueCatPurchaseError(error: unknown): string {
     haystack.includes('PRODUCT_NOT_AVAILABLE') ||
     haystack.includes('PRODUCT_NOT_FOUND')
   ) {
-    return 'This subscription is not available in the App Store right now.';
+    return 'This plan is not available in the App Store right now.';
   }
   if (haystack.includes('NETWORK')) {
     return 'Network error. Check your connection and try again.';
@@ -294,7 +462,7 @@ export function formatRevenueCatPurchaseError(error: unknown): string {
     haystack.includes('PRODUCT_ALREADY_PURCHASED') ||
     haystack.includes('ALREADY_PURCHASED')
   ) {
-    return 'You already have this subscription on this Apple ID. Try Restore purchases.';
+    return 'You already own this on this Apple ID. Try Restore purchases.';
   }
   if (haystack.includes('RECEIPT_ALREADY_IN_USE')) {
     return 'This Apple ID is linked to another account. Sign in with the account that originally purchased, or use Restore purchases.';
@@ -307,7 +475,7 @@ export function formatRevenueCatPurchaseError(error: unknown): string {
     haystack.includes('INVALID_RECEIPT') ||
     haystack.includes('CONFIGURATION')
   ) {
-    return 'Subscription setup is incomplete. Confirm the Essentials product is approved in App Store Connect and linked in RevenueCat.';
+    return 'Subscription setup is incomplete. Confirm products are approved in App Store Connect and linked in RevenueCat.';
   }
   if (haystack.includes('INSUFFICIENT_PERMISSIONS')) {
     return 'This Apple ID cannot make purchases. Check Screen Time or App Store restrictions.';
@@ -320,16 +488,25 @@ export function formatRevenueCatPurchaseError(error: unknown): string {
   return 'Could not complete your purchase. Please try again.';
 }
 
+export async function getEssentialsMonthlyPriceLabel(): Promise<string | null> {
+  const pkg = await getRevenueCatMonthlyPackage();
+  return pkg?.product.priceString ?? null;
+}
+
+export async function getEssentialsLifetimePriceLabel(): Promise<string | null> {
+  const pkg = await getRevenueCatLifetimePackage();
+  return pkg?.product.priceString ?? null;
+}
+
+/** @deprecated Use getEssentialsMonthlyPriceLabel. */
 export async function getEssentialsWeeklyPriceLabel(): Promise<string | null> {
-  const ready = await configureRevenueCat();
-  if (!ready) return null;
-  const weeklyPackage = await getRevenueCatWeeklyPackage();
-  return weeklyPackage?.product.priceString ?? null;
+  const pkg = await getRevenueCatWeeklyPackage();
+  return pkg?.product.priceString ?? null;
 }
 
 export async function warmRevenueCatOfferings() {
   await configureRevenueCat();
-  await getRevenueCatWeeklyPackage();
+  await getRevenueCatEssentialsPackages();
 }
 
 export function useRevenueCatSubscriptionSync() {

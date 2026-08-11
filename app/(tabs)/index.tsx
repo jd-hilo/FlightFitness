@@ -20,7 +20,6 @@ import { WeightLogSection } from '@/components/home/WeightLogSection';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
-import { supabaseConfigured } from '@/lib/supabase';
 import { getDailyVerse } from '@/lib/verses';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import {
@@ -96,8 +95,6 @@ export default function HomeScreen() {
   const faithByDay = useFaithDailyStore((s) => s.byDay);
   const workoutSessions = useWorkoutSessionLogStore((s) => s.sessions);
   const dailyRemote = useDailyContentStore((s) => s.content);
-  const dailyLoading = useDailyContentStore((s) => s.loading);
-  const dailyFetchSettled = useDailyContentStore((s) => s.dailyFetchSettled);
   const tier = useSubscriptionStore((s) => s.tier);
   const remoteHeroUrl = dailyRemote?.image_url;
   const heroFadeOpacity = useRef(new Animated.Value(0)).current;
@@ -156,14 +153,6 @@ export default function HomeScreen() {
     [dailyRemote]
   );
   const hasRemoteHero = Boolean(dailyRemote?.image_url);
-  /** Don’t flash bundled hero while waiting for today’s remote image from Supabase. */
-  const showHeroPlaceholder = useMemo(
-    () =>
-      supabaseConfigured &&
-      !hasRemoteHero &&
-      (!dailyFetchSettled || dailyLoading),
-    [hasRemoteHero, dailyFetchSettled, dailyLoading]
-  );
   const now = new Date();
   const firstName = useOnboardingStore((s) => s.answers.firstName.trim());
   const greetingWord = timeOfDayGreetingWord(now);
@@ -244,8 +233,6 @@ export default function HomeScreen() {
                 }).start();
               }}
             />
-          ) : showHeroPlaceholder ? (
-            <View style={[styles.heroImg, styles.heroPlaceholder]} />
           ) : (
             <Image
               source={HOME_HERO_SOURCE}
@@ -376,12 +363,6 @@ const styles = StyleSheet.create({
   },
   heroOp: {
     opacity: 0.85,
-  },
-  heroPlaceholder: {
-    opacity: 1,
-    backgroundColor: theme.colors.surfaceContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   heroGrad: {
     ...StyleSheet.absoluteFillObject,

@@ -136,6 +136,8 @@ export async function pullProfileOnboardingIntoStore(): Promise<boolean> {
       usePlanStore.getState().setMacroTargets(savedMacros);
     }
 
+    usePlanStore.getState().ensureWeekPlanShell();
+
     if (remote?.completedAt) {
       useOnboardingStore.setState({ completedAt: remote.completedAt });
       return true;

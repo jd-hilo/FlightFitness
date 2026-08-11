@@ -2,11 +2,14 @@ import { create } from 'zustand';
 
 import type { VerseEntry } from '@/lib/verses';
 
+type ShowOptions = { confetti?: boolean };
+
 type State = {
   visible: boolean;
   verse: VerseEntry | null;
   reflection: string | null;
-  show: (verse: VerseEntry, reflection?: string) => void;
+  confetti: boolean;
+  show: (verse: VerseEntry, reflection?: string, options?: ShowOptions) => void;
   hide: () => void;
 };
 
@@ -14,7 +17,13 @@ export const useVerseModalStore = create<State>((set) => ({
   visible: false,
   verse: null,
   reflection: null,
-  show: (verse, reflection) =>
-    set({ visible: true, verse, reflection: reflection ?? null }),
-  hide: () => set({ visible: false, verse: null, reflection: null }),
+  confetti: false,
+  show: (verse, reflection, options) =>
+    set({
+      visible: true,
+      verse,
+      reflection: reflection ?? null,
+      confetti: options?.confetti ?? false,
+    }),
+  hide: () => set({ visible: false, verse: null, reflection: null, confetti: false }),
 }));

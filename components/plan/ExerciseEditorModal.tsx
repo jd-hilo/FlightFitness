@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { NumberStepper } from '@/components/plan/NumberStepper';
 import { theme } from '@/constants/theme';
-import { searchExerciseCatalog } from '@/data/exerciseCatalog';
 import {
   defaultSetRow,
   ensureExerciseSetRows,
@@ -27,6 +27,10 @@ import { useKeyboardOffset } from '@/lib/useKeyboardOffset';
 import { parseTargetReps } from '@/lib/repUtils';
 import { exerciseSchema } from '@/types/plan';
 import type { Exercise, ExerciseSetRow } from '@/types/plan';
+import {
+  useExerciseCatalogStore,
+  type ExerciseCatalogSearchResult,
+} from '@/stores/exerciseCatalogStore';
 
 function parseIntSafe(s: string, fallback: number) {
   const n = parseInt(s.replace(/[^0-9-]/g, ''), 10);
@@ -86,7 +90,29 @@ export function ExerciseEditorModal({
     setError(null);
   }, [exercise, visible, mode]);
 
-  const catalogMatches = useMemo(() => searchExerciseCatalog(name), [name]);
+  const searchExercises = useExerciseCatalogStore((s) => s.searchExercises);
+  const searchResults = useExerciseCatalogStore((s) => s.searchResults);
+  const searchLoading = useExerciseCatalogStore((s) => s.searchLoading);
+  const prefetchExerciseDetails = useExerciseCatalogStore((s) => s.prefetchExerciseDetails);
+  const [debouncedName, setDebouncedName] = useState('');
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => setDebouncedName(name), 250);
+    return () => clearTimeout(timer);
+  }, [name, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    void searchExercises(debouncedName);
+  }, [debouncedName, searchExercises, visible]);
+
+  useEffect(() => {
+    if (!visible || !catalogExerciseId) return;
+    void prefetchExerciseDetails([catalogExerciseId]);
+  }, [catalogExerciseId, prefetchExerciseDetails, visible]);
+
+  const catalogMatches = useMemo(() => searchResults, [searchResults]);
 
   const updateRow = (index: number, patch: Partial<ExerciseSetRow>) => {
     setSetRows((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
@@ -102,7 +128,7 @@ export function ExerciseEditorModal({
     setSetRows((rows) => (rows.length <= 1 ? rows : rows.filter((_, i) => i !== index)));
   };
 
-  const pickCatalogEntry = (entry: (typeof catalogMatches)[number]) => {
+  const pickCatalogEntry = (entry: ExerciseCatalogSearchResult) => {
     setName(entry.name);
     setCatalogExerciseId(entry.id);
   };
@@ -124,6 +150,7 @@ export function ExerciseEditorModal({
       restSec,
       notes: notes.trim() ? notes.trim() : undefined,
       catalogExerciseId,
+      supersetGroupId: exercise?.supersetGroupId,
       setRows: rows,
     });
 
@@ -180,17 +207,34 @@ export function ExerciseEditorModal({
             </View>
           </View>
 
-          {name.trim().length > 0 && catalogMatches.length > 0 ? (
+          {(mode === 'add' || name.trim().length > 0) ? (
             <View style={styles.catalogBox}>
+              {searchLoading ? (
+                <View style={styles.catalogLoading}>
+                  <ActivityIndicator size="small" color={theme.colors.gold} />
+                </View>
+              ) : null}
               {catalogMatches.map((entry) => (
                 <Pressable
                   key={entry.id}
-                  style={styles.catalogRow}
+                  style={[
+                    styles.catalogRow,
+                    catalogExerciseId === entry.id && styles.catalogRowSelected,
+                  ]}
                   onPress={() => pickCatalogEntry(entry)}>
-                  <ExerciseIcon catalogExerciseId={entry.id} size={18} />
-                  <Text style={styles.catalogName}>{entry.name}</Text>
+                  <ExerciseIcon
+                    catalogExerciseId={entry.id}
+                    imageModule={entry.imageModule}
+                    size={56}
+                  />
+                  <Text style={styles.catalogName} numberOfLines={2}>
+                    {entry.name}
+                  </Text>
                 </Pressable>
               ))}
+              {!searchLoading && catalogMatches.length === 0 ? (
+                <Text style={styles.catalogEmpty}>No matches — type a custom name.</Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -344,17 +388,48 @@ const styles = StyleSheet.create({
   catalogRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 84,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.outlineStrong,
   },
+  catalogRowSelected: {
+    backgroundColor: theme.colors.surfaceContainer,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.gold,
+  },
   catalogName: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
-    color: theme.colors.onBackground,
     flex: 1,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 17,
+    lineHeight: 22,
+    color: theme.colors.onBackground,
+  },
+  catalogSource: {
+    fontFamily: theme.fonts.label,
+    fontSize: 8,
+    letterSpacing: 1,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  catalogThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: theme.colors.surfaceContainer,
+  },
+  catalogLoading: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  catalogEmpty: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    padding: 12,
   },
   setHead: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 /** Parse YYYY-MM-DD as a local calendar day (noon avoids DST edge cases). */
-function parseYmdLocal(ymd: string) {
+export function parseYmdLocal(ymd: string) {
   const [y, m, d] = ymd.split('-').map(Number);
   if (y == null || m == null || d == null || Number.isNaN(y + m + d)) {
     return new Date();

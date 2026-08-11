@@ -18,6 +18,7 @@ type Exercise = {
   restSec: number;
   notes?: string;
   catalogExerciseId?: string;
+  supersetGroupId?: string;
   setRows?: ExerciseSetRow[];
 };
 
@@ -107,6 +108,11 @@ export function normalizeExerciseRecord(
     delete e.catalogExerciseId;
   } else if (typeof e.catalogExerciseId !== 'string') {
     e.catalogExerciseId = String(e.catalogExerciseId);
+  }
+  if (e.supersetGroupId === null || e.supersetGroupId === undefined || e.supersetGroupId === '') {
+    delete e.supersetGroupId;
+  } else if (typeof e.supersetGroupId !== 'string') {
+    e.supersetGroupId = String(e.supersetGroupId);
   }
 
   if (Array.isArray(e.setRows)) {

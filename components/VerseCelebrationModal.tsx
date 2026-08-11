@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { theme } from '@/constants/theme';
 import type { VerseEntry } from '@/lib/verses';
 
@@ -21,6 +22,7 @@ type Props = {
   visible: boolean;
   verse: VerseEntry | null;
   reflection?: string;
+  confetti?: boolean;
   onClose: () => void;
 };
 
@@ -28,20 +30,23 @@ export function VerseCelebrationModal({
   visible,
   verse,
   reflection,
+  confetti = false,
   onClose,
 }: Props) {
   const scale = useSharedValue(0.9);
   const opacity = useSharedValue(0);
+  const [confettiKey, setConfettiKey] = useState(0);
 
   useEffect(() => {
     if (visible) {
       opacity.value = withTiming(1, { duration: 200 });
       scale.value = withSpring(1, { damping: 18 });
+      if (confetti) setConfettiKey((k) => k + 1);
     } else {
       opacity.value = 0;
       scale.value = 0.9;
     }
-  }, [visible, opacity, scale]);
+  }, [visible, confetti, opacity, scale]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -75,6 +80,7 @@ export function VerseCelebrationModal({
             <Text style={styles.btnText}>Continue</Text>
           </Pressable>
         </Animated.View>
+        {confetti ? <ConfettiBurst playKey={confettiKey} /> : null}
       </Animated.View>
     </Modal>
   );

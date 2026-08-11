@@ -13,14 +13,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExerciseEditorModal } from '@/components/plan/ExerciseEditorModal';
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
+import { ExerciseNotesButton } from '@/components/plan/ExerciseNotesButton';
+import { ExerciseNotesModal } from '@/components/plan/ExerciseNotesModal';
 import { theme } from '@/constants/theme';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
+import {
+  getContiguousSupersetIndices,
+  isFirstInSuperset,
+  isLastInSuperset,
+  isSupersetMember,
+  supersetLetter,
+} from '@/lib/superset';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import type { Exercise } from '@/types/plan';
 
 type EditorState =
   | { mode: 'add' }
   | { mode: 'edit'; exerciseIndex: number; exercise: Exercise };
+
+type NotesEditorState = { exerciseIndex: number; exercise: Exercise };
 
 export default function WorkoutDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -30,7 +41,12 @@ export default function WorkoutDetailScreen() {
   const addExercise = useWorkoutLibraryStore((s) => s.addExercise);
   const updateExercise = useWorkoutLibraryStore((s) => s.updateExercise);
   const removeExercise = useWorkoutLibraryStore((s) => s.removeExercise);
+  const linkWithPreviousAsSuperset = useWorkoutLibraryStore(
+    (s) => s.linkWithPreviousAsSuperset
+  );
+  const unlinkSuperset = useWorkoutLibraryStore((s) => s.unlinkSuperset);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [notesEditor, setNotesEditor] = useState<NotesEditorState | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
 
   const workout = useMemo(
@@ -87,6 +103,12 @@ export default function WorkoutDetailScreen() {
           </Pressable>
         </View>
 
+        {workout.exercises.length >= 2 ? (
+          <Text style={styles.hint}>
+            Link an exercise with the one above to train them as a superset (A → B → rest).
+          </Text>
+        ) : null}
+
         {workout.exercises.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.muted}>Add exercises before you begin this workout.</Text>
@@ -99,20 +121,81 @@ export default function WorkoutDetailScreen() {
 
         {workout.exercises.map((exercise, index) => {
           const normalized = ensureExerciseSetRows(exercise);
+          const inSuperset = isSupersetMember(normalized);
+          const first = isFirstInSuperset(workout.exercises, index);
+          const last = isLastInSuperset(workout.exercises, index);
+          const letter = supersetLetter(workout.exercises, index);
+          const groupSize = getContiguousSupersetIndices(workout.exercises, index).length;
+          const canLinkUp =
+            index > 0 &&
+            (!inSuperset ||
+              normalized.supersetGroupId !==
+                workout.exercises[index - 1]?.supersetGroupId);
+
           return (
-            <Pressable
-              key={exercise.id}
-              style={styles.exRow}
-              onPress={() => setEditor({ mode: 'edit', exerciseIndex: index, exercise })}>
-              <ExerciseIcon catalogExerciseId={normalized.catalogExerciseId} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.exName}>{normalized.name}</Text>
-                <Text style={styles.exMeta}>
-                  {normalized.sets} sets · {normalized.reps}
-                </Text>
-              </View>
-              <Text style={styles.link}>Edit</Text>
-            </Pressable>
+            <View key={exercise.id}>
+              {first ? (
+                <View style={styles.supersetBanner}>
+                  <MaterialIcons name="link" size={14} color={theme.colors.gold} />
+                  <Text style={styles.supersetBannerTxt}>
+                    Superset · {groupSize} moves
+                  </Text>
+                  <Pressable
+                    onPress={() => unlinkSuperset(workout.id, index)}
+                    hitSlop={8}>
+                    <Text style={styles.ungroupTxt}>Ungroup</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              <Pressable
+                style={[
+                  styles.exRow,
+                  inSuperset && styles.exRowSuperset,
+                  first && styles.exRowSupersetFirst,
+                  last && styles.exRowSupersetLast,
+                  inSuperset && !last && styles.exRowSupersetMid,
+                ]}
+                onPress={() => setEditor({ mode: 'edit', exerciseIndex: index, exercise })}>
+                {letter ? (
+                  <View style={styles.letterBadge}>
+                    <Text style={styles.letterBadgeTxt}>{letter}</Text>
+                  </View>
+                ) : null}
+                <ExerciseIcon
+                  catalogExerciseId={normalized.catalogExerciseId}
+                  size={28}
+                  fallback={Boolean(normalized.catalogExerciseId)}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.exName}>{normalized.name}</Text>
+                  <Text style={styles.exMeta}>
+                    {normalized.sets} sets · {normalized.reps}
+                  </Text>
+                  {normalized.notes ? (
+                    <Text style={styles.exNotes} numberOfLines={1}>
+                      {normalized.notes}
+                    </Text>
+                  ) : null}
+                </View>
+                <ExerciseNotesButton
+                  noteCount={normalized.notes?.trim() ? 1 : 0}
+                  onPress={() =>
+                    setNotesEditor({ exerciseIndex: index, exercise: normalized })
+                  }
+                />
+                <Text style={styles.link}>Edit</Text>
+              </Pressable>
+
+              {canLinkUp ? (
+                <Pressable
+                  style={styles.linkUpBtn}
+                  onPress={() => linkWithPreviousAsSuperset(workout.id, index)}>
+                  <MaterialIcons name="link" size={14} color={theme.colors.gold} />
+                  <Text style={styles.linkUpTxt}>Superset with above</Text>
+                </Pressable>
+              ) : null}
+            </View>
           );
         })}
       </ScrollView>
@@ -140,6 +223,21 @@ export default function WorkoutDetailScreen() {
               }
             : undefined
         }
+      />
+
+      <ExerciseNotesModal
+        visible={notesEditor != null}
+        exerciseName={notesEditor?.exercise.name ?? ''}
+        notes={notesEditor?.exercise.notes ?? ''}
+        onClose={() => setNotesEditor(null)}
+        onSave={(notes) => {
+          if (!notesEditor) return;
+          updateExercise(workout.id, notesEditor.exerciseIndex, {
+            ...notesEditor.exercise,
+            notes,
+          });
+          setNotesEditor(null);
+        }}
       />
     </View>
   );
@@ -197,13 +295,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 24,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontFamily: theme.fonts.headline,
     fontSize: 20,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
+  },
+  hint: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    lineHeight: 17,
+    marginBottom: 12,
   },
   link: {
     fontFamily: theme.fonts.label,
@@ -244,6 +349,33 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  supersetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: theme.colors.goldDim,
+    marginTop: 4,
+  },
+  supersetBannerTxt: {
+    flex: 1,
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  ungroupTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+  },
   exRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -253,6 +385,50 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 14,
     marginBottom: 8,
+  },
+  exRowSuperset: {
+    borderColor: theme.colors.goldDim,
+    marginBottom: 0,
+    borderTopWidth: 0,
+  },
+  exRowSupersetFirst: {
+    borderTopWidth: 0,
+  },
+  exRowSupersetMid: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.outlineStrong,
+  },
+  exRowSupersetLast: {
+    marginBottom: 8,
+  },
+  letterBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: theme.colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  letterBadgeTxt: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 14,
+    color: theme.colors.onGold,
+  },
+  linkUpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  linkUpTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   exName: {
     fontFamily: theme.fonts.headlineBold,
@@ -265,5 +441,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
     marginTop: 2,
+  },
+  exNotes: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });

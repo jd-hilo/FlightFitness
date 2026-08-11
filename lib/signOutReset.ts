@@ -29,9 +29,5 @@ export function resetLocalAppStateForSignOut(): void {
   useWorkoutSessionLogStore.getState().reset();
   useWeightLogStore.getState().reset();
 
-  useDailyContentStore.setState({
-    content: null,
-    loading: false,
-    dailyFetchSettled: false,
-  });
+  useDailyContentStore.getState().reset();
 }

@@ -116,6 +116,12 @@ export default function FuelScreen() {
   const hasPlanShell =
     weekStart != null && macroTargets != null && mealsByDay != null;
 
+  useEffect(() => {
+    if (!hasPlanShell && !weekPlanEnsuring) {
+      ensureWeekPlanShell(viewWeekYmd);
+    }
+  }, [hasPlanShell, weekPlanEnsuring, viewWeekYmd, ensureWeekPlanShell]);
+
   const planMealIndex =
     hasPlanShell && weekStart
       ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, selectedPlanDay)
@@ -311,7 +317,7 @@ export default function FuelScreen() {
               const nowDone = toggleMeal(logDateKey, updated.id);
               if (nowDone) {
                 const v = getTriggerVerse('gratitude', `${logDateKey}-${updated.id}-fuel`);
-                showVerse(v, 'Give thanks — your body is a gift.');
+                showVerse(v, 'Give thanks — your body is a gift.', { confetti: true });
               }
             }
             const saved = saveMealTemplate(updated);

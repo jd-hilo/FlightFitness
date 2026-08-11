@@ -1,4 +1,5 @@
 import { router, type Href } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +8,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { WeightProgressChart } from '@/components/home/WeightProgressChart';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { ProfileUpgradeBanner } from '@/components/profile/ProfileUpgradeBanner';
+import { RestTimerSoundPicker } from '@/components/profile/RestTimerSoundPicker';
+import { RestVerseModePicker } from '@/components/profile/RestVerseModePicker';
 import { SessionMinutesChart } from '@/components/tracking/SessionMinutesChart';
 import { WeeklyHabitChart } from '@/components/tracking/WeeklyHabitChart';
 import { theme } from '@/constants/theme';
@@ -14,6 +18,9 @@ import { deleteAccount } from '@/lib/api/deleteAccount';
 import { generateWeekPlan } from '@/lib/api/plan';
 import { paywallHref, trackPlanGenerated } from '@/lib/analytics';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
+import {
+  REPDB_URL,
+} from '@/lib/legalUrls';
 import {
   buildLast7DayHabitScores,
   buildLast7DaySessionMinutes,
@@ -30,12 +37,6 @@ import { usePlanStore } from '@/stores/planStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useWeightLogStore } from '@/stores/weightLogStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
-
-const TIER_LABEL: Record<string, string> = {
-  free: 'Free',
-  essentials: 'Essentials',
-  coaching: 'Coaching',
-};
 
 export default function EliteScreen() {
   const insets = useSafeAreaInsets();
@@ -262,48 +263,6 @@ export default function EliteScreen() {
           ) : null}
         </View>
 
-        <View style={styles.actions}>
-          <Pressable
-            style={styles.actionRow}
-            onPress={() => router.push('/profile-edit' as Href)}>
-            <MaterialIcons name="tune" size={20} color={theme.colors.gold} />
-            <Text style={styles.actionTxt}>Plan inputs</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={22}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </Pressable>
-          <Pressable
-            style={styles.actionRow}
-            onPress={onManagePlan}
-            disabled={managingSubscription}>
-            <MaterialIcons name="workspace-premium" size={20} color={theme.colors.gold} />
-            <Text style={styles.actionTxt}>
-              {TIER_LABEL[tier] ?? tier}
-              {managingSubscription ? '…' : ''}
-            </Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={22}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </Pressable>
-          {tier !== 'coaching' ? (
-            <Pressable
-              style={styles.actionRow}
-              onPress={() => router.push(paywallHref('elite'))}>
-              <MaterialIcons name="upgrade" size={20} color={theme.colors.gold} />
-              <Text style={styles.actionTxt}>Upgrade</Text>
-              <MaterialIcons
-                name="chevron-right"
-                size={22}
-                color={theme.colors.onSurfaceVariant}
-              />
-            </Pressable>
-          ) : null}
-        </View>
-
         {__DEV__ && isAiWeekPlanEnabled() ? (
           <Pressable
             style={styles.devBtn}
@@ -315,6 +274,35 @@ export default function EliteScreen() {
           </Pressable>
         ) : null}
 
+        <RestTimerSoundPicker />
+        <RestVerseModePicker />
+
+        <ProfileUpgradeBanner
+          tier={tier}
+          onUpgrade={() => router.push(paywallHref('elite'))}
+          onCoaching={() => router.push('/coaching-info')}
+        />
+        {tier !== 'free' ? (
+          <Pressable
+            style={styles.manageLink}
+            onPress={onManagePlan}
+            disabled={managingSubscription}
+            hitSlop={8}>
+            <Text style={styles.manageLinkTxt}>
+              {managingSubscription ? 'Opening subscriptions…' : 'Manage subscription'}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        <Text style={styles.attribution}>
+          Exercise data by{' '}
+          <Text
+            style={styles.attributionLink}
+            onPress={() => void WebBrowser.openBrowserAsync(REPDB_URL)}>
+            RepDB (repdb.co)
+          </Text>
+        </Text>
+
         <Pressable
           style={styles.signOutBtn}
           onPress={onSignOut}
@@ -323,6 +311,7 @@ export default function EliteScreen() {
             {signingOut ? 'Signing out…' : 'Sign out'}
           </Text>
         </Pressable>
+
         <Pressable
           onPress={onDeleteAccount}
           disabled={signingOut || deletingAccount}
@@ -417,25 +406,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
   },
-  actions: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    marginBottom: 20,
-  },
-  actionRow: {
-    flexDirection: 'row',
+  manageLink: {
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.outline,
+    paddingVertical: 4,
+    marginBottom: 16,
   },
-  actionTxt: {
-    flex: 1,
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: 15,
-    color: theme.colors.onBackground,
+  manageLinkTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    textDecorationLine: 'underline',
   },
   devBtn: {
     borderWidth: 1,
@@ -473,5 +455,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     textAlign: 'center',
     marginBottom: 24,
+  },
+  attribution: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    lineHeight: 16,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  attributionLink: {
+    color: theme.colors.gold,
+    textDecorationLine: 'underline',
   },
 });

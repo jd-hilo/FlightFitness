@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { scheduleRemotePlanSave } from '@/lib/api/planPersistence';
 import { emptyWeekPlan } from '@/lib/emptyWeekPlan';
+import { localPlanCoversWeek } from '@/lib/planCompleteness';
 import {
   defaultSetRow,
   ensureExerciseSetRows,
@@ -123,22 +124,23 @@ export const usePlanStore = create<PlanState>()(
       ensureWeekPlanShell: (weekStart) => {
         const target = weekStart ?? viewWeekStartYmdLocal();
         const s = get();
-        if (
-          s.weekStart === target &&
-          s.mealsByDay &&
-          s.workoutsByDay &&
-          s.macroTargets &&
-          s.groceryList
-        ) {
-          return;
-        }
+        if (localPlanCoversWeek(s, target)) return;
+
+        const sameWeek = s.weekStart === target;
         const shell = emptyWeekPlan(target);
         set({
-          weekStart: shell.weekStart,
-          macroTargets: shell.macroTargets,
-          mealsByDay: shell.mealsByDay,
-          workoutsByDay: shell.workoutsByDay,
-          groceryList: shell.groceryList,
+          weekStart: target,
+          macroTargets: s.macroTargets ?? shell.macroTargets,
+          mealsByDay:
+            sameWeek && Array.isArray(s.mealsByDay) && s.mealsByDay.length === 7
+              ? s.mealsByDay
+              : shell.mealsByDay,
+          workoutsByDay:
+            sameWeek && Array.isArray(s.workoutsByDay) && s.workoutsByDay.length === 7
+              ? s.workoutsByDay
+              : shell.workoutsByDay,
+          groceryList:
+            sameWeek && s.groceryList != null ? s.groceryList : shell.groceryList,
         });
         scheduleRemotePlanSave();
       },

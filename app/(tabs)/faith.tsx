@@ -1,4 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { hapticImpact, hapticNotify, ImpactStyle } from '@/lib/haptics';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -13,8 +15,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
+import {
+  fetchCoachReflectionForDate,
+  type CoachReflectionPrompt,
+} from '@/lib/api/coachReflection';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { formatYmdLocal } from '@/lib/weekUtils';
@@ -58,6 +65,32 @@ export default function FaithScreen() {
   const [apiMeta, setApiMeta] = useState<string | null>(null);
   const [apiLoading, setApiLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
+  const [studyConfettiKey, setStudyConfettiKey] = useState(0);
+  const [coachPrompt, setCoachPrompt] = useState<CoachReflectionPrompt | null>(
+    null
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const prompt = await fetchCoachReflectionForDate(dateKey);
+      if (!cancelled) setCoachPrompt(prompt);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dateKey]);
+
+  const onToggleStudyRead = useCallback(() => {
+    const wasRead = day.studyRead;
+    toggleStudyRead(dateKey);
+    if (!wasRead) {
+      hapticNotify();
+      setStudyConfettiKey((k) => k + 1);
+    } else {
+      hapticImpact(ImpactStyle.Light);
+    }
+  }, [day.studyRead, dateKey, toggleStudyRead]);
 
   const loadFromApi = useCallback(async () => {
     setApiLoading(true);
@@ -117,18 +150,22 @@ export default function FaithScreen() {
         <Text style={styles.section}>Today&apos;s study</Text>
         <View
           style={[styles.readingCard, day.studyRead && styles.taskShellDone]}>
-          <Pressable
-            style={styles.taskHeader}
-            onPress={() => toggleStudyRead(dateKey)}>
-            <TaskCheck done={day.studyRead} />
+          <View style={styles.taskHeader}>
+            <View style={styles.checkHit}>
+              <MaterialIcons
+                name="menu-book"
+                size={26}
+                color={day.studyRead ? theme.colors.gold : theme.colors.onSurfaceVariant}
+              />
+            </View>
             <View style={styles.taskHeaderText}>
               <Text style={styles.taskHeaderTitle}>Read today&apos;s study</Text>
               <Text style={styles.taskHeaderSub}>
-                The full passage loads automatically—tap the check when you&apos;ve read
-                it and the reflection below
+                The full passage loads automatically. Read it and the reflection, then
+                mark it complete at the bottom.
               </Text>
             </View>
-          </Pressable>
+          </View>
 
           <View style={styles.studyBody}>
             <Text style={styles.readingTitle}>{reading.title}</Text>
@@ -154,17 +191,61 @@ export default function FaithScreen() {
             )}
             <Text style={styles.readingReflect}>{reading.reflection}</Text>
             <View style={styles.promptBox}>
-              <Text style={styles.promptLabel}>Reflect</Text>
-              <Text style={styles.promptText}>{reading.studyPrompt}</Text>
+              <Text style={styles.promptLabel}>
+                {coachPrompt ? 'From your coach' : 'Reflect'}
+              </Text>
+              {coachPrompt?.title ? (
+                <Text style={styles.promptText}>{coachPrompt.title}</Text>
+              ) : null}
+              <Text style={styles.promptText}>
+                {coachPrompt?.body ?? reading.studyPrompt}
+              </Text>
             </View>
             <Text style={styles.apiNote}>
               Passage from <Text style={styles.apiNoteEm}>bible-api.com</Text> (public
               domain).
             </Text>
+
+            <View style={styles.checkOffWrap}>
+              <Pressable
+                style={[
+                  styles.checkOffBtn,
+                  day.studyRead && styles.checkOffBtnDone,
+                ]}
+                onPress={onToggleStudyRead}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  day.studyRead ? 'Mark study as not read' : 'Mark study as read'
+                }>
+                <MaterialIcons
+                  name={day.studyRead ? 'check-circle' : 'radio-button-unchecked'}
+                  size={26}
+                  color={day.studyRead ? theme.colors.gold : theme.colors.onSurfaceVariant}
+                />
+                <Text
+                  style={[
+                    styles.checkOffTxt,
+                    day.studyRead && styles.checkOffTxtDone,
+                  ]}>
+                  {day.studyRead ? "Completed — nice work" : 'Mark as read'}
+                </Text>
+              </Pressable>
+              <ConfettiBurst playKey={studyConfettiKey} />
+            </View>
           </View>
         </View>
 
-        <Text style={styles.section}>Reflection</Text>
+        <View style={styles.sectionRow}>
+          <Text style={styles.section}>Reflection</Text>
+          <Pressable
+            style={styles.pastBtn}
+            onPress={() => router.push('/past-reflections')}
+            hitSlop={8}
+            accessibilityRole="button">
+            <MaterialIcons name="history" size={15} color={theme.colors.gold} />
+            <Text style={styles.pastBtnTxt}>Past reflections</Text>
+          </Pressable>
+        </View>
         <View
           style={[styles.journalCard, day.journalDone && styles.taskShellDone]}>
           <Pressable
@@ -244,6 +325,29 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 12,
     marginTop: 8,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pastBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineStrong,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  pastBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   taskShellDone: {
     borderColor: 'rgba(255, 215, 0, 0.35)',
@@ -359,6 +463,35 @@ const styles = StyleSheet.create({
   },
   apiNoteEm: {
     fontFamily: theme.fonts.label,
+    color: theme.colors.gold,
+  },
+  checkOffWrap: {
+    marginTop: 18,
+    position: 'relative',
+  },
+  checkOffBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineStrong,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
+  },
+  checkOffBtnDone: {
+    borderColor: 'rgba(255, 215, 0, 0.5)',
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+  },
+  checkOffTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+  },
+  checkOffTxtDone: {
     color: theme.colors.gold,
   },
   apiMeta: {

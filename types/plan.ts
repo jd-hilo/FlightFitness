@@ -47,6 +47,11 @@ export const exerciseSchema = z.object({
   notes: z.string().optional(),
   /** Optional link to bundled exercise catalog entry. */
   catalogExerciseId: z.string().optional(),
+  /**
+   * Shared id for contiguous exercises that form a superset.
+   * Omit for standalone movements. Same id on adjacent rows = one group.
+   */
+  supersetGroupId: z.string().optional(),
   /** Granular per-set targets and logging (Strong-style). */
   setRows: z.array(exerciseSetRowSchema).optional(),
 });

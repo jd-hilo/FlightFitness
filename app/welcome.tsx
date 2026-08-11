@@ -3,10 +3,20 @@ import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Animated, {
+  Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
+  type SharedValue,
   withDelay,
   withRepeat,
   withSequence,
@@ -18,7 +28,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
-import { FLIGHT_FITNESS_PRIVACY_POLICY_URL, FLIGHT_FITNESS_TERMS_OF_SERVICE_URL } from '@/lib/legalUrls';
+import {
+  FLIGHT_FITNESS_PRIVACY_POLICY_URL,
+  FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
+} from '@/lib/legalUrls';
 import { restVerseHeroText } from '@/lib/restVerseDisplay';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 import type { MacroTargets, WorkoutDay } from '@/types/plan';
@@ -53,13 +66,49 @@ const DUMMY_WORKOUT: WorkoutDay = {
   ],
 };
 
+function ProgressBars({ scrollProgress }: { scrollProgress: SharedValue<number> }) {
+  return (
+    <View
+      style={styles.progressRow}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Welcome intro progress">
+      {Array.from({ length: WELCOME_SLIDE_COUNT }, (_, i) => (
+        <ProgressSegment key={i} i={i} scrollProgress={scrollProgress} />
+      ))}
+    </View>
+  );
+}
+
+function ProgressSegment({
+  i,
+  scrollProgress,
+}: {
+  i: number;
+  scrollProgress: SharedValue<number>;
+}) {
+  const fillStyle = useAnimatedStyle(() => {
+    // Past slides stay full; the active slide fills as you swipe into it.
+    const fill = interpolate(scrollProgress.value, [i - 1, i], [0, 1], 'clamp');
+    return {
+      transform: [{ scaleX: fill }],
+    };
+  });
+
+  return (
+    <View style={styles.progressTrack}>
+      <Animated.View style={[styles.progressFill, fillStyle]} />
+    </View>
+  );
+}
+
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { ready: authReady, registered } = useRegisteredAuth();
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const canGetStarted = carouselIndex >= WELCOME_SLIDE_COUNT - 1;
+  const isLastSlide = carouselIndex >= WELCOME_SLIDE_COUNT - 1;
   const restVerse = restVerseHeroText(DUMMY_VERSE.text);
 
+  const scrollProgress = useSharedValue(0);
   const ctaOp = useSharedValue(0);
   const ctaScale = useSharedValue(0.94);
   const swipeNudge = useSharedValue(0);
@@ -71,35 +120,48 @@ export default function WelcomeScreen() {
   }, [authReady, registered]);
 
   useEffect(() => {
-    ctaOp.value = withDelay(400, withTiming(1, { duration: 480 }));
-    ctaScale.value = withDelay(400, withSpring(1, { damping: 14, stiffness: 120 }));
     swipeNudge.value = withRepeat(
       withSequence(
-        withTiming(14, { duration: 650 }),
-        withTiming(0, { duration: 650 })
+        withTiming(10, { duration: 700, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 700, easing: Easing.inOut(Easing.quad) })
       ),
       -1,
       false
     );
     swipePulse.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: 800 }),
-        withTiming(0.55, { duration: 800 })
+        withTiming(1, { duration: 850 }),
+        withTiming(0.5, { duration: 850 })
       ),
       -1,
       true
     );
-  }, [ctaOp, ctaScale, swipeNudge, swipePulse]);
+  }, [swipeNudge, swipePulse]);
+
+  useEffect(() => {
+    if (!isLastSlide) {
+      ctaOp.value = 0;
+      ctaScale.value = 0.94;
+      return;
+    }
+    ctaOp.value = withDelay(120, withTiming(1, { duration: 420 }));
+    ctaScale.value = withDelay(120, withSpring(1, { damping: 14, stiffness: 120 }));
+  }, [isLastSlide, ctaOp, ctaScale]);
 
   const ctaStyle = useAnimatedStyle(() => ({
     opacity: ctaOp.value,
     transform: [{ scale: ctaScale.value }],
   }));
 
-  const heroSwipeCueStyle = useAnimatedStyle(() => ({
+  const swipeCueStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeNudge.value }],
     opacity: swipePulse.value,
   }));
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    scrollProgress.value = x / SCREEN_WIDTH;
+  };
 
   const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -108,7 +170,7 @@ export default function WelcomeScreen() {
   };
 
   const onGetStarted = () => {
-    if (!canGetStarted) return;
+    if (!isLastSlide) return;
     router.push('/email-sign-in' as Href);
   };
 
@@ -119,15 +181,10 @@ export default function WelcomeScreen() {
         locations={[0, 0.45, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <LinearGradient
-        colors={['transparent', 'rgba(255,215,0,0.07)', 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
 
-      <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom + 28 }]}>
+      <View style={[styles.screen, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 20 }]}>
+        <ProgressBars scrollProgress={scrollProgress} />
+
         <View style={styles.carouselContainer}>
           <ScrollView
             horizontal
@@ -135,15 +192,14 @@ export default function WelcomeScreen() {
             showsHorizontalScrollIndicator={false}
             snapToInterval={SCREEN_WIDTH}
             decelerationRate="fast"
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             onMomentumScrollEnd={onMomentumScrollEnd}
             contentContainerStyle={styles.carouselContent}>
             <View style={styles.carouselItem}>
               <View style={styles.heroSlide}>
+                <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
                 <Text style={styles.heroTagline}>WHERE FAITH MEETS FUNCTION</Text>
-                <Animated.View style={[styles.heroSwipeCue, heroSwipeCueStyle]}>
-                  <Text style={styles.heroSwipeLabel}>SWIPE</Text>
-                  <Text style={styles.heroSwipeChevron}>›</Text>
-                </Animated.View>
               </View>
             </View>
 
@@ -238,51 +294,49 @@ export default function WelcomeScreen() {
           </ScrollView>
         </View>
 
-        <Animated.View style={[styles.ctaWrapper, ctaStyle]}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.primary,
-              pressed && canGetStarted && styles.primaryPressed,
-              !canGetStarted && styles.primaryLocked,
-            ]}
-            onPress={onGetStarted}
-            disabled={!canGetStarted}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canGetStarted }}
-            accessibilityLabel="Get started: verify email with a one-time code"
-            accessibilityHint={
-              canGetStarted
-                ? undefined
-                : 'Swipe through all welcome slides to the end to enable this button.'
-            }>
-            <Text style={[styles.primaryTxt, !canGetStarted && styles.primaryLockedTxt]}>
-              Get started
-            </Text>
-          </Pressable>
-          <Text style={styles.terms}>
-            By using Flight Fitness, you agree to our{' '}
-            <Text
-              style={styles.termsLink}
-              accessibilityRole="link"
-              accessibilityLabel="Terms of Service"
-              onPress={() =>
-                void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
-              }>
-              Terms of Service
-            </Text>{' '}
-            and{' '}
-            <Text
-              style={styles.termsLink}
-              accessibilityRole="link"
-              accessibilityLabel="Privacy Policy"
-              onPress={() =>
-                void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
-              }>
-              Privacy Policy
-            </Text>
-            .
-          </Text>
-        </Animated.View>
+        <View style={styles.footer}>
+          {isLastSlide ? (
+            <Animated.View style={[styles.ctaWrapper, ctaStyle]}>
+              <Pressable
+                style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+                onPress={onGetStarted}
+                accessibilityRole="button"
+                accessibilityLabel="Get started: verify email with a one-time code">
+                <Text style={styles.primaryTxt}>Get started</Text>
+              </Pressable>
+              <Text style={styles.terms}>
+                By using Flight Fitness, you agree to our{' '}
+                <Text
+                  style={styles.termsLink}
+                  accessibilityRole="link"
+                  accessibilityLabel="Terms of Service"
+                  onPress={() =>
+                    void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
+                  }>
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.termsLink}
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy Policy"
+                  onPress={() =>
+                    void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
+                  }>
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
+            </Animated.View>
+          ) : (
+            <Animated.View
+              style={[styles.swipeCue, swipeCueStyle]}
+              accessibilityLiveRegion="polite">
+              <Text style={styles.swipeCueTxt}>Swipe to get started</Text>
+              <Text style={styles.swipeCueChevron}>›</Text>
+            </Animated.View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -295,6 +349,26 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 20,
+    marginBottom: 18,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+    transformOrigin: 'left center',
   },
   carouselContainer: {
     flex: 1,
@@ -313,8 +387,16 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     alignItems: 'center',
-    paddingTop: 48,
+    paddingTop: 64,
     paddingBottom: 16,
+    gap: 18,
+  },
+  brandMark: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 4,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   heroTagline: {
     fontFamily: theme.fonts.headline,
@@ -323,26 +405,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textAlign: 'center',
     textTransform: 'uppercase',
-  },
-  heroSwipeCue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 36,
-  },
-  heroSwipeLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 5,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  heroSwipeChevron: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.gold,
-    opacity: 0.85,
   },
   cardWrapper: {
     width: '100%',
@@ -367,8 +429,32 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  ctaWrapper: {
+  footer: {
+    minHeight: 92,
+    justifyContent: 'center',
     paddingHorizontal: 28,
+  },
+  swipeCue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 18,
+  },
+  swipeCueTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2.4,
+    color: 'rgba(255,255,255,0.78)',
+    textTransform: 'uppercase',
+  },
+  swipeCueChevron: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.78)',
+    marginTop: -1,
+  },
+  ctaWrapper: {
     gap: 10,
   },
   terms: {
@@ -394,19 +480,12 @@ const styles = StyleSheet.create({
     opacity: 0.88,
     transform: [{ scale: 0.98 }],
   },
-  primaryLocked: {
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    borderColor: theme.colors.outline,
-  },
   primaryTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
     letterSpacing: 2,
     color: theme.colors.onGold,
     textTransform: 'uppercase',
-  },
-  primaryLockedTxt: {
-    color: theme.colors.onSurfaceVariant,
   },
   wordCard: {
     backgroundColor: theme.colors.surfaceContainerLow,

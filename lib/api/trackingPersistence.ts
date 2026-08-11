@@ -8,6 +8,11 @@ import {
   useCompletionStore,
   type DayCompletion,
 } from '@/stores/completionStore';
+import {
+  useExerciseHistoryStore,
+  type ExerciseHistoryEntry,
+  type LoggedSetSnapshot,
+} from '@/stores/exerciseHistoryStore';
 import { useWeightLogStore, type WeightLogEntry } from '@/stores/weightLogStore';
 import {
   useWorkoutLibraryStore,
@@ -66,6 +71,17 @@ function mergeSessions(
   return [...map.values()]
     .sort((a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime())
     .slice(0, 200);
+}
+
+function mergeExerciseHistory(
+  local: ExerciseHistoryEntry[],
+  remote: ExerciseHistoryEntry[]
+): ExerciseHistoryEntry[] {
+  const map = new Map<string, ExerciseHistoryEntry>();
+  for (const e of [...remote, ...local]) map.set(e.id, e);
+  return [...map.values()]
+    .sort((a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime())
+    .slice(0, 1000);
 }
 
 function mergeDayCompletion(a: DayCompletion, b: DayCompletion): DayCompletion {
@@ -173,11 +189,32 @@ async function pushWorkoutSessions(uid: string, sessions: WorkoutSessionLogEntry
     date_key: s.dateKey,
     finished_at: s.finishedAt,
     duration_sec: s.durationSec,
+    volume_lb: Math.max(0, Math.round(s.volumeLb ?? 0)),
   }));
   const { error } = await supabase.from('workout_sessions').upsert(rows, {
     onConflict: 'user_id,id',
   });
   if (error && __DEV__) console.warn('[tracking] sessions upsert', error.message);
+}
+
+async function pushExerciseHistory(uid: string, entries: ExerciseHistoryEntry[]) {
+  if (!supabase || entries.length === 0) return;
+  const rows = entries.map((e) => ({
+    user_id: uid,
+    id: e.id,
+    session_id: e.sessionId,
+    source_workout_id: e.sourceWorkoutId,
+    exercise_key: e.exerciseKey,
+    exercise_name: e.exerciseName,
+    catalog_exercise_id: e.catalogExerciseId ?? null,
+    date_key: e.dateKey,
+    finished_at: e.finishedAt,
+    sets: e.sets,
+  }));
+  const { error } = await supabase.from('exercise_history').upsert(rows, {
+    onConflict: 'user_id,id',
+  });
+  if (error && __DEV__) console.warn('[tracking] exercise history upsert', error.message);
 }
 
 async function pushDailyCompletions(
@@ -231,11 +268,13 @@ export async function pushAllTrackingToRemote(): Promise<void> {
   const weight = useWeightLogStore.getState().entries;
   const workouts = useWorkoutLibraryStore.getState().workouts;
   const sessions = useWorkoutSessionLogStore.getState().sessions;
+  const exerciseHistory = useExerciseHistoryStore.getState().entries;
   const { byDay, streak, lastStreakIncrementDate } = useCompletionStore.getState();
 
   await pushWeightEntries(uid, weight);
   await pushWorkoutLibrary(uid, workouts);
   await pushWorkoutSessions(uid, sessions);
+  await pushExerciseHistory(uid, exerciseHistory);
   await pushDailyCompletions(uid, byDay);
   await pushActivityMeta(uid, streak, lastStreakIncrementDate);
 }
@@ -243,7 +282,7 @@ export async function pushAllTrackingToRemote(): Promise<void> {
 export function scheduleTrackingRemoteSave(delayMs = 800) {
   if (shouldSkipRemoteSave()) return;
   saveChain = saveChain.then(async () => {
-    await new Promise((r) => setTimeout(r, delayMs));
+    if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     await pushAllTrackingToRemote();
   });
 }
@@ -264,9 +303,11 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
     const localWeight = useWeightLogStore.getState().entries;
     const localWorkouts = useWorkoutLibraryStore.getState().workouts;
     const localSessions = useWorkoutSessionLogStore.getState().sessions;
+    const localHistory = useExerciseHistoryStore.getState().entries;
     const localCompletion = useCompletionStore.getState();
 
-    const [weightRes, workoutsRes, sessionsRes, daysRes, metaRes] = await Promise.all([
+    const [weightRes, workoutsRes, sessionsRes, historyRes, daysRes, metaRes] =
+      await Promise.all([
       supabase.from('weight_entries').select('date_key,weight_lb,updated_at').eq('user_id', uid),
       supabase
         .from('user_workouts')
@@ -275,10 +316,18 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
         .order('updated_at', { ascending: false }),
       supabase
         .from('workout_sessions')
-        .select('id,source_workout_id,title,date_key,finished_at,duration_sec')
+        .select('id,source_workout_id,title,date_key,finished_at,duration_sec,volume_lb')
         .eq('user_id', uid)
         .order('finished_at', { ascending: false })
         .limit(200),
+      supabase
+        .from('exercise_history')
+        .select(
+          'id,session_id,source_workout_id,exercise_key,exercise_name,catalog_exercise_id,date_key,finished_at,sets'
+        )
+        .eq('user_id', uid)
+        .order('finished_at', { ascending: false })
+        .limit(1000),
       supabase.from('daily_completions').select('*').eq('user_id', uid),
       supabase
         .from('user_activity_meta')
@@ -307,7 +356,20 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
       title: r.title,
       dateKey: r.date_key,
       finishedAt: r.finished_at,
-      durationSec: r.duration_sec,
+      durationSec: Math.max(0, Number(r.duration_sec) || 0),
+      volumeLb: Math.max(0, Number(r.volume_lb) || 0),
+    }));
+
+    const remoteHistory: ExerciseHistoryEntry[] = (historyRes.data ?? []).map((r) => ({
+      id: r.id,
+      sessionId: r.session_id,
+      sourceWorkoutId: r.source_workout_id,
+      exerciseKey: r.exercise_key,
+      exerciseName: r.exercise_name,
+      catalogExerciseId: r.catalog_exercise_id ?? undefined,
+      dateKey: r.date_key,
+      finishedAt: r.finished_at,
+      sets: (Array.isArray(r.sets) ? r.sets : []) as LoggedSetSnapshot[],
     }));
 
     const remoteByDay: Record<string, DayCompletion> = {};
@@ -319,11 +381,13 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
     const mergedWeight = mergeWeightEntries(localWeight, remoteWeight);
     const mergedWorkouts = mergeWorkouts(localWorkouts, remoteWorkouts);
     const mergedSessions = mergeSessions(localSessions, remoteSessions);
+    const mergedHistory = mergeExerciseHistory(localHistory, remoteHistory);
     const mergedByDay = mergeByDay(localCompletion.byDay, remoteByDay);
 
     useWeightLogStore.setState({ entries: mergedWeight });
     useWorkoutLibraryStore.setState({ workouts: mergedWorkouts });
     useWorkoutSessionLogStore.setState({ sessions: mergedSessions });
+    useExerciseHistoryStore.setState({ entries: mergedHistory });
 
     const remoteStreak = metaRes.data?.training_streak;
     const remoteLast = metaRes.data?.last_streak_increment_date ?? null;
@@ -340,12 +404,14 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
       remoteWeight.length === 0 &&
       remoteWorkouts.length === 0 &&
       remoteSessions.length === 0 &&
+      remoteHistory.length === 0 &&
       Object.keys(remoteByDay).length === 0;
 
     const localHasData =
       localWeight.length > 0 ||
       localWorkouts.length > 0 ||
       localSessions.length > 0 ||
+      localHistory.length > 0 ||
       Object.keys(localCompletion.byDay).length > 0;
 
     if (remoteEmpty && localHasData) {

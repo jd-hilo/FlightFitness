@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { hapticNotify } from '@/lib/haptics';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
@@ -186,6 +187,7 @@ export function MealEditorModal({
       return;
     }
     setError(null);
+    hapticNotify();
     onSave(parsed.data);
   };
 

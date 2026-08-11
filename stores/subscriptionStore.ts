@@ -14,6 +14,11 @@ export function hasPremiumLibraryAccess(tier: SubscriptionTier): boolean {
   return tier === 'essentials' || tier === 'coaching';
 }
 
+/** Essentials+ — workout insights, rest-verse rotation, unlimited library. */
+export function hasEssentialsAccess(tier: SubscriptionTier): boolean {
+  return hasPremiumLibraryAccess(tier);
+}
+
 export function savedWorkoutLimit(tier: SubscriptionTier): number | null {
   return hasPremiumLibraryAccess(tier) ? null : FREE_TIER_MAX_SAVED_WORKOUTS;
 }

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -19,10 +19,17 @@ import { theme } from '@/constants/theme';
 import { paywallHref } from '@/lib/analytics';
 import { formatDuration } from '@/lib/formatDuration';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
+import {
+  buildOverview,
+  formatRelativeDate,
+  formatVolume,
+} from '@/lib/insights/workoutInsights';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
+import { useExerciseHistoryStore } from '@/stores/exerciseHistoryStore';
 import { usePlanStore } from '@/stores/planStore';
-import { useSubscriptionStore, savedWorkoutLimit } from '@/stores/subscriptionStore';
+import { useSubscriptionStore, hasEssentialsAccess, savedWorkoutLimit } from '@/stores/subscriptionStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
+import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
@@ -34,8 +41,28 @@ export default function TrainScreen() {
   const session = useActiveWorkoutStore((s) => s.session);
   const startSession = useActiveWorkoutStore((s) => s.startSession);
   const getElapsedSeconds = useActiveWorkoutStore((s) => s.getElapsedSeconds);
+  const allSessions = useWorkoutSessionLogStore((s) => s.sessions);
+  const allHistory = useExerciseHistoryStore((s) => s.entries);
   const tier = useSubscriptionStore((s) => s.tier);
   const [timerTick, setTimerTick] = useState(0);
+
+  const insightByWorkout = useMemo(() => {
+    const map = new Map<
+      string,
+      { times: number; volumeLb: number; lastKey: string | null }
+    >();
+    for (const workout of workouts) {
+      const sessions = allSessions.filter((s) => s.sourceWorkoutId === workout.id);
+      const entries = allHistory.filter((e) => e.sourceWorkoutId === workout.id);
+      const overview = buildOverview(sessions, entries);
+      map.set(workout.id, {
+        times: overview.timesPerformed,
+        volumeLb: overview.totalVolumeLb,
+        lastKey: overview.lastPerformedKey,
+      });
+    }
+    return map;
+  }, [workouts, allSessions, allHistory]);
 
   const headerRight =
     tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
@@ -90,6 +117,14 @@ export default function TrainScreen() {
     router.push('/workout-session');
   };
 
+  const onInsights = (workoutId: string) => {
+    if (!hasEssentialsAccess(tier)) {
+      router.push(paywallHref('insights_gate'));
+      return;
+    }
+    router.push(`/workout-insights/${workoutId}`);
+  };
+
   return (
     <View style={styles.screen}>
       <ScreenHeader />
@@ -139,14 +174,38 @@ export default function TrainScreen() {
               (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? ex.sets),
               0
             );
+            const noteCount = workout.exercises.reduce(
+              (acc, ex) => acc + (ex.notes?.trim() ? 1 : 0),
+              0
+            );
+            const insight = insightByWorkout.get(workout.id);
+            const insightBits: string[] = [];
+            if (insight && insight.times > 0) {
+              insightBits.push(
+                insight.times === 1 ? '1× done' : `${insight.times}× done`
+              );
+              if (insight.volumeLb > 0) {
+                insightBits.push(formatVolume(insight.volumeLb));
+              }
+              if (insight.lastKey) {
+                insightBits.push(formatRelativeDate(insight.lastKey));
+              }
+            }
             return (
               <View key={workout.id} style={styles.card}>
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{workout.title}</Text>
                     <Text style={styles.cardMeta}>
-                      {exerciseCount} exercise{exerciseCount === 1 ? '' : 's'} · {setCount} sets
+                      {exerciseCount} exercise{exerciseCount === 1 ? '' : 's'} · {setCount}{' '}
+                      sets
+                      {noteCount > 0
+                        ? ` · ${noteCount} note${noteCount === 1 ? '' : 's'}`
+                        : ''}
                     </Text>
+                    {insightBits.length > 0 ? (
+                      <Text style={styles.cardInsight}>{insightBits.join(' · ')}</Text>
+                    ) : null}
                   </View>
                   <Pressable
                     style={styles.beginBtn}
@@ -157,6 +216,16 @@ export default function TrainScreen() {
                 <View style={styles.cardActions}>
                   <Pressable onPress={() => router.push(`/workout/${workout.id}`)}>
                     <Text style={styles.cardLink}>Edit</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.cardLinkRow}
+                    onPress={() => onInsights(workout.id)}>
+                    <MaterialIcons
+                      name="insights"
+                      size={13}
+                      color={theme.colors.gold}
+                    />
+                    <Text style={styles.cardLink}>Insights</Text>
                   </Pressable>
                   <Pressable
                     onPress={() =>
@@ -293,6 +362,13 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     marginTop: 4,
   },
+  cardInsight: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: theme.colors.gold,
+    marginTop: 8,
+  },
   beginBtn: {
     borderWidth: 1,
     borderColor: theme.colors.gold,
@@ -321,6 +397,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  cardLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardLinkDanger: {
     fontFamily: theme.fonts.label,
     fontSize: 10,

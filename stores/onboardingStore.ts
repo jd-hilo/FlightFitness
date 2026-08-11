@@ -252,8 +252,8 @@ export const useOnboardingStore = create<OnboardingState>()(
           ...(p.answers ?? {}),
         };
         merged.goal = normalizeStringList((p.answers as { goal?: unknown } | undefined)?.goal).slice(0, 2);
-        // Drop legacy sex values that are no longer offered (non-binary / prefer not to say).
-        if (merged.sex === 'sex_nonbinary' || merged.sex === 'sex_prefer_not') {
+        // Drop legacy non-binary sex values that are no longer offered.
+        if (merged.sex === 'sex_nonbinary') {
           merged.sex = '';
         }
         if (!merged.sessionLengthId) merged.sessionLengthId = 'session_45';

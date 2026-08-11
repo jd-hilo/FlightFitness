@@ -323,6 +323,11 @@ export const SEX_OPTIONS = [
     label: 'Male',
     ai: 'Use male-typical BMR/energy estimation priors; avoid gendered assumptions in coaching copy.',
   },
+  {
+    id: 'sex_prefer_not',
+    label: 'Prefer not to say',
+    ai: 'Use conservative middle-of-road calorie estimates; do not assume sex-specific physiology in wording.',
+  },
 ] as const;
 
 export const SESSION_LENGTH_OPTIONS = [

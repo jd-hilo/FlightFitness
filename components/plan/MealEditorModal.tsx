@@ -293,6 +293,8 @@ export function MealEditorModal({
                 onChangeText={setName}
                 placeholder="e.g. Chicken & rice bowl"
                 placeholderTextColor={theme.colors.onSurfaceVariant}
+                returnKeyType="done"
+                blurOnSubmit
               />
             </View>
             <View style={styles.field}>
@@ -304,6 +306,8 @@ export function MealEditorModal({
                 placeholder="Ingredients, prep, portions…"
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 multiline
+                returnKeyType="done"
+                submitBehavior="blurAndSubmit"
               />
             </View>
           </SectionCard>

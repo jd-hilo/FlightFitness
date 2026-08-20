@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 import { theme } from '@/constants/theme';
 
-export const ONBOARDING_STEP_COUNT = 10;
+export const ONBOARDING_STEP_COUNT = 11;
 
 export const onboardingStyles = StyleSheet.create({
   kavRoot: {

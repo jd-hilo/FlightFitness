@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { ONBOARDING_STEP_COUNT, onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
 
 type Props = {
@@ -19,6 +20,8 @@ type Props = {
   onNext: () => void;
   backHref?: string;
   hideFooter?: boolean;
+  /** Coach mark — onboarding only. */
+  tip?: string;
 };
 
 export function OnboardingShell({
@@ -29,6 +32,7 @@ export function OnboardingShell({
   onNext,
   backHref,
   hideFooter = false,
+  tip,
 }: Props) {
   const insets = useSafeAreaInsets();
   const progressRatio = Math.min(1, step / ONBOARDING_STEP_COUNT);
@@ -41,7 +45,7 @@ export function OnboardingShell({
     <KeyboardAvoidingView
       style={styles.kavRoot}
       behavior={Platform.OS === 'ios' ? 'height' : undefined}>
-      <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
+      <View style={[styles.screen, { paddingTop: insets.top + 24, paddingBottom: hideFooter ? insets.bottom + 12 : 0 }]}>
         <Text style={styles.brand}>FLIGHT FITNESS</Text>
         <View
           style={styles.progressTrack}
@@ -51,6 +55,7 @@ export function OnboardingShell({
           accessibilityValue={{ min: 0, max: ONBOARDING_STEP_COUNT, now: step }}>
           <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
         </View>
+        {tip ? <OnboardingTooltip text={tip} /> : null}
         {children}
         {!hideFooter ? (
           <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>

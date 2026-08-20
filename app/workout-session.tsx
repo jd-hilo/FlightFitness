@@ -18,10 +18,12 @@ import { ExerciseNotesButton } from '@/components/plan/ExerciseNotesButton';
 import { ExerciseNotesModal } from '@/components/plan/ExerciseNotesModal';
 import { NumberStepper } from '@/components/plan/NumberStepper';
 import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
+import { EditSessionDurationModal } from '@/components/insights/EditSessionDurationModal';
 import { RestTimerOverlay } from '@/components/workout/RestTimerOverlay';
 import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
 import { paywallHref, track } from '@/lib/analytics';
+import { scheduleFirstWorkoutReviewPrompt } from '@/lib/appReview';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { volumeLbFromExercises } from '@/lib/insights/workoutInsights';
 import { parseTargetReps } from '@/lib/repUtils';
@@ -50,8 +52,12 @@ import { useExerciseHistoryStore } from '@/stores/exerciseHistoryStore';
 import { useRestVerseModeStore } from '@/stores/restVerseModeStore';
 import { hasEssentialsAccess, useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
+import { formatYmdLocal } from '@/lib/weekUtils';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
-import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
+import {
+  useWorkoutSessionLogStore,
+  type WorkoutSessionLogEntry,
+} from '@/stores/workoutSessionLogStore';
 import type { Exercise } from '@/types/plan';
 
 type Focus = SetFocus;
@@ -64,6 +70,9 @@ type RestState = {
 };
 
 type EditorState = { mode: 'add' };
+
+/** Sessions longer than this were probably left running by accident. */
+const LONG_WORKOUT_SEC = 3 * 60 * 60;
 
 type NotesEditorState = { exerciseIndex: number; exercise: Exercise };
 
@@ -97,6 +106,8 @@ export default function WorkoutSessionScreen() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [notesEditor, setNotesEditor] = useState<NotesEditorState | null>(null);
   const [celebrateKey, setCelebrateKey] = useState(0);
+  const [durationFix, setDurationFix] = useState<WorkoutSessionLogEntry | null>(null);
+  const exitAfterFixRef = useRef<(() => void) | null>(null);
   const workoutVerseCycle = useMemo(() => {
     if (!session) return [];
     return buildWorkoutVerseCycle(session.sessionId, dailyVerse);
@@ -229,6 +240,8 @@ export default function WorkoutSessionScreen() {
     if (saveProgress) {
       applySessionProgress(live.sourceWorkoutId, live.exercises);
     }
+    const isFirstWorkout =
+      useWorkoutSessionLogStore.getState().sessions.length === 0;
     const logged = useExerciseHistoryStore.getState().logSession({
       sessionId: live.sessionId,
       sourceWorkoutId: live.sourceWorkoutId,
@@ -249,9 +262,39 @@ export default function WorkoutSessionScreen() {
         { performed, volumeLb, sessionId: live.sessionId }
       );
     }
-    finishSession();
-    showVerse(dailyVerse, 'Whatever you do, work at it with all your heart.');
-    router.replace('/(tabs)/train');
+
+    const exit = () => {
+      finishSession();
+      showVerse(dailyVerse, 'Whatever you do, work at it with all your heart.');
+      if (isFirstWorkout) scheduleFirstWorkoutReviewPrompt();
+      router.replace('/(tabs)/train');
+    };
+
+    if (durationSec > LONG_WORKOUT_SEC) {
+      exitAfterFixRef.current = exit;
+      Alert.alert(
+        'Forget to end your workout?',
+        `This session logged as ${formatDuration(durationSec)}. Want to edit the duration?`,
+        [
+          { text: `Keep ${formatDuration(durationSec)}`, style: 'cancel', onPress: exit },
+          {
+            text: 'Edit duration',
+            onPress: () =>
+              setDurationFix({
+                id: live.sessionId,
+                title: live.title,
+                sourceWorkoutId: live.sourceWorkoutId,
+                dateKey: formatYmdLocal(new Date(finishedAt)),
+                finishedAt,
+                durationSec,
+                volumeLb,
+              }),
+          },
+        ]
+      );
+      return;
+    }
+    exit();
   };
 
   if (!session) return null;
@@ -482,6 +525,22 @@ export default function WorkoutSessionScreen() {
           const incomplete = findFirstIncompleteSet(updated.exercises);
           if (incomplete) setFocus(incomplete);
           else setFocus({ exerciseIndex: newIndex, setRowIndex: 0 });
+        }}
+      />
+
+      <EditSessionDurationModal
+        visible={durationFix != null}
+        session={durationFix}
+        onClose={() => {
+          setDurationFix(null);
+          exitAfterFixRef.current?.();
+          exitAfterFixRef.current = null;
+        }}
+        onSave={(sessionId, durationSec) => {
+          useWorkoutSessionLogStore.getState().updateSessionDuration(sessionId, durationSec);
+          setDurationFix(null);
+          exitAfterFixRef.current?.();
+          exitAfterFixRef.current = null;
         }}
       />
 

@@ -17,7 +17,8 @@ export default function OnboardingHeightScreen() {
       step={6}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/body-goals')}>
+      onNext={() => router.push('/(onboarding)/body-goals')}
+      tip="Scroll to your height, then continue.">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
         <Text style={styles.title}>Height</Text>
         <Text style={styles.subtitle}>

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
@@ -21,7 +21,8 @@ export default function OnboardingTrainingScreen() {
       step={9}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/workouts-intro')}>
+      onNext={() => router.push('/(onboarding)/first-set' as Href)}
+      tip="Tap your experience and what you train with.">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
         <Text style={styles.title}>Training</Text>
         <Text style={styles.subtitle}>

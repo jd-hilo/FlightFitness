@@ -16,7 +16,8 @@ export default function OnboardingCurrentWeightScreen() {
       step={2}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/target-weight')}>
+      onNext={() => router.push('/(onboarding)/target-weight')}
+      tip="Scroll to your current weight, then continue.">
       <Text style={styles.title}>Current weight</Text>
       <Text style={styles.subtitle}>
         Where you are today — we use this to estimate maintenance calories.

@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConfettiBurst } from '@/components/ConfettiBurst';
+import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { theme } from '@/constants/theme';
 import type { BiblePassage } from '@/lib/bibleApi';
 import { formatDuration } from '@/lib/formatDuration';
@@ -39,6 +40,11 @@ type Props = {
   celebrateKey?: number;
   onSkip: () => void;
   onComplete: () => void;
+  /** Onboarding-only coach mark; hides when the passage opens. */
+  coachTip?: string;
+  onOpenPassage?: () => void;
+  /** When false, timer reaching 0 does not auto-dismiss (onboarding aha). */
+  autoAdvance?: boolean;
 };
 
 function RestTimerPill({ remaining }: { remaining: number }) {
@@ -61,6 +67,9 @@ export function RestTimerOverlay({
   celebrateKey = 0,
   onSkip,
   onComplete,
+  coachTip,
+  onOpenPassage,
+  autoAdvance = true,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [remaining, setRemaining] = useState(seconds);
@@ -101,14 +110,14 @@ export function RestTimerOverlay({
           clearInterval(id);
           void playRestTimerDing();
           hapticNotify();
-          onCompleteRef.current();
+          if (autoAdvance) onCompleteRef.current();
           return 0;
         }
         return r - 1;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [visible, seconds]);
+  }, [visible, seconds, autoAdvance]);
 
   const loadPassage = useCallback(
     (force = false) => {
@@ -140,6 +149,7 @@ export function RestTimerOverlay({
 
   const openReader = () => {
     setReaderOpen(true);
+    onOpenPassage?.();
     if (!passage && passageError) loadPassage(true);
   };
 
@@ -230,7 +240,9 @@ export function RestTimerOverlay({
               <View style={styles.heroFooter}>
                 <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
                 <Pressable onPress={onSkip} hitSlop={12}>
-                  <Text style={styles.skipGhost}>Skip rest</Text>
+                  <Text style={styles.skipGhost}>
+                    {remaining === 0 && !autoAdvance ? 'Continue' : 'Skip rest'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -258,6 +270,11 @@ export function RestTimerOverlay({
             </View>
 
             <View style={styles.verseBlock}>
+              {coachTip && !readerOpen ? (
+                <View style={styles.coachTipWrap}>
+                  <OnboardingTooltip text={coachTip} />
+                </View>
+              ) : null}
               {onVerseUpgradePress && verseUpgradeLabel ? (
                 <Pressable
                   onPress={onVerseUpgradePress}
@@ -295,7 +312,9 @@ export function RestTimerOverlay({
             <View style={styles.heroFooter}>
               <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
               <Pressable onPress={onSkip} hitSlop={12}>
-                <Text style={styles.skipGhost}>Skip rest</Text>
+                <Text style={styles.skipGhost}>
+                  {remaining === 0 && !autoAdvance ? 'Continue' : 'Skip rest'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -377,6 +396,9 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     borderTopWidth: 1,
     borderTopColor: theme.colors.outline,
+  },
+  coachTipWrap: {
+    marginBottom: 8,
   },
   verseBody: {
     flex: 1,

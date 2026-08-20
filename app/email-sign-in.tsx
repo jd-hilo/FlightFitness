@@ -94,7 +94,7 @@ export default function EmailSignInScreen() {
       </View>
 
       <Text style={styles.title}>
-        {afterAuthToOnboarding ? 'Verify your email' : 'Sign in with email'}
+        {afterAuthToOnboarding ? 'Verify your email' : 'Enter your email'}
       </Text>
       <Text style={styles.sub}>
         {step === 'email'

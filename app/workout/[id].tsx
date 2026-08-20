@@ -91,6 +91,8 @@ export default function WorkoutDetailScreen() {
           style={styles.input}
           value={titleDraft}
           onChangeText={setTitleDraft}
+          returnKeyType="done"
+          blurOnSubmit
           onBlur={() => {
             if (titleDraft.trim()) updateWorkoutTitle(workout.id, titleDraft.trim());
           }}

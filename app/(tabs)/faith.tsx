@@ -190,17 +190,6 @@ export default function FaithScreen() {
               </>
             )}
             <Text style={styles.readingReflect}>{reading.reflection}</Text>
-            <View style={styles.promptBox}>
-              <Text style={styles.promptLabel}>
-                {coachPrompt ? 'From your coach' : 'Reflect'}
-              </Text>
-              {coachPrompt?.title ? (
-                <Text style={styles.promptText}>{coachPrompt.title}</Text>
-              ) : null}
-              <Text style={styles.promptText}>
-                {coachPrompt?.body ?? reading.studyPrompt}
-              </Text>
-            </View>
             <Text style={styles.apiNote}>
               Passage from <Text style={styles.apiNoteEm}>bible-api.com</Text> (public
               domain).
@@ -253,10 +242,14 @@ export default function FaithScreen() {
             onPress={() => toggleJournalDone(dateKey)}>
             <TaskCheck done={day.journalDone} />
             <View style={styles.taskHeaderText}>
-              <Text style={styles.taskHeaderTitle}>Your reflection</Text>
-              <Text style={styles.taskHeaderSub}>
-                Respond to today&apos;s study above. When you&apos;re finished, tap the
-                check to save it. Tap the check again to clear and start over.
+              <Text style={styles.promptLabel}>
+                {coachPrompt ? 'From your coach' : 'Reflect'}
+              </Text>
+              {coachPrompt?.title ? (
+                <Text style={styles.promptText}>{coachPrompt.title}</Text>
+              ) : null}
+              <Text style={styles.promptText}>
+                {coachPrompt?.body ?? reading.studyPrompt}
               </Text>
             </View>
           </Pressable>
@@ -268,7 +261,7 @@ export default function FaithScreen() {
             onChangeText={(t) => setJournalLine(dateKey, t)}
             multiline
             returnKeyType="done"
-            blurOnSubmit
+            submitBehavior="blurAndSubmit"
             maxLength={280}
             onSubmitEditing={() => markJournalReflectionComplete(dateKey)}
             onFocus={scrollJournalIntoView}
@@ -432,12 +425,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: theme.colors.onSurfaceVariant,
-    marginBottom: 16,
-  },
-  promptBox: {
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.gold,
-    paddingLeft: 14,
     marginBottom: 16,
   },
   promptLabel: {

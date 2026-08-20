@@ -60,7 +60,12 @@ export default function OnboardingMacroReviewScreen() {
       backHref="back"
       onNext={onNext}
       nextLabel="Save & continue"
-      hideFooter={loading}>
+      hideFooter={loading}
+      tip={
+        loading
+          ? undefined
+          : 'These are yours. Adjust if you want, then lock them in.'
+      }>
       {loading ? (
         <View style={styles.center}>
           <AppLoadingCross size="large" />

@@ -1,0 +1,34 @@
+---
+description: Finish setup tasks end-to-end — local, EAS, and code — without leaving steps for the user
+alwaysApply: true
+---
+
+# Complete tasks fully
+
+When the user asks to add, configure, or integrate something, **do the full job yourself**. Do not stop at code changes and hand off manual steps unless you genuinely cannot proceed (missing credentials, blocked auth, or explicit user-only action).
+
+## Default completion checklist
+
+For env vars, API keys, and third-party integrations:
+
+1. **Code** — install packages, wire config, update `.env.example` (placeholders only, never real secrets)
+2. **Local** — write values to `.env` when the user provides them
+3. **EAS** — add `EXPO_PUBLIC_*` vars to **production**, **development**, and **preview** on `@jd-hilo/flight-fitness`:
+
+```bash
+eas env:create --name VAR_NAME --value "..." --environment production --visibility sensitive --non-interactive --force
+eas env:create --name VAR_NAME --value "..." --environment development --visibility sensitive --non-interactive --force
+eas env:create --name VAR_NAME --value "..." --environment preview --visibility sensitive --non-interactive --force
+```
+
+4. **Verify** — confirm vars exist (`eas env:list`), typecheck, and tell the user only what still requires them (e.g. rebuild dev client, restart Expo)
+
+## Do not
+
+- Give a "next steps" list for things you can run (EAS env, npm install, migrations, CLI setup)
+- Add a key to `.env` but skip EAS when the user said "add to my project"
+- Put real secrets in `.env.example` or commit them to git
+
+## When blocked
+
+Say exactly what blocked you and the minimum the user must provide (e.g. missing API key, OAuth login). Otherwise, execute.

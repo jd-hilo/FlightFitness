@@ -19,7 +19,8 @@ export default function OnboardingBodyGoalsScreen() {
       step={7}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/macro-review')}>
+      onNext={() => router.push('/(onboarding)/macro-review')}
+      tip="Choose up to two goals — these shape your macros.">
       <Text style={styles.title}>Your fitness goals</Text>
       <Text style={styles.subtitle}>
         Choose up to two — we use these to shape your calorie and macro targets.

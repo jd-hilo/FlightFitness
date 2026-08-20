@@ -84,7 +84,7 @@ export function ExerciseNotesModal({
             multiline
             autoFocus
             returnKeyType="done"
-            blurOnSubmit
+            submitBehavior="blurAndSubmit"
           />
           <Text style={styles.hint}>
             Saved with this exercise. Visible during your workout.

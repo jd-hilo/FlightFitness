@@ -17,7 +17,8 @@ export default function OnboardingAgeScreen() {
       step={5}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/about-height')}>
+      onNext={() => router.push('/(onboarding)/about-height')}
+      tip="Scroll to your age, then continue.">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
         <Text style={styles.title}>Age</Text>
         <Text style={styles.subtitle}>

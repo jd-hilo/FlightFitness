@@ -16,7 +16,8 @@ export default function OnboardingTargetWeightScreen() {
       step={3}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/about-sex')}>
+      onNext={() => router.push('/(onboarding)/about-sex')}
+      tip="Pick the weight you're working toward.">
       <Text style={styles.title}>Target weight</Text>
       <Text style={styles.subtitle}>
         Where you want to be — this shapes your calorie deficit or surplus.

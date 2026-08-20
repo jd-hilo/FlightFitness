@@ -173,7 +173,7 @@ export default function CoachChatScreen() {
           onChangeText={setInput}
           multiline
           returnKeyType="done"
-          blurOnSubmit
+          submitBehavior="blurAndSubmit"
           maxLength={4000}
           editable={!sending && supabaseConfigured}
         />

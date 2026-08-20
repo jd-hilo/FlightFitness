@@ -1,7 +1,7 @@
 import { router, type Href } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -19,6 +19,9 @@ import { generateWeekPlan } from '@/lib/api/plan';
 import { paywallHref, trackPlanGenerated } from '@/lib/analytics';
 import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 import {
+  FEEDBACK_MAILTO,
+  FLIGHT_FITNESS_PRIVACY_POLICY_URL,
+  FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
   REPDB_URL,
 } from '@/lib/legalUrls';
 import {
@@ -166,6 +169,12 @@ export default function EliteScreen() {
     })();
   }, [tier]);
 
+  const onSubmitFeedback = useCallback(() => {
+    void Linking.openURL(FEEDBACK_MAILTO).catch(() => {
+      Alert.alert('Email', 'Could not open mail. Write us at hello@hilo.media');
+    });
+  }, []);
+
   const onDevRegeneratePlan = useCallback(() => {
     Alert.alert('Regenerate week?', 'Dev only — replaces this week\'s plan.', [
       { text: 'Cancel', style: 'cancel' },
@@ -294,6 +303,65 @@ export default function EliteScreen() {
           </Pressable>
         ) : null}
 
+        <View style={styles.settingsCard}>
+          <Text style={styles.chartKicker}>Settings</Text>
+
+          <Pressable
+            style={styles.settingsRow}
+            onPress={onSubmitFeedback}
+            accessibilityRole="button"
+            accessibilityLabel="Submit app feedback">
+            <MaterialIcons name="mail-outline" size={20} color={theme.colors.gold} />
+            <View style={styles.settingsRowText}>
+              <Text style={styles.settingsRowTitle}>Have feedback?</Text>
+              <Text style={styles.settingsRowSub}>Submit app feedback</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={theme.colors.onSurfaceVariant} />
+          </Pressable>
+
+          <Pressable
+            style={styles.settingsRow}
+            onPress={() => void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Service">
+            <MaterialIcons name="description" size={20} color={theme.colors.gold} />
+            <Text style={[styles.settingsRowTitle, styles.settingsRowTitleSolo]}>
+              Terms of Service
+            </Text>
+            <MaterialIcons name="open-in-new" size={18} color={theme.colors.onSurfaceVariant} />
+          </Pressable>
+
+          <Pressable
+            style={styles.settingsRow}
+            onPress={() => void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy">
+            <MaterialIcons name="privacy-tip" size={20} color={theme.colors.gold} />
+            <Text style={[styles.settingsRowTitle, styles.settingsRowTitleSolo]}>
+              Privacy Policy
+            </Text>
+            <MaterialIcons name="open-in-new" size={18} color={theme.colors.onSurfaceVariant} />
+          </Pressable>
+
+          <Pressable
+            style={styles.signOutBtn}
+            onPress={onSignOut}
+            disabled={signingOut || deletingAccount}>
+            <Text style={styles.signOutTxt}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onDeleteAccount}
+            disabled={signingOut || deletingAccount}
+            hitSlop={8}>
+            <Text style={styles.deleteTxt}>
+              {deletingAccount ? 'Deleting…' : 'Delete account'}
+            </Text>
+          </Pressable>
+        </View>
+
         <Text style={styles.attribution}>
           Exercise data by{' '}
           <Text
@@ -302,24 +370,6 @@ export default function EliteScreen() {
             RepDB (repdb.co)
           </Text>
         </Text>
-
-        <Pressable
-          style={styles.signOutBtn}
-          onPress={onSignOut}
-          disabled={signingOut || deletingAccount}>
-          <Text style={styles.signOutTxt}>
-            {signingOut ? 'Signing out…' : 'Sign out'}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={onDeleteAccount}
-          disabled={signingOut || deletingAccount}
-          hitSlop={8}>
-          <Text style={styles.deleteTxt}>
-            {deletingAccount ? 'Deleting…' : 'Delete account'}
-          </Text>
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -406,6 +456,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
   },
+  settingsCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 16,
+    marginBottom: 20,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  settingsRowText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  settingsRowTitle: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+  },
+  settingsRowTitleSolo: {
+    flex: 1,
+  },
+  settingsRowSub: {
+    marginTop: 3,
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+  },
   manageLink: {
     alignItems: 'center',
     paddingVertical: 4,
@@ -438,6 +526,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.error,
     paddingVertical: 14,
     alignItems: 'center',
+    marginTop: 8,
     marginBottom: 12,
   },
   signOutTxt: {
@@ -454,7 +543,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
     textAlign: 'center',
-    marginBottom: 24,
   },
   attribution: {
     fontFamily: theme.fonts.body,

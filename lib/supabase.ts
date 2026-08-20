@@ -7,12 +7,22 @@ const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export const supabaseConfigured = Boolean(url && anon);
 
+/** Node static/SSR has no `window`; AsyncStorage throws and kills Metro. */
+const canUseNativeStorage = typeof window !== 'undefined';
+
 export const supabase = supabaseConfigured
   ? createClient(url, anon, {
       auth: {
-        storage: AsyncStorage,
-        autoRefreshToken: true,
-        persistSession: true,
+        ...(canUseNativeStorage
+          ? {
+              storage: AsyncStorage,
+              autoRefreshToken: true,
+              persistSession: true,
+            }
+          : {
+              persistSession: false,
+              autoRefreshToken: false,
+            }),
         detectSessionInUrl: false,
       },
     })

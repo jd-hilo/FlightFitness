@@ -16,7 +16,8 @@ export default function OnboardingSexScreen() {
       step={4}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/about-age')}>
+      onNext={() => router.push('/(onboarding)/about-age')}
+      tip="Tap one — we use this for calorie math.">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
         <Text style={styles.title}>Sex</Text>
         <Text style={styles.subtitle}>

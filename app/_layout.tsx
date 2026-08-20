@@ -87,8 +87,9 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="welcome" />
             <Stack.Screen name="email-sign-in" />
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(tabs)" />
+            {/* No swipe-back out of onboarding into welcome, or out of the app into onboarding. */}
+            <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="workout-session" options={{ headerShown: false }} />
             <Stack.Screen name="workout/[id]" options={{ headerShown: false }} />
             <Stack.Screen

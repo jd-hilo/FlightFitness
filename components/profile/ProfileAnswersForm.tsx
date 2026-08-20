@@ -256,7 +256,7 @@ export function ProfileAnswersForm() {
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
           returnKeyType="done"
-          blurOnSubmit
+          submitBehavior="blurAndSubmit"
           value={answers.injuryNotes}
           onChangeText={(t) => setNotes('injuryNotes', t)}
           onFocus={scrollNotesIntoView}
@@ -339,7 +339,7 @@ export function ProfileAnswersForm() {
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
           returnKeyType="done"
-          blurOnSubmit
+          submitBehavior="blurAndSubmit"
           value={answers.dietOtherNotes}
           onChangeText={(t) => setNotes('dietOtherNotes', t)}
           onFocus={scrollNotesIntoView}
@@ -375,7 +375,7 @@ export function ProfileAnswersForm() {
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
           returnKeyType="done"
-          blurOnSubmit
+          submitBehavior="blurAndSubmit"
           value={answers.allergyOtherNotes}
           onChangeText={(t) => setNotes('allergyOtherNotes', t)}
           onFocus={scrollNotesIntoView}

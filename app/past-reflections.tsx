@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { theme } from '@/constants/theme';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { parseYmdLocal } from '@/lib/weekUtils';
@@ -79,12 +78,10 @@ export default function PastReflectionsScreen() {
         pointerEvents="none"
       />
 
-      <ScreenHeader />
-
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + 40 },
+          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 },
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.headingRow}>
@@ -245,7 +242,7 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  scroll: { paddingHorizontal: 22, paddingTop: 8 },
+  scroll: { paddingHorizontal: 22 },
   lead: {
     fontFamily: theme.fonts.body,
     fontSize: 14,

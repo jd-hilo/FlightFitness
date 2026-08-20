@@ -50,7 +50,12 @@ export default function OnboardingNameScreen() {
   };
 
   return (
-    <OnboardingShell step={1} canNext={canNext} onNext={onNext} nextLabel="Continue">
+    <OnboardingShell
+      step={1}
+      canNext={canNext}
+      onNext={onNext}
+      nextLabel="Continue"
+      tip="Type your first name — this is how we'll greet you.">
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

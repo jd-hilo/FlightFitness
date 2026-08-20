@@ -203,6 +203,8 @@ export function ExerciseEditorModal({
                 onChangeText={setName}
                 placeholder="Search or type exercise"
                 placeholderTextColor={theme.colors.onSurfaceVariant}
+                returnKeyType="done"
+                blurOnSubmit
               />
             </View>
           </View>
@@ -244,6 +246,8 @@ export function ExerciseEditorModal({
             value={restS}
             onChangeText={setRestS}
             keyboardType="number-pad"
+            returnKeyType="done"
+            blurOnSubmit
           />
 
           <View style={styles.setHead}>
@@ -311,6 +315,8 @@ export function ExerciseEditorModal({
             placeholder="Tempo, substitutions, cues…"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
+            returnKeyType="done"
+            submitBehavior="blurAndSubmit"
           />
 
           {onDelete ? (

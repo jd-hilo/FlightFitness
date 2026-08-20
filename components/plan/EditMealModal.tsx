@@ -159,7 +159,7 @@ export function EditMealModal({ visible, meal, onClose, onSave }: Props) {
             placeholderTextColor={theme.colors.onSurfaceVariant}
             multiline
             returnKeyType="done"
-            blurOnSubmit
+            submitBehavior="blurAndSubmit"
           />
 
           <Text style={styles.label}>Macros</Text>

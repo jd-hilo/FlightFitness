@@ -6,6 +6,10 @@ export const FLIGHT_FITNESS_TERMS_OF_SERVICE_URL =
 export const FLIGHT_FITNESS_PRIVACY_POLICY_URL =
   'https://pastoral-supply-662.notion.site/FLIGHT-FITNESS-PRIVACY-POLICY-3522cec59ddf8009b9faf676a07cb7d0?source=copy_link';
 
+/** In-app feedback inbox. */
+export const FEEDBACK_EMAIL = 'hello@hilo.media';
+export const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Flight Fitness app feedback')}`;
+
 /** RepDB free exercise dataset (bundled JSON + WebP). Attribution required. */
 export const REPDB_URL = 'https://repdb.co';
 

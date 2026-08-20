@@ -151,6 +151,8 @@ export default function CoachingInfoScreen() {
             placeholderTextColor={theme.colors.onSurfaceVariant}
             autoCapitalize="characters"
             autoCorrect={false}
+            returnKeyType="done"
+            blurOnSubmit
             maxLength={12}
           />
           <Pressable

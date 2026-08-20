@@ -1,22 +1,13 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
-import { useEffect, useState } from 'react';
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import {
-  Dimensions,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
-  interpolate,
   useAnimatedStyle,
   useSharedValue,
-  type SharedValue,
   withDelay,
   withRepeat,
   withSequence,
@@ -25,25 +16,32 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { MacroDashboard } from '@/components/plan/MacroDashboard';
-import { WorkoutBlock } from '@/components/plan/WorkoutBlock';
 import { theme } from '@/constants/theme';
+import { hapticImpact } from '@/lib/haptics';
 import {
   FLIGHT_FITNESS_PRIVACY_POLICY_URL,
   FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
 } from '@/lib/legalUrls';
 import { restVerseHeroText } from '@/lib/restVerseDisplay';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
-import type { MacroTargets, WorkoutDay } from '@/types/plan';
+import type { MacroTargets } from '@/types/plan';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BEATS = ['brand', 'set', 'rest', 'fuel', 'faith'] as const;
+type Beat = (typeof BEATS)[number];
 
-const WELCOME_SLIDE_COUNT = 5;
+const BRAND_HOLD_MS = 2200;
+const REST_SEC = 20;
+const CTA_REVEAL_MS = 3200;
 
 const DUMMY_VERSE = {
   text: 'Trust in Yahweh with all your heart, and don’t lean on your own understanding.',
   reference: 'Proverbs 3:5',
 };
+
+const DUMMY_CONTEXT =
+  'In all your ways acknowledge him, and he will make your paths straight.';
 
 const DUMMY_MACROS: MacroTargets = {
   calories: 2200,
@@ -52,67 +50,82 @@ const DUMMY_MACROS: MacroTargets = {
   fatG: 70,
 };
 
-const DUMMY_WORKOUT: WorkoutDay = {
-  dayIndex: 0,
-  title: 'Push — Strength',
-  exercises: [
-    {
-      id: 'ex1',
-      name: 'Incline Bench Press',
-      sets: 4,
-      reps: '8-10',
-      restSec: 120,
-    },
-  ],
-};
+function FadeStage({
+  active,
+  children,
+  enterDelay = 0,
+}: {
+  active: boolean;
+  children: ReactNode;
+  enterDelay?: number;
+}) {
+  const op = useSharedValue(0);
+  const y = useSharedValue(18);
 
-function ProgressBars({ scrollProgress }: { scrollProgress: SharedValue<number> }) {
+  useEffect(() => {
+    if (active) {
+      op.value = withDelay(
+        enterDelay,
+        withTiming(1, { duration: 780, easing: Easing.out(Easing.cubic) })
+      );
+      y.value = withDelay(
+        enterDelay,
+        withTiming(0, { duration: 780, easing: Easing.out(Easing.cubic) })
+      );
+    } else {
+      op.value = withTiming(0, { duration: 420, easing: Easing.in(Easing.cubic) });
+      y.value = withTiming(-10, { duration: 420, easing: Easing.in(Easing.cubic) });
+    }
+  }, [active, enterDelay, op, y]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: op.value,
+    transform: [{ translateY: y.value }],
+  }));
+
   return (
-    <View
-      style={styles.progressRow}
-      accessibilityRole="progressbar"
-      accessibilityLabel="Welcome intro progress">
-      {Array.from({ length: WELCOME_SLIDE_COUNT }, (_, i) => (
-        <ProgressSegment key={i} i={i} scrollProgress={scrollProgress} />
-      ))}
+    <Animated.View
+      style={[styles.stage, style]}
+      pointerEvents={active ? 'auto' : 'none'}>
+      {children}
+    </Animated.View>
+  );
+}
+
+function ActionKicker({ label }: { label: string }) {
+  return (
+    <View style={styles.kickerRow}>
+      <View style={styles.kickerRule} />
+      <Text style={styles.kicker}>{label}</Text>
     </View>
   );
 }
 
-function ProgressSegment({
-  i,
-  scrollProgress,
-}: {
-  i: number;
-  scrollProgress: SharedValue<number>;
-}) {
-  const fillStyle = useAnimatedStyle(() => {
-    // Past slides stay full; the active slide fills as you swipe into it.
-    const fill = interpolate(scrollProgress.value, [i - 1, i], [0, 1], 'clamp');
-    return {
-      transform: [{ scaleX: fill }],
-    };
-  });
-
-  return (
-    <View style={styles.progressTrack}>
-      <Animated.View style={[styles.progressFill, fillStyle]} />
-    </View>
-  );
+function formatRestClock(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { ready: authReady, registered } = useRegisteredAuth();
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const isLastSlide = carouselIndex >= WELCOME_SLIDE_COUNT - 1;
+  const [beat, setBeat] = useState<Beat>('brand');
+  const [setDone, setSetDone] = useState(false);
+  const [celebrateKey, setCelebrateKey] = useState(0);
+  const [restRemaining, setRestRemaining] = useState(REST_SEC);
+  const [verseTapped, setVerseTapped] = useState(false);
+  const [ctaReady, setCtaReady] = useState(false);
+  const beatIndex = BEATS.indexOf(beat);
+  const isLast = beat === 'faith';
   const restVerse = restVerseHeroText(DUMMY_VERSE.text);
 
-  const scrollProgress = useSharedValue(0);
+  const showCta =
+    (beat === 'rest' && (ctaReady || verseTapped)) || beat === 'fuel' || isLast;
+
   const ctaOp = useSharedValue(0);
   const ctaScale = useSharedValue(0.94);
-  const swipeNudge = useSharedValue(0);
-  const swipePulse = useSharedValue(0.55);
+  const pulse = useSharedValue(1);
 
   useEffect(() => {
     if (!authReady || !registered) return;
@@ -120,58 +133,91 @@ export default function WelcomeScreen() {
   }, [authReady, registered]);
 
   useEffect(() => {
-    swipeNudge.value = withRepeat(
-      withSequence(
-        withTiming(10, { duration: 700, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 700, easing: Easing.inOut(Easing.quad) })
-      ),
+    pulse.value = withRepeat(
+      withSequence(withTiming(1.08, { duration: 700 }), withTiming(1, { duration: 700 })),
       -1,
       false
     );
-    swipePulse.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 850 }),
-        withTiming(0.5, { duration: 850 })
-      ),
-      -1,
-      true
-    );
-  }, [swipeNudge, swipePulse]);
+  }, [pulse]);
+
+  // Brand splash is a title card, not a step — fade into the set on its own.
+  useEffect(() => {
+    if (beat !== 'brand') return;
+    const id = setTimeout(() => setBeat('set'), BRAND_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [beat]);
 
   useEffect(() => {
-    if (!isLastSlide) {
+    if (beat !== 'rest') return;
+    setRestRemaining(REST_SEC);
+    const tick = setInterval(() => {
+      setRestRemaining((r) => (r <= 1 ? 0 : r - 1));
+    }, 1000);
+    const reveal = setTimeout(() => setCtaReady(true), CTA_REVEAL_MS);
+    return () => {
+      clearInterval(tick);
+      clearTimeout(reveal);
+    };
+  }, [beat]);
+
+  useEffect(() => {
+    if (!showCta) {
       ctaOp.value = 0;
       ctaScale.value = 0.94;
       return;
     }
-    ctaOp.value = withDelay(120, withTiming(1, { duration: 420 }));
-    ctaScale.value = withDelay(120, withSpring(1, { damping: 14, stiffness: 120 }));
-  }, [isLastSlide, ctaOp, ctaScale]);
+    ctaOp.value = withDelay(240, withTiming(1, { duration: 520 }));
+    ctaScale.value = withDelay(240, withSpring(1, { damping: 14, stiffness: 120 }));
+  }, [showCta, ctaOp, ctaScale]);
 
   const ctaStyle = useAnimatedStyle(() => ({
     opacity: ctaOp.value,
     transform: [{ scale: ctaScale.value }],
   }));
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
-  const swipeCueStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeNudge.value }],
-    opacity: swipePulse.value,
-  }));
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const x = e.nativeEvent.contentOffset.x;
-    scrollProgress.value = x / SCREEN_WIDTH;
+  const goNext = () => {
+    const next = BEATS[beatIndex + 1];
+    if (next) setBeat(next);
   };
 
-  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const x = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(x / SCREEN_WIDTH);
-    setCarouselIndex(Math.min(WELCOME_SLIDE_COUNT - 1, Math.max(0, idx)));
+  const skipToEnd = () => setBeat('faith');
+
+  const canGoForward =
+    beat === 'brand' ||
+    (beat === 'set' && setDone) ||
+    (beat === 'rest' && (ctaReady || verseTapped)) ||
+    beat === 'fuel';
+
+  const swipe = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_e, g) =>
+          Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dx > 60 && beatIndex > 0) {
+            setBeat(BEATS[beatIndex - 1]);
+          } else if (g.dx < -60 && canGoForward) {
+            const next = BEATS[beatIndex + 1];
+            if (next) setBeat(next);
+          }
+        },
+      }),
+    [beatIndex, canGoForward]
+  );
+
+  const onCompleteSet = () => {
+    if (setDone) return;
+    setSetDone(true);
+    hapticImpact();
+    setCelebrateKey((k) => k + 1);
+    setTimeout(() => setBeat('rest'), 480);
   };
 
-  const onGetStarted = () => {
-    if (!isLastSlide) return;
-    router.push('/email-sign-in' as Href);
+  const onTapVerse = () => {
+    if (verseTapped) return;
+    setVerseTapped(true);
+    hapticImpact();
   };
 
   return (
@@ -182,161 +228,188 @@ export default function WelcomeScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.screen, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 20 }]}>
-        <ProgressBars scrollProgress={scrollProgress} />
-
-        <View style={styles.carouselContainer}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={SCREEN_WIDTH}
-            decelerationRate="fast"
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            onMomentumScrollEnd={onMomentumScrollEnd}
-            contentContainerStyle={styles.carouselContent}>
-            <View style={styles.carouselItem}>
-              <View style={styles.heroSlide}>
-                <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
-                <Text style={styles.heroTagline}>WHERE FAITH MEETS FUNCTION</Text>
-              </View>
-            </View>
-
-            <View style={styles.carouselItem}>
-              <View style={styles.cardWrapper}>
-                <View style={styles.uiHeader}>
-                  <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText} numberOfLines={1}>
-                    Daily verse & study
-                  </Text>
-                </View>
-                <View style={styles.wordCard}>
-                  <Text style={styles.wordBgRef}>PROVERBS 3</Text>
-                  <Text style={styles.wordQuote}>&ldquo;{DUMMY_VERSE.text}&rdquo;</Text>
-                  <Text style={styles.wordRef}>
-                    {DUMMY_VERSE.reference.toUpperCase()} // WISDOM SERIES
-                  </Text>
-                  <View style={styles.wordBtns}>
-                    <View style={styles.btnGold}>
-                      <Text style={styles.btnGoldTxt}>Study Context</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.carouselItem}>
-              <View style={styles.cardWrapper}>
-                <View style={styles.uiHeader}>
-                  <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText} numberOfLines={1}>
-                    Track your macros
-                  </Text>
-                </View>
-                <MacroDashboard
-                  compact
-                  targets={DUMMY_MACROS}
-                  loggedKcal={1500}
-                  loggedProtein={140}
-                  loggedCarbs={110}
-                  loggedFat={42}
+      <View
+        {...swipe.panHandlers}
+        style={[
+          styles.screen,
+          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 16 },
+        ]}>
+        <View style={styles.topBar}>
+          <View
+            style={styles.progressRow}
+            accessibilityRole="progressbar"
+            accessibilityLabel={`Welcome, step ${beatIndex + 1} of ${BEATS.length}`}>
+            {BEATS.map((id, i) => (
+              <View key={id} style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      opacity: i <= beatIndex ? 1 : 0.22,
+                      transform: [{ scaleX: i <= beatIndex ? 1 : 0 }],
+                    },
+                  ]}
                 />
               </View>
-            </View>
+            ))}
+          </View>
+          {!isLast ? (
+            <Pressable
+              onPress={skipToEnd}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Skip intro">
+              <Text style={styles.skip}>Skip</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.skipSpacer} />
+          )}
+        </View>
 
-            <View style={styles.carouselItem}>
-              <View style={styles.cardWrapper}>
-                <View style={styles.uiHeader}>
-                  <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText} numberOfLines={1}>
-                    Structured workouts
-                  </Text>
+        <View style={styles.stageHost}>
+          <FadeStage active={beat === 'brand'}>
+            <View style={styles.brandSlide}>
+              <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
+              <Text style={styles.heroTagline}>WHERE FAITH{'\n'}MEETS FUNCTION</Text>
+            </View>
+          </FadeStage>
+
+          <FadeStage active={beat === 'set'}>
+            <ActionKicker label="Your first set starts now" />
+            <Text style={styles.actionLead}>
+              Tap the circle to complete the set.
+            </Text>
+            <Pressable
+              onPress={setDone ? goNext : onCompleteSet}
+              style={[styles.setCard, setDone && styles.setCardDone]}
+              accessibilityRole="button"
+              accessibilityLabel={setDone ? 'Continue to rest' : 'Mark set 1 complete'}>
+              <View style={styles.setHead}>
+                <Animated.View style={!setDone ? pulseStyle : undefined}>
+                  <MaterialIcons
+                    name={setDone ? 'check-circle' : 'radio-button-unchecked'}
+                    size={30}
+                    color={theme.colors.gold}
+                  />
+                </Animated.View>
+                <View style={styles.setBadge}>
+                  <Text style={styles.setBadgeTxt}>1</Text>
                 </View>
-                <WorkoutBlock
-                  compact
-                  workout={DUMMY_WORKOUT}
-                  completed={false}
-                  exerciseIdsDone={['ex1']}
-                  onToggleComplete={() => {}}
-                  onToggleExercise={() => {}}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.setName}>Plank</Text>
+                  <Text style={styles.setMeta}>Set 1 · 20 sec</Text>
+                </View>
+              </View>
+              <Text style={styles.setTapHint}>
+                {setDone ? 'Done. Rest starts now.' : 'Tap when done'}
+              </Text>
+            </Pressable>
+          </FadeStage>
+
+          <FadeStage active={beat === 'rest'}>
+            <ActionKicker label="Rest — stay in the Word" />
+            <Text style={styles.actionLead}>A verse with every rest.</Text>
+            <View style={styles.restCard}>
+              <View style={styles.restHead}>
+                <Text style={styles.restKicker}>Rest</Text>
+                <Text style={styles.restTimer}>{formatRestClock(restRemaining)}</Text>
+              </View>
+              <View style={styles.restProgressTrack}>
+                <View
+                  style={[
+                    styles.restProgressFill,
+                    { width: `${Math.max(4, (restRemaining / REST_SEC) * 100)}%` },
+                  ]}
                 />
               </View>
+              <Pressable
+                onPress={onTapVerse}
+                style={styles.restVerseBlock}
+                accessibilityRole="button"
+                accessibilityLabel="Read today's verse in context">
+                <Text style={styles.restVerseLabel}>Today&apos;s word</Text>
+                <Text style={styles.restVerseRef}>
+                  {DUMMY_VERSE.reference.toUpperCase()}
+                </Text>
+                <Text style={styles.restVerseText}>{restVerse.text}</Text>
+                {verseTapped ? (
+                  <Text style={styles.restVerseContext}>{DUMMY_CONTEXT}</Text>
+                ) : (
+                  <Text style={styles.restVerseTap}>Tap to read in context ›</Text>
+                )}
+              </Pressable>
             </View>
+          </FadeStage>
 
-            <View style={styles.carouselItem}>
-              <View style={styles.cardWrapper}>
-                <View style={styles.uiHeader}>
-                  <View style={styles.uiHeaderRule} />
-                  <Text style={styles.uiHeaderText} numberOfLines={1}>
-                    Study between sets
-                  </Text>
-                </View>
-                <View style={styles.restCard}>
-                  <Text style={styles.restKicker}>Rest</Text>
-                  <Text style={styles.restTimer}>1:30</Text>
-                  <View style={styles.restProgressTrack}>
-                    <View style={styles.restProgressFill} />
-                  </View>
-                  <Text style={styles.restNext}>Next · Incline bench · Set 3</Text>
-                  <View style={styles.restVerseBlock}>
-                    <Text style={styles.restVerseLabel}>Today&apos;s word</Text>
-                    <Text style={styles.restVerseRef}>
-                      {DUMMY_VERSE.reference.toUpperCase()}
-                    </Text>
-                    <Text style={styles.restVerseText}>{restVerse.text}</Text>
-                    <Text style={styles.restVerseTap}>Tap to read in context ›</Text>
-                  </View>
-                  <Text style={styles.restBrand}>FLIGHT FITNESS</Text>
-                </View>
-              </View>
+          <FadeStage active={beat === 'fuel'}>
+            <ActionKicker label="Track your macros" />
+            <Text style={styles.actionLead}>Log meals. Hit your numbers.</Text>
+            <MacroDashboard
+              compact
+              targets={DUMMY_MACROS}
+              loggedKcal={1500}
+              loggedProtein={140}
+              loggedCarbs={110}
+              loggedFat={42}
+            />
+          </FadeStage>
+
+          <FadeStage active={beat === 'faith'} enterDelay={80}>
+            <ActionKicker label="Strengthen your faith" />
+            <Text style={styles.actionLead}>A verse and reading, every day.</Text>
+            <View style={styles.wordCard}>
+              <Text style={styles.wordBgRef}>PROVERBS 3</Text>
+              <Text style={styles.wordQuote}>&ldquo;{DUMMY_VERSE.text}&rdquo;</Text>
+              <Text style={styles.wordRef}>
+                {DUMMY_VERSE.reference.toUpperCase()} // WISDOM SERIES
+              </Text>
             </View>
-          </ScrollView>
+          </FadeStage>
         </View>
 
         <View style={styles.footer}>
-          {isLastSlide ? (
+          {showCta ? (
             <Animated.View style={[styles.ctaWrapper, ctaStyle]}>
               <Pressable
                 style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
-                onPress={onGetStarted}
+                onPress={isLast ? () => router.push('/email-sign-in' as Href) : goNext}
                 accessibilityRole="button"
-                accessibilityLabel="Get started: verify email with a one-time code">
-                <Text style={styles.primaryTxt}>Get started</Text>
-              </Pressable>
-              <Text style={styles.terms}>
-                By using Flight Fitness, you agree to our{' '}
-                <Text
-                  style={styles.termsLink}
-                  accessibilityRole="link"
-                  accessibilityLabel="Terms of Service"
-                  onPress={() =>
-                    void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
-                  }>
-                  Terms of Service
-                </Text>{' '}
-                and{' '}
-                <Text
-                  style={styles.termsLink}
-                  accessibilityRole="link"
-                  accessibilityLabel="Privacy Policy"
-                  onPress={() =>
-                    void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
-                  }>
-                  Privacy Policy
+                accessibilityLabel={
+                  isLast ? 'Get started: verify email with a one-time code' : 'Continue'
+                }>
+                <Text style={styles.primaryTxt}>
+                  {isLast ? 'Get started' : 'Continue'}
                 </Text>
-                .
-              </Text>
+              </Pressable>
+              {isLast ? (
+                <Text style={styles.terms}>
+                  By using Flight Fitness, you agree to our{' '}
+                  <Text
+                    style={styles.termsLink}
+                    accessibilityRole="link"
+                    accessibilityLabel="Terms of Service"
+                    onPress={() =>
+                      void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
+                    }>
+                    Terms of Service
+                  </Text>{' '}
+                  and{' '}
+                  <Text
+                    style={styles.termsLink}
+                    accessibilityRole="link"
+                    accessibilityLabel="Privacy Policy"
+                    onPress={() =>
+                      void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
+                    }>
+                    Privacy Policy
+                  </Text>
+                  .
+                </Text>
+              ) : null}
             </Animated.View>
-          ) : (
-            <Animated.View
-              style={[styles.swipeCue, swipeCueStyle]}
-              accessibilityLiveRegion="polite">
-              <Text style={styles.swipeCueTxt}>Swipe to get started</Text>
-              <Text style={styles.swipeCueChevron}>›</Text>
-            </Animated.View>
-          )}
+          ) : null}
         </View>
+        <ConfettiBurst playKey={celebrateKey} />
       </View>
     </View>
   );
@@ -350,11 +423,17 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
   progressRow: {
+    flex: 1,
     flexDirection: 'row',
     gap: 6,
-    paddingHorizontal: 20,
-    marginBottom: 18,
   },
   progressTrack: {
     flex: 1,
@@ -366,30 +445,31 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.gold,
     borderRadius: 2,
     transformOrigin: 'left center',
   },
-  carouselContainer: {
+  skip: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+  },
+  skipSpacer: { width: 36 },
+  stageHost: {
     flex: 1,
     justifyContent: 'center',
   },
-  carouselContent: {
-    alignItems: 'center',
-  },
-  carouselItem: {
-    width: SCREEN_WIDTH,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
+  stage: {
+    ...StyleSheet.absoluteFillObject,
     paddingHorizontal: 24,
+    justifyContent: 'center',
   },
-  heroSlide: {
-    width: '100%',
-    maxWidth: 360,
+  brandSlide: {
     alignItems: 'center',
-    paddingTop: 64,
-    paddingBottom: 16,
     gap: 18,
+    paddingBottom: 24,
   },
   brandMark: {
     fontFamily: theme.fonts.label,
@@ -406,53 +486,194 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textTransform: 'uppercase',
   },
-  cardWrapper: {
-    width: '100%',
-    maxWidth: 360,
-    flexDirection: 'column',
-    gap: 16,
-  },
-  uiHeader: {
-    width: '100%',
-    marginBottom: 0,
+  kickerRow: {
     gap: 10,
+    marginBottom: 12,
   },
-  uiHeaderRule: {
+  kickerRule: {
     width: 44,
     height: 4,
     backgroundColor: theme.colors.gold,
   },
-  uiHeaderText: {
+  kicker: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 20,
     lineHeight: 24,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  footer: {
-    minHeight: 92,
-    justifyContent: 'center',
-    paddingHorizontal: 28,
+  actionLead: {
+    fontFamily: theme.fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: theme.colors.onSurfaceVariant,
+    marginBottom: 18,
   },
-  swipeCue: {
+  setCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    padding: 16,
+    gap: 12,
+  },
+  setCardDone: {
+    opacity: 0.85,
+  },
+  setHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 18,
+    gap: 12,
   },
-  swipeCueTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2.4,
-    color: 'rgba(255,255,255,0.78)',
+  setBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: theme.colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setBadgeTxt: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 12,
+    color: theme.colors.onGold,
+  },
+  setName: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 16,
+    color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  swipeCueChevron: {
+  setMeta: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  setTapHint: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.6,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,215,0,0.25)',
+    paddingTop: 12,
+  },
+  restCard: {
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    padding: 16,
+    gap: 8,
+  },
+  restHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  restKicker: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  restTimer: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 44,
+    lineHeight: 48,
+    color: theme.colors.gold,
+    fontVariant: ['tabular-nums'],
+  },
+  restProgressTrack: {
+    height: 2,
+    backgroundColor: 'rgba(255, 215, 0, 0.18)',
+    overflow: 'hidden',
+  },
+  restProgressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.gold,
+  },
+  restVerseBlock: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+    gap: 6,
+  },
+  restVerseLabel: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+  },
+  restVerseRef: {
+    fontFamily: theme.fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.6,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+  },
+  restVerseText: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 18,
-    color: 'rgba(255,255,255,0.78)',
-    marginTop: -1,
+    lineHeight: 24,
+    color: theme.colors.onBackground,
+  },
+  restVerseContext: {
+    fontFamily: theme.fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: theme.colors.onSurfaceVariant,
+  },
+  restVerseTap: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  wordCard: {
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: theme.colors.outline,
+    padding: 18,
+    overflow: 'hidden',
+  },
+  wordBgRef: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 28,
+    color: theme.colors.onBackground,
+    opacity: 0.08,
+    textTransform: 'uppercase',
+  },
+  wordQuote: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    lineHeight: 26,
+    color: theme.colors.onBackground,
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  wordRef: {
+    fontFamily: theme.fonts.label,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: '#737373',
+    textTransform: 'uppercase',
+  },
+  footer: {
+    minHeight: 150,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 28,
   },
   ctaWrapper: {
     gap: 10,
@@ -486,135 +707,5 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: theme.colors.onGold,
     textTransform: 'uppercase',
-  },
-  wordCard: {
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 12,
-    overflow: 'hidden',
-  },
-  wordBgRef: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 26,
-    color: theme.colors.onBackground,
-    opacity: 0.08,
-    textTransform: 'uppercase',
-  },
-  wordQuote: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
-    lineHeight: 18,
-    color: theme.colors.onBackground,
-    fontStyle: 'italic',
-    marginBottom: 6,
-  },
-  wordRef: {
-    fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 1.5,
-    color: '#737373',
-    textTransform: 'uppercase',
-  },
-  wordBtns: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  btnGold: {
-    backgroundColor: theme.colors.gold,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  btnGoldTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 0.5,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
-  },
-  restCard: {
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 14,
-    gap: 6,
-  },
-  restKicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 3,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  restTimer: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 48,
-    lineHeight: 50,
-    color: theme.colors.gold,
-    fontVariant: ['tabular-nums'],
-  },
-  restProgressTrack: {
-    height: 2,
-    backgroundColor: 'rgba(255, 215, 0, 0.18)',
-    marginVertical: 4,
-    overflow: 'hidden',
-  },
-  restProgressFill: {
-    width: '58%',
-    height: '100%',
-    backgroundColor: theme.colors.gold,
-  },
-  restNext: {
-    fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 1.2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-  },
-  restVerseBlock: {
-    marginTop: 10,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.outline,
-    gap: 4,
-  },
-  restVerseLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-  },
-  restVerseRef: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  restVerseText: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 15,
-    lineHeight: 20,
-    color: theme.colors.onBackground,
-    fontStyle: 'italic',
-  },
-  restVerseTap: {
-    fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 1,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  restBrand: {
-    fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 3,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    marginTop: 12,
-    textAlign: 'center',
   },
 });

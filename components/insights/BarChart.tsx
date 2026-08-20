@@ -89,7 +89,8 @@ const styles = StyleSheet.create({
     width: '78%',
     minHeight: 0,
   },
-  barIdle: { backgroundColor: theme.colors.outlineStrong },
+  /** Previous bars: darker gold so every bar reads on the dark background. */
+  barIdle: { backgroundColor: 'rgba(255,215,0,0.35)' },
   barActive: { backgroundColor: theme.colors.gold },
   barEmpty: { backgroundColor: theme.colors.outline, opacity: 0.4 },
   value: {

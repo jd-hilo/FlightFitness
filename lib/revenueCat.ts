@@ -371,6 +371,92 @@ export async function restoreRevenueCatPurchases() {
   return customerInfo;
 }
 
+export type RedeemAppStoreOfferCodeResult =
+  | { status: 'activated'; customerInfo: CustomerInfo }
+  | { status: 'unchanged' }
+  | { status: 'unavailable'; reason: 'not_ios' | 'not_configured' };
+
+async function syncRevenueCatAfterOfferCodeRedemption(): Promise<CustomerInfo | null> {
+  try {
+    const { customerInfo } = await Purchases.syncPurchasesForResult();
+    applyRevenueCatCustomerInfo(customerInfo);
+    return customerInfo;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[RevenueCat] syncPurchasesForResult after offer code failed:', error);
+    }
+    return refreshRevenueCatCustomerInfo();
+  }
+}
+
+/**
+ * iOS only. Presents Apple's offer-code sheet for App Store Connect subscription codes.
+ * Apple does not report success/cancel — we listen for entitlement updates and sync on dismiss.
+ */
+export async function redeemAppStoreOfferCode(): Promise<RedeemAppStoreOfferCodeResult> {
+  const ready = await configureRevenueCat();
+  if (!ready) return { status: 'unavailable', reason: 'not_configured' };
+  if (Platform.OS !== 'ios') return { status: 'unavailable', reason: 'not_ios' };
+
+  const before = await Purchases.getCustomerInfo();
+  if (customerHasEssentialsEntitlement(before)) {
+    return { status: 'activated', customerInfo: before };
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (result: RedeemAppStoreOfferCodeResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallbackTimeout);
+      Purchases.removeCustomerInfoUpdateListener(onCustomerInfoUpdate);
+      resolve(result);
+    };
+
+    const onCustomerInfoUpdate = (customerInfo: CustomerInfo) => {
+      applyRevenueCatCustomerInfo(customerInfo);
+      if (customerHasEssentialsEntitlement(customerInfo)) {
+        finish({ status: 'activated', customerInfo });
+      }
+    };
+
+    Purchases.addCustomerInfoUpdateListener(onCustomerInfoUpdate);
+
+    const fallbackTimeout = setTimeout(() => {
+      void (async () => {
+        const customerInfo = await syncRevenueCatAfterOfferCodeRedemption();
+        if (customerInfo && customerHasEssentialsEntitlement(customerInfo)) {
+          finish({ status: 'activated', customerInfo });
+        } else {
+          finish({ status: 'unchanged' });
+        }
+      })();
+    }, 90_000);
+
+    void Purchases.presentCodeRedemptionSheet()
+      .then(() => {
+        setTimeout(() => {
+          if (settled) return;
+          void (async () => {
+            const customerInfo = await syncRevenueCatAfterOfferCodeRedemption();
+            if (customerInfo && customerHasEssentialsEntitlement(customerInfo)) {
+              finish({ status: 'activated', customerInfo });
+            } else if (!settled) {
+              finish({ status: 'unchanged' });
+            }
+          })();
+        }, 1500);
+      })
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn('[RevenueCat] presentCodeRedemptionSheet failed:', error);
+        }
+        finish({ status: 'unchanged' });
+      });
+  });
+}
+
 export async function presentRevenueCatCustomerCenter() {
   const ready = await configureRevenueCat();
   if (!ready) {

@@ -11,7 +11,6 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,9 +30,7 @@ import type { MacroTargets } from '@/types/plan';
 const BEATS = ['brand', 'set', 'rest', 'fuel', 'faith'] as const;
 type Beat = (typeof BEATS)[number];
 
-const BRAND_HOLD_MS = 2200;
 const REST_SEC = 20;
-const CTA_REVEAL_MS = 3200;
 
 const DUMMY_VERSE = {
   text: 'Trust in Yahweh with all your heart, and don’t lean on your own understanding.',
@@ -115,16 +112,10 @@ export default function WelcomeScreen() {
   const [celebrateKey, setCelebrateKey] = useState(0);
   const [restRemaining, setRestRemaining] = useState(REST_SEC);
   const [verseTapped, setVerseTapped] = useState(false);
-  const [ctaReady, setCtaReady] = useState(false);
   const beatIndex = BEATS.indexOf(beat);
   const isLast = beat === 'faith';
   const restVerse = restVerseHeroText(DUMMY_VERSE.text);
 
-  const showCta =
-    (beat === 'rest' && (ctaReady || verseTapped)) || beat === 'fuel' || isLast;
-
-  const ctaOp = useSharedValue(0);
-  const ctaScale = useSharedValue(0.94);
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -140,40 +131,15 @@ export default function WelcomeScreen() {
     );
   }, [pulse]);
 
-  // Brand splash is a title card, not a step — fade into the set on its own.
-  useEffect(() => {
-    if (beat !== 'brand') return;
-    const id = setTimeout(() => setBeat('set'), BRAND_HOLD_MS);
-    return () => clearTimeout(id);
-  }, [beat]);
-
   useEffect(() => {
     if (beat !== 'rest') return;
     setRestRemaining(REST_SEC);
     const tick = setInterval(() => {
       setRestRemaining((r) => (r <= 1 ? 0 : r - 1));
     }, 1000);
-    const reveal = setTimeout(() => setCtaReady(true), CTA_REVEAL_MS);
-    return () => {
-      clearInterval(tick);
-      clearTimeout(reveal);
-    };
+    return () => clearInterval(tick);
   }, [beat]);
 
-  useEffect(() => {
-    if (!showCta) {
-      ctaOp.value = 0;
-      ctaScale.value = 0.94;
-      return;
-    }
-    ctaOp.value = withDelay(240, withTiming(1, { duration: 520 }));
-    ctaScale.value = withDelay(240, withSpring(1, { damping: 14, stiffness: 120 }));
-  }, [showCta, ctaOp, ctaScale]);
-
-  const ctaStyle = useAnimatedStyle(() => ({
-    opacity: ctaOp.value,
-    transform: [{ scale: ctaScale.value }],
-  }));
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
   const goNext = () => {
@@ -183,12 +149,6 @@ export default function WelcomeScreen() {
 
   const skipToEnd = () => setBeat('faith');
 
-  const canGoForward =
-    beat === 'brand' ||
-    (beat === 'set' && setDone) ||
-    (beat === 'rest' && (ctaReady || verseTapped)) ||
-    beat === 'fuel';
-
   const swipe = useMemo(
     () =>
       PanResponder.create({
@@ -197,13 +157,13 @@ export default function WelcomeScreen() {
         onPanResponderRelease: (_e, g) => {
           if (g.dx > 60 && beatIndex > 0) {
             setBeat(BEATS[beatIndex - 1]);
-          } else if (g.dx < -60 && canGoForward) {
+          } else if (g.dx < -60) {
             const next = BEATS[beatIndex + 1];
             if (next) setBeat(next);
           }
         },
       }),
-    [beatIndex, canGoForward]
+    [beatIndex]
   );
 
   const onCompleteSet = () => {
@@ -211,7 +171,6 @@ export default function WelcomeScreen() {
     setSetDone(true);
     hapticImpact();
     setCelebrateKey((k) => k + 1);
-    setTimeout(() => setBeat('rest'), 480);
   };
 
   const onTapVerse = () => {
@@ -280,10 +239,10 @@ export default function WelcomeScreen() {
               Tap the circle to complete the set.
             </Text>
             <Pressable
-              onPress={setDone ? goNext : onCompleteSet}
+              onPress={onCompleteSet}
               style={[styles.setCard, setDone && styles.setCardDone]}
               accessibilityRole="button"
-              accessibilityLabel={setDone ? 'Continue to rest' : 'Mark set 1 complete'}>
+              accessibilityLabel="Mark set 1 complete">
               <View style={styles.setHead}>
                 <Animated.View style={!setDone ? pulseStyle : undefined}>
                   <MaterialIcons
@@ -301,7 +260,7 @@ export default function WelcomeScreen() {
                 </View>
               </View>
               <Text style={styles.setTapHint}>
-                {setDone ? 'Done. Rest starts now.' : 'Tap when done'}
+                {setDone ? 'Done' : 'Tap when done'}
               </Text>
             </Pressable>
           </FadeStage>
@@ -368,46 +327,42 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.footer}>
-          {showCta ? (
-            <Animated.View style={[styles.ctaWrapper, ctaStyle]}>
-              <Pressable
-                style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
-                onPress={isLast ? () => router.push('/email-sign-in' as Href) : goNext}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  isLast ? 'Get started: verify email with a one-time code' : 'Continue'
-                }>
-                <Text style={styles.primaryTxt}>
-                  {isLast ? 'Get started' : 'Continue'}
+          <View style={styles.ctaWrapper}>
+            <Pressable
+              style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+              onPress={isLast ? () => router.push('/email-sign-in' as Href) : goNext}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isLast ? 'Get started: verify email with a one-time code' : 'Next'
+              }>
+              <Text style={styles.primaryTxt}>{isLast ? 'Get started' : 'Next'}</Text>
+            </Pressable>
+            {isLast ? (
+              <Text style={styles.terms}>
+                By using Flight Fitness, you agree to our{' '}
+                <Text
+                  style={styles.termsLink}
+                  accessibilityRole="link"
+                  accessibilityLabel="Terms of Service"
+                  onPress={() =>
+                    void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
+                  }>
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.termsLink}
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy Policy"
+                  onPress={() =>
+                    void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
+                  }>
+                  Privacy Policy
                 </Text>
-              </Pressable>
-              {isLast ? (
-                <Text style={styles.terms}>
-                  By using Flight Fitness, you agree to our{' '}
-                  <Text
-                    style={styles.termsLink}
-                    accessibilityRole="link"
-                    accessibilityLabel="Terms of Service"
-                    onPress={() =>
-                      void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)
-                    }>
-                    Terms of Service
-                  </Text>{' '}
-                  and{' '}
-                  <Text
-                    style={styles.termsLink}
-                    accessibilityRole="link"
-                    accessibilityLabel="Privacy Policy"
-                    onPress={() =>
-                      void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)
-                    }>
-                    Privacy Policy
-                  </Text>
-                  .
-                </Text>
-              ) : null}
-            </Animated.View>
-          ) : null}
+                .
+              </Text>
+            ) : null}
+          </View>
         </View>
         <ConfettiBurst playKey={celebrateKey} />
       </View>
@@ -671,7 +626,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   footer: {
-    minHeight: 150,
+    minHeight: 88,
     justifyContent: 'flex-end',
     paddingHorizontal: 28,
   },

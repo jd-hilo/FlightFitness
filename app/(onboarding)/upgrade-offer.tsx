@@ -14,6 +14,7 @@ import {
   getRevenueCatEssentialsPackages,
   packageIdForEssentialsPlan,
   purchaseEssentials,
+  redeemAppStoreOfferCode,
   restoreRevenueCatPurchases,
   revenueCatPurchaseWasCancelled,
   revenueCatPurchaseErrorCode,
@@ -140,6 +141,41 @@ export default function OnboardingUpgradeOfferScreen() {
     })();
   }, [finishOnboarding]);
 
+  const onRedeemOfferCode = useCallback(() => {
+    void (async () => {
+      setEssentialsBusy(true);
+      try {
+        const result = await redeemAppStoreOfferCode();
+        if (result.status === 'unavailable') {
+          Alert.alert(
+            'Not available',
+            'Subscription offer codes can only be redeemed on iPhone and iPad.'
+          );
+          return;
+        }
+        if (result.status === 'activated') {
+          Alert.alert(
+            'Offer code applied',
+            'Flight Fitness Essentials is active on this account.'
+          );
+          finishOnboarding('restore');
+          return;
+        }
+        Alert.alert(
+          'No subscription found',
+          'If your code was accepted, wait a moment and tap Restore purchases. If you canceled, nothing was charged.'
+        );
+      } catch (error) {
+        Alert.alert(
+          'Could not open redemption',
+          formatRevenueCatPurchaseError(error) || 'Please try again in a moment.'
+        );
+      } finally {
+        setEssentialsBusy(false);
+      }
+    })();
+  }, [finishOnboarding]);
+
   return (
     <View style={styles.root}>
       <Pressable
@@ -159,6 +195,7 @@ export default function OnboardingUpgradeOfferScreen() {
         onEssentials={(plan) => void onSelectEssentials(plan)}
         onCoachingInfo={() => router.push('/coaching-info')}
         onRestore={onRestore}
+        onRedeemOfferCode={onRedeemOfferCode}
         essentialsBusy={essentialsBusy}
       />
     </View>

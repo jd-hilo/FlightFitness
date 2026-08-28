@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { theme } from '@/constants/theme';
@@ -37,6 +37,8 @@ type Props = {
   onEssentials: (plan: EssentialsPurchasePlan) => void;
   onCoachingInfo: () => void;
   onRestore: () => void;
+  /** iOS only — App Store Connect subscription offer codes. */
+  onRedeemOfferCode?: () => void;
   essentialsBusy?: boolean;
 };
 
@@ -58,8 +60,10 @@ export function FlightUpgradeOffer({
   onEssentials,
   onCoachingInfo,
   onRestore,
+  onRedeemOfferCode,
   essentialsBusy = false,
 }: Props) {
+  const showRedeemOfferCode = Platform.OS === 'ios' && Boolean(onRedeemOfferCode);
   const [selected, setSelected] = useState<EssentialsPurchasePlan>(
     tier === 'essentials' ? 'lifetime' : 'monthly'
   );
@@ -343,9 +347,24 @@ export function FlightUpgradeOffer({
           .
         </Text>
 
-        <Pressable onPress={onRestore} style={styles.restoreWrap}>
-          <Text style={styles.restore}>Restore purchases</Text>
-        </Pressable>
+        <View style={styles.secondaryActions}>
+          {showRedeemOfferCode ? (
+            <Pressable
+              onPress={onRedeemOfferCode}
+              style={styles.secondaryAction}
+              accessibilityRole="button"
+              accessibilityLabel="Redeem App Store offer code">
+              <Text style={styles.secondaryActionText}>Redeem offer code</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onRestore}
+            style={styles.secondaryAction}
+            accessibilityRole="button"
+            accessibilityLabel="Restore purchases">
+            <Text style={styles.secondaryActionText}>Restore purchases</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );
@@ -635,12 +654,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.58)',
     textAlign: 'center',
   },
-  restoreWrap: {
+  secondaryActions: {
     alignItems: 'center',
+    gap: 6,
     paddingVertical: 10,
     marginTop: 2,
   },
-  restore: {
+  secondaryAction: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  secondaryActionText: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
     letterSpacing: 1.2,

@@ -50,40 +50,6 @@ function mergeWeightEntries(
   return [...map.values()].sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 }
 
-function mergeWorkouts(local: SavedWorkout[], remote: SavedWorkout[]): SavedWorkout[] {
-  const map = new Map<string, SavedWorkout>();
-  for (const w of local) map.set(w.id, w);
-  for (const r of remote) {
-    const cur = map.get(r.id);
-    if (!cur || r.updatedAt >= cur.updatedAt) map.set(r.id, r);
-  }
-  return [...map.values()].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
-}
-
-function mergeSessions(
-  local: WorkoutSessionLogEntry[],
-  remote: WorkoutSessionLogEntry[]
-): WorkoutSessionLogEntry[] {
-  const map = new Map<string, WorkoutSessionLogEntry>();
-  for (const s of [...remote, ...local]) map.set(s.id, s);
-  return [...map.values()]
-    .sort((a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime())
-    .slice(0, 200);
-}
-
-function mergeExerciseHistory(
-  local: ExerciseHistoryEntry[],
-  remote: ExerciseHistoryEntry[]
-): ExerciseHistoryEntry[] {
-  const map = new Map<string, ExerciseHistoryEntry>();
-  for (const e of [...remote, ...local]) map.set(e.id, e);
-  return [...map.values()]
-    .sort((a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime())
-    .slice(0, 1000);
-}
-
 function mergeDayCompletion(a: DayCompletion, b: DayCompletion): DayCompletion {
   const mealIds = [...new Set([...a.mealIds, ...b.mealIds])];
   const exerciseIdsDone = [
@@ -301,9 +267,6 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
   isHydratingTracking = true;
   try {
     const localWeight = useWeightLogStore.getState().entries;
-    const localWorkouts = useWorkoutLibraryStore.getState().workouts;
-    const localSessions = useWorkoutSessionLogStore.getState().sessions;
-    const localHistory = useExerciseHistoryStore.getState().entries;
     const localCompletion = useCompletionStore.getState();
 
     const [weightRes, workoutsRes, sessionsRes, historyRes, daysRes, metaRes] =
@@ -379,15 +342,12 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
     }
 
     const mergedWeight = mergeWeightEntries(localWeight, remoteWeight);
-    const mergedWorkouts = mergeWorkouts(localWorkouts, remoteWorkouts);
-    const mergedSessions = mergeSessions(localSessions, remoteSessions);
-    const mergedHistory = mergeExerciseHistory(localHistory, remoteHistory);
     const mergedByDay = mergeByDay(localCompletion.byDay, remoteByDay);
 
     useWeightLogStore.setState({ entries: mergedWeight });
-    useWorkoutLibraryStore.setState({ workouts: mergedWorkouts });
-    useWorkoutSessionLogStore.setState({ sessions: mergedSessions });
-    useExerciseHistoryStore.setState({ entries: mergedHistory });
+    useWorkoutLibraryStore.setState({ workouts: remoteWorkouts });
+    useWorkoutSessionLogStore.setState({ sessions: remoteSessions });
+    useExerciseHistoryStore.setState({ entries: remoteHistory });
 
     const remoteStreak = metaRes.data?.training_streak;
     const remoteLast = metaRes.data?.last_streak_increment_date ?? null;
@@ -401,18 +361,10 @@ export async function pullUserTrackingIntoStores(): Promise<void> {
     });
 
     const remoteEmpty =
-      remoteWeight.length === 0 &&
-      remoteWorkouts.length === 0 &&
-      remoteSessions.length === 0 &&
-      remoteHistory.length === 0 &&
-      Object.keys(remoteByDay).length === 0;
+      remoteWeight.length === 0 && Object.keys(remoteByDay).length === 0;
 
     const localHasData =
-      localWeight.length > 0 ||
-      localWorkouts.length > 0 ||
-      localSessions.length > 0 ||
-      localHistory.length > 0 ||
-      Object.keys(localCompletion.byDay).length > 0;
+      localWeight.length > 0 || Object.keys(localCompletion.byDay).length > 0;
 
     if (remoteEmpty && localHasData) {
       isHydratingTracking = false;

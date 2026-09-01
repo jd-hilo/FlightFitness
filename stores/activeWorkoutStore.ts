@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { track } from '@/lib/analytics';
 import { ensureExerciseSetRows, newId, syncExerciseAggregateFromSetRows } from '@/lib/exerciseNormalize';
@@ -56,9 +54,7 @@ function cloneExercisesForSession(exercises: Exercise[]): Exercise[] {
   return exercises.map(cloneExerciseForSession);
 }
 
-export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
-  persist(
-    (set, get) => ({
+export const useActiveWorkoutStore = create<ActiveWorkoutState>()((set, get) => ({
       session: null,
 
       startSession: (workout) => {
@@ -205,10 +201,4 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         const elapsedMs = end - start - s.accumulatedPauseMs;
         return Math.max(0, Math.floor(elapsedMs / 1000));
       },
-    }),
-    {
-      name: 'flight-active-workout',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+}));

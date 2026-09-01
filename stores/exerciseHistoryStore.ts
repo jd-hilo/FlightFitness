@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { ensureExerciseSetRows, newId } from '@/lib/exerciseNormalize';
 import { parseTargetReps } from '@/lib/repUtils';
@@ -74,9 +72,7 @@ type ExerciseHistoryState = {
   reset: () => void;
 };
 
-export const useExerciseHistoryStore = create<ExerciseHistoryState>()(
-  persist(
-    (set, get) => ({
+export const useExerciseHistoryStore = create<ExerciseHistoryState>()((set, get) => ({
       entries: [],
 
       logSession: ({ sessionId, sourceWorkoutId, exercises, finishedAt }) => {
@@ -110,10 +106,4 @@ export const useExerciseHistoryStore = create<ExerciseHistoryState>()(
         get().entries.filter((e) => e.sourceWorkoutId === sourceWorkoutId),
 
       reset: () => set({ entries: [] }),
-    }),
-    {
-      name: 'flight-exercise-history',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+}));

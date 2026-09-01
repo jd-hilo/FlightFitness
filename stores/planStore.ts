@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { scheduleRemotePlanSave } from '@/lib/api/planPersistence';
 import { emptyWeekPlan } from '@/lib/emptyWeekPlan';
@@ -91,9 +89,7 @@ function cloneExerciseForTemplate(ex: Exercise): Exercise {
   };
 }
 
-export const usePlanStore = create<PlanState>()(
-  persist(
-    (set, get) => ({
+export const usePlanStore = create<PlanState>()((set, get) => ({
       weekStart: null,
       macroTargets: null,
       mealsByDay: null,
@@ -416,24 +412,10 @@ export const usePlanStore = create<PlanState>()(
           workoutsByDay: null,
           groceryList: null,
           lastGeneratedAt: null,
+          workoutTemplates: [],
+          mealTemplates: [],
         }),
-    }),
-    {
-      name: 'flight-plan',
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({
-        weekStart: s.weekStart,
-        macroTargets: s.macroTargets,
-        mealsByDay: s.mealsByDay,
-        workoutsByDay: s.workoutsByDay,
-        groceryList: s.groceryList,
-        lastGeneratedAt: s.lastGeneratedAt,
-        workoutTemplates: s.workoutTemplates,
-        mealTemplates: s.mealTemplates,
-      }),
-    }
-  )
-);
+}));
 
 export function useHasActivePlan() {
   return usePlanStore(

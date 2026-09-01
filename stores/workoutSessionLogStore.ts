@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { newId } from '@/lib/exerciseNormalize';
 import { formatYmdLocal } from '@/lib/weekUtils';
@@ -38,9 +36,7 @@ type WorkoutSessionLogState = {
   reset: () => void;
 };
 
-export const useWorkoutSessionLogStore = create<WorkoutSessionLogState>()(
-  persist(
-    (set, get) => ({
+export const useWorkoutSessionLogStore = create<WorkoutSessionLogState>()((set, get) => ({
       sessions: [],
 
       logCompletedSession: ({
@@ -95,10 +91,4 @@ export const useWorkoutSessionLogStore = create<WorkoutSessionLogState>()(
         get().sessions.filter((s) => s.dateKey === dateKey),
 
       reset: () => set({ sessions: [] }),
-    }),
-    {
-      name: 'flight-workout-session-log',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+}));

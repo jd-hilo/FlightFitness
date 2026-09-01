@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { ensureExerciseSetRows, newId, syncExerciseAggregateFromSetRows } from '@/lib/exerciseNormalize';
 import { deleteRemoteWorkout, scheduleTrackingRemoteSave } from '@/lib/api/trackingPersistence';
@@ -31,11 +29,10 @@ type WorkoutLibraryState = {
   importFromLegacyTemplates: (
     templates: { id: string; title: string; exercises: Exercise[]; createdAt: string }[]
   ) => void;
+  reset: () => void;
 };
 
-export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
-  persist(
-    (set, get) => ({
+export const useWorkoutLibraryStore = create<WorkoutLibraryState>()((set, get) => ({
       workouts: [],
 
       createWorkout: (title = 'Workout') => {
@@ -242,10 +239,6 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()(
         });
         scheduleTrackingRemoteSave();
       },
-    }),
-    {
-      name: 'flight-workout-library',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+
+      reset: () => set({ workouts: [] }),
+}));

@@ -1,8 +1,10 @@
 import { router, type Href } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
+import { completeOnboardingAfterFirstSession } from '@/lib/onboardingFirstSession';
 import {
   EQUIPMENT_OPTIONS,
   EXPERIENCE_OPTIONS,
@@ -14,14 +16,30 @@ export default function OnboardingTrainingScreen() {
   const answers = useOnboardingStore((s) => s.answers);
   const setSingle = useOnboardingStore((s) => s.setSingle);
   const toggleEquipment = useOnboardingStore((s) => s.toggleEquipment);
-  const canNext = answers.experience.length > 0 && answers.equipment.length > 0;
+  const [saving, setSaving] = useState(false);
+  const canNext = answers.experience.length > 0 && answers.equipment.length > 0 && !saving;
 
   return (
     <OnboardingShell
       step={9}
       canNext={canNext}
       backHref="back"
-      onNext={() => router.push('/(onboarding)/first-set' as Href)}
+      onNext={() => {
+        if (saving) return;
+        setSaving(true);
+        void (async () => {
+          const res = await completeOnboardingAfterFirstSession({ seedWorkout: false });
+          setSaving(false);
+          if (!res.ok) {
+            Alert.alert(
+              'Could not save your profile',
+              `${res.error}\n\nCheck your connection and try again.`
+            );
+            return;
+          }
+          router.replace('/(onboarding)/upgrade-offer' as Href);
+        })();
+      }}
       tip="Tap your experience and what you train with.">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
         <Text style={styles.title}>Training</Text>

@@ -1,6 +1,6 @@
 import { Redirect, type Href } from 'expo-router';
 
-/** Replaced by the first-set / first-rest aha. Keep this route for anyone mid-flow. */
+/** Demo training intro removed — continue to the paywall. */
 export default function OnboardingWorkoutsIntroScreen() {
-  return <Redirect href={'/(onboarding)/first-set' as Href} />;
+  return <Redirect href={'/(onboarding)/upgrade-offer' as Href} />;
 }

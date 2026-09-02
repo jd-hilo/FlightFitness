@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { theme } from '@/constants/theme';
@@ -63,7 +63,6 @@ export function FlightUpgradeOffer({
   onRedeemOfferCode,
   essentialsBusy = false,
 }: Props) {
-  const showRedeemOfferCode = Platform.OS === 'ios' && Boolean(onRedeemOfferCode);
   const [selected, setSelected] = useState<EssentialsPurchasePlan>(
     tier === 'essentials' ? 'lifetime' : 'monthly'
   );
@@ -319,6 +318,27 @@ export function FlightUpgradeOffer({
           )}
         </Pressable>
 
+        <View style={styles.secondaryActions}>
+          {onRedeemOfferCode ? (
+            <Pressable
+              onPress={onRedeemOfferCode}
+              disabled={essentialsBusy}
+              style={styles.secondaryAction}
+              accessibilityRole="button"
+              accessibilityLabel="Enter offer code">
+              <Text style={styles.enterCodeText}>Enter offer code</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onRestore}
+            disabled={essentialsBusy}
+            style={styles.secondaryAction}
+            accessibilityRole="button"
+            accessibilityLabel="Restore purchases">
+            <Text style={styles.secondaryActionText}>Restore purchases</Text>
+          </Pressable>
+        </View>
+
         <Text style={styles.legal}>
           {essentialsPaywallLegalCopy(selected, { variant, monthlyPrice })}
         </Text>
@@ -346,25 +366,6 @@ export function FlightUpgradeOffer({
           </Text>
           .
         </Text>
-
-        <View style={styles.secondaryActions}>
-          {showRedeemOfferCode ? (
-            <Pressable
-              onPress={onRedeemOfferCode}
-              style={styles.secondaryAction}
-              accessibilityRole="button"
-              accessibilityLabel="Redeem App Store offer code">
-              <Text style={styles.secondaryActionText}>Redeem offer code</Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            onPress={onRestore}
-            style={styles.secondaryAction}
-            accessibilityRole="button"
-            accessibilityLabel="Restore purchases">
-            <Text style={styles.secondaryActionText}>Restore purchases</Text>
-          </Pressable>
-        </View>
       </ScrollView>
     </View>
   );
@@ -656,19 +657,26 @@ const styles = StyleSheet.create({
   },
   secondaryActions: {
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    marginTop: 2,
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 4,
   },
   secondaryAction: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  enterCodeText: {
+    fontFamily: theme.fonts.label,
+    fontSize: 13,
+    letterSpacing: 1.4,
+    color: theme.colors.gold,
+    textTransform: 'uppercase',
   },
   secondaryActionText: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.2,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(255,255,255,0.78)',
     textTransform: 'uppercase',
   },
   legal: {

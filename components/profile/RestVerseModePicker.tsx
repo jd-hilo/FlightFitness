@@ -99,6 +99,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 16,
     marginBottom: 20,
+    borderRadius: theme.radii.md,
   },
   kicker: {
     fontFamily: theme.fonts.label,
@@ -125,6 +126,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerHigh,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    borderRadius: theme.radii.md,
   },
   rowSelected: {
     borderColor: 'rgba(255, 215, 0, 0.55)',

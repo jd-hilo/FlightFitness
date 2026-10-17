@@ -80,8 +80,7 @@ export function ProfileUpgradeBanner({ tier, onUpgrade, onCoaching }: Props) {
             <Text style={styles.period}>/month</Text>
           </View>
           <Text style={styles.lead}>
-            Unlimited workouts and meals, weekly planning, grocery lists, and daily faith —
-            without limits.
+            Unlimited workouts, workout insights, and scriptures — without the free caps.
           </Text>
           <View style={styles.ctaRow}>
             <Text style={styles.cta}>Upgrade now</Text>
@@ -214,6 +213,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 215, 0, 0.12)',
     paddingVertical: 6,
     paddingHorizontal: 10,
+    borderRadius: theme.radii.full,
   },
   waitlistPillTxt: {
     fontFamily: theme.fonts.label,

@@ -263,6 +263,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 16,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   resumeKicker: {
     fontFamily: theme.fonts.label,
@@ -300,6 +301,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 24,
+    borderRadius: theme.radii.full,
   },
   primaryBtnTxt: {
     fontFamily: theme.fonts.label,
@@ -329,6 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     gap: 8,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   emptyTitle: {
     fontFamily: theme.fonts.headlineBold,
@@ -348,6 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 16,
     marginBottom: 10,
+    borderRadius: theme.radii.md,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardTitle: {
@@ -374,6 +378,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.gold,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    borderRadius: theme.radii.full,
   },
   beginBtnTxt: {
     fontFamily: theme.fonts.label,

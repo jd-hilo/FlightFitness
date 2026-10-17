@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 4,
     alignItems: 'flex-start',
+    borderRadius: theme.radii.md,
   },
   rowReadOnly: {
     opacity: 0.55,
@@ -116,6 +117,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badge: {
+    borderRadius: theme.radii.full,
     alignSelf: 'flex-start',
     backgroundColor: theme.colors.gold,
     color: theme.colors.onGold,

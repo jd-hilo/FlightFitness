@@ -16,9 +16,8 @@ function dayLabel(ymd: string) {
   return parseYmd(ymd).toLocaleDateString('en-US', { weekday: 'narrow' });
 }
 
-const ROWS: { key: keyof Pick<DayHabitScores, 'train' | 'fuel' | 'faith'>; label: string; color: string }[] = [
+const ROWS: { key: keyof Pick<DayHabitScores, 'train' | 'faith'>; label: string; color: string }[] = [
   { key: 'train', label: 'Train', color: theme.colors.gold },
-  { key: 'fuel', label: 'Fuel', color: '#E8E8E8' },
   { key: 'faith', label: 'Faith', color: '#9AA0A6' },
 ];
 
@@ -34,19 +33,17 @@ function HabitBar({ value, color }: { value: number; color: string }) {
 export function WeeklyHabitChart({ days }: Props) {
   if (days.length === 0) {
     return (
-      <Text style={styles.empty}>Complete workouts, meals, or faith tasks to see your week.</Text>
+      <Text style={styles.empty}>Complete workouts or faith tasks to see your week.</Text>
     );
   }
 
   const avgTrain = days.reduce((s, d) => s + d.train, 0) / days.length;
-  const avgFuel = days.reduce((s, d) => s + d.fuel, 0) / days.length;
   const avgFaith = days.reduce((s, d) => s + d.faith, 0) / days.length;
 
   return (
     <View>
       <View style={styles.summaryRow}>
         <Text style={styles.summaryVal}>{Math.round(avgTrain * 100)}%</Text>
-        <Text style={styles.summaryVal}>{Math.round(avgFuel * 100)}%</Text>
         <Text style={styles.summaryVal}>{Math.round(avgFaith * 100)}%</Text>
       </View>
       <View style={styles.legend}>

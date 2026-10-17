@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outlineStrong,
     padding: 16,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   kicker: {
     fontFamily: theme.fonts.label,
@@ -153,6 +154,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.gold,
     paddingVertical: 12,
     alignItems: 'center',
+    borderRadius: theme.radii.full,
   },
   saveBtnTxt: {
     fontFamily: theme.fonts.label,

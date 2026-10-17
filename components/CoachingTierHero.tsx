@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   waitlistTag: {
+    borderRadius: theme.radii.full,
     flexShrink: 0,
     borderWidth: 1,
     borderColor: 'rgba(255, 215, 0, 0.45)',

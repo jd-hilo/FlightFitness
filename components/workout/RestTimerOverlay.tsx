@@ -485,6 +485,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     minWidth: 72,
+    borderRadius: theme.radii.full,
   },
   restPillLabel: {
     fontFamily: theme.fonts.label,
@@ -575,7 +576,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: theme.colors.onSurfaceVariant,
-    fontStyle: 'italic',
     marginBottom: 20,
   },
   readerPullQuote: {

@@ -55,7 +55,6 @@ export default function EliteScreen() {
   const answers = useOnboardingStore((s) => s.answers);
   const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
   const weekStart = usePlanStore((s) => s.weekStart);
-  const mealsByDay = usePlanStore((s) => s.mealsByDay);
   const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
 
   const trainingStreak = useCompletionStore((s) => s.streak);
@@ -83,10 +82,9 @@ export default function EliteScreen() {
         completionByDay,
         faithByDay,
         planWeekStart: weekStart,
-        mealsByDay,
         workoutsByDay,
       }),
-    [completionByDay, faithByDay, weekStart, mealsByDay, workoutsByDay]
+    [completionByDay, faithByDay, weekStart, workoutsByDay]
   );
 
   const sessionMinutes = useMemo(
@@ -217,7 +215,7 @@ export default function EliteScreen() {
         ]}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>
-            {firstName ? `${firstName}'s` : 'Your'} tracking
+            {firstName ? `${firstName}'s profile` : 'Profile'}
           </Text>
           <Pressable
             onPress={() => router.push('/profile-edit' as Href)}
@@ -385,8 +383,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 22,
+    fontFamily: theme.fonts.headline,
+    fontSize: 30,
+    letterSpacing: -0.8,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
     flex: 1,
@@ -398,26 +397,24 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    alignItems: 'center',
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
+    borderRadius: theme.radii.md,
   },
   statVal: {
     fontFamily: theme.fonts.headline,
-    fontSize: 22,
-    color: theme.colors.gold,
+    fontSize: 28,
+    letterSpacing: -0.8,
+    color: theme.colors.onBackground,
     marginBottom: 2,
   },
   statLabel: {
     fontFamily: theme.fonts.label,
-    fontSize: 8,
-    letterSpacing: 0.8,
+    fontSize: 12,
     color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    textAlign: 'center',
   },
   chartCard: {
     borderWidth: 1,
@@ -425,6 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 16,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   chartKicker: {
     fontFamily: theme.fonts.label,
@@ -462,17 +460,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 16,
     marginBottom: 20,
+    borderRadius: theme.radii.md,
   },
   settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginBottom: 8,
+    borderRadius: theme.radii.md,
   },
   settingsRowText: {
     flex: 1,
@@ -513,6 +513,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     marginBottom: 16,
+    borderRadius: theme.radii.full,
   },
   devBtnTxt: {
     fontFamily: theme.fonts.label,
@@ -528,6 +529,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 12,
+    borderRadius: theme.radii.full,
   },
   signOutTxt: {
     fontFamily: theme.fonts.label,

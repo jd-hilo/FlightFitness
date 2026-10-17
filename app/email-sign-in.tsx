@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
+import { finishAuthAndRoute } from '@/components/onboarding/enterOnboarding';
 import { theme } from '@/constants/theme';
 import { requestEmailOtp, verifyEmailOtp } from '@/lib/emailOtpAuth';
 import { supabaseConfigured } from '@/lib/supabase';
@@ -19,6 +20,8 @@ import { supabaseConfigured } from '@/lib/supabase';
 type Step = 'email' | 'code';
 
 type FormError = { message: string; caption?: string; variant?: 'default' | 'notice' };
+
+const RESEND_COOLDOWN_SEC = 30;
 
 function nextParamIsOnboarding(next: string | string[] | undefined) {
   if (next === 'onboarding') return true;
@@ -33,7 +36,15 @@ export default function EmailSignInScreen() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
   const [formError, setFormError] = useState<FormError | null>(null);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
 
   const onSendCode = useCallback(async () => {
     setFormError(null);
@@ -45,64 +56,88 @@ export default function EmailSignInScreen() {
         return;
       }
       setStep('code');
+      setResendIn(RESEND_COOLDOWN_SEC);
     } finally {
       setBusy(false);
     }
   }, [email]);
 
+  const continueAfterVerify = useCallback(async () => {
+    if (afterAuthToOnboarding) {
+      const nextRoute = await finishAuthAndRoute();
+      if (!nextRoute.ok) {
+        setFormError({ message: nextRoute.error });
+        return;
+      }
+      return;
+    }
+    router.replace('/' as Href);
+  }, [afterAuthToOnboarding]);
+
   const onVerify = useCallback(async () => {
     setFormError(null);
     setBusy(true);
     try {
-      const res = await verifyEmailOtp(email, code);
-      if (!res.ok) {
-        setFormError({
-          message: res.error,
-          caption: res.caption,
-          variant: res.variant ?? 'default',
-        });
-        return;
+      if (!verified) {
+        const res = await verifyEmailOtp(email, code);
+        if (!res.ok) {
+          setFormError({
+            message: res.error,
+            caption: res.caption,
+            variant: res.variant ?? 'default',
+          });
+          return;
+        }
+        setVerified(true);
       }
-      if (afterAuthToOnboarding) {
-        router.replace('/(onboarding)' as Href);
-      } else {
-        router.replace('/' as Href);
-      }
+      await continueAfterVerify();
     } finally {
       setBusy(false);
     }
-  }, [afterAuthToOnboarding, code, email]);
+  }, [code, continueAfterVerify, email, verified]);
 
   const onBack = useCallback(() => {
+    if (step === 'code' && afterAuthToOnboarding) {
+      if (router.canGoBack()) router.back();
+      else router.replace('/(intake)/sign-in' as Href);
+      return;
+    }
     if (step === 'code') {
       setStep('email');
       setCode('');
+      setVerified(false);
       setFormError(null);
       return;
     }
+    if (afterAuthToOnboarding) {
+      if (router.canGoBack()) router.back();
+      else router.replace('/(intake)/sign-in' as Href);
+      return;
+    }
     router.back();
-  }, [step]);
+  }, [afterAuthToOnboarding, step]);
+
+  const resendDisabled = busy || resendIn > 0;
 
   return (
     <KeyboardAvoidingView
       style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.headerRow}>
-        <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button">
+        <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.back}>Back</Text>
         </Pressable>
       </View>
 
       <Text style={styles.title}>
-        {afterAuthToOnboarding ? 'Verify your email' : 'Enter your email'}
+        {step === 'code' ? 'Check your inbox' : afterAuthToOnboarding ? 'Use email' : 'Enter your email'}
       </Text>
       <Text style={styles.sub}>
         {step === 'email'
-          ? afterAuthToOnboarding
-            ? 'Use the email you want on your account. We will send a 6-digit code—no password—then you will set up your profile.'
-            : 'We will email you a 6-digit code. No password.'
-          : `Enter the code sent to ${email}`}
+          ? 'We will email you a 6-digit code. No password.'
+          : `We sent a 6-digit code to ${email}.`}
       </Text>
+      {step === 'code' ? <Text style={styles.spam}>Check spam just in case.</Text> : null}
 
       {!supabaseConfigured ? (
         <Text style={styles.warn}>
@@ -173,13 +208,22 @@ export default function EmailSignInScreen() {
         {busy ? (
           <AppLoadingCross size="small" />
         ) : (
-          <Text style={styles.primaryTxt}>{step === 'email' ? 'Send code' : 'Verify & continue'}</Text>
+          <Text style={styles.primaryTxt}>
+            {step === 'email' ? 'Send code' : verified ? 'Continue' : 'Verify & continue'}
+          </Text>
         )}
       </Pressable>
 
       {step === 'code' ? (
-        <Pressable style={styles.resend} onPress={() => void onSendCode()} disabled={busy}>
-          <Text style={styles.resendTxt}>Resend code</Text>
+        <Pressable
+          style={styles.resend}
+          onPress={() => void onSendCode()}
+          disabled={resendDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={resendIn > 0 ? `Resend code in ${resendIn} seconds` : 'Resend code'}>
+          <Text style={[styles.resendTxt, resendDisabled && styles.resendDisabled]}>
+            {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+          </Text>
         </Pressable>
       ) : null}
     </KeyboardAvoidingView>
@@ -212,6 +256,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
+  spam: {
+    fontFamily: theme.fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: -16,
+    marginBottom: 24,
+  },
   warn: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
@@ -236,6 +288,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: theme.colors.onBackground,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   error: {
     fontFamily: theme.fonts.body,
@@ -249,6 +302,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     marginBottom: 12,
+    borderRadius: theme.radii.md,
   },
   messageCardNotice: {
     borderColor: 'rgba(255, 215, 0, 0.35)',
@@ -281,6 +335,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
+    borderRadius: theme.radii.full,
   },
   primaryDisabled: { opacity: 0.55 },
   primaryTxt: {
@@ -298,4 +353,5 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  resendDisabled: { opacity: 0.4 },
 });

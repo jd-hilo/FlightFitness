@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.onBackground,
     marginBottom: 12,
+    borderRadius: theme.radii.sm,
   },
   error: {
     fontFamily: theme.fonts.body,
@@ -214,6 +215,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 12,
+    borderRadius: theme.radii.full,
   },
   primaryDisabled: { opacity: 0.6 },
   primaryTxt: {

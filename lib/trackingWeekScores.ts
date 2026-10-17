@@ -14,7 +14,6 @@ import {
 export type DayHabitScores = {
   dateKey: string;
   train: number;
-  fuel: number;
   faith: number;
 };
 
@@ -50,10 +49,6 @@ function trainScore(day: DayCompletion, plannedExerciseCount: number): number {
   return day.exerciseIdsDone.length > 0 ? 0.5 : 0;
 }
 
-function fuelScoreFallback(day: DayCompletion): number {
-  return day.mealIds.length > 0 ? 1 : 0;
-}
-
 function faithScore(day: DayFaith): number {
   let n = 0;
   if (day.studyRead) n++;
@@ -72,7 +67,6 @@ export function buildLast7DayHabitScores(input: {
   completionByDay: Record<string, DayCompletion | undefined>;
   faithByDay: Record<string, DayFaith | undefined>;
   planWeekStart: string | null;
-  mealsByDay: { id: string }[][] | null;
   workoutsByDay: ({ exercises: { id: string }[] } | null)[] | null;
 }): DayHabitScores[] {
   const keys = lastCalendarDayKeys(7);
@@ -81,10 +75,9 @@ export function buildLast7DayHabitScores(input: {
     const completion = normalizeDay(input.completionByDay[dateKey]);
     const faith = input.faithByDay[dateKey] ?? emptyFaith();
 
-    let plannedMeals = 0;
     let plannedExercises = 0;
 
-    if (input.planWeekStart && input.mealsByDay && input.workoutsByDay) {
+    if (input.planWeekStart && input.workoutsByDay) {
       const viewWeekYmd = formatYmdLocal(
         mondayOfWeekContainingLocal(parseYmd(dateKey))
       );
@@ -95,21 +88,14 @@ export function buildLast7DayHabitScores(input: {
         stripIdx
       );
       if (planIdx != null) {
-        plannedMeals = input.mealsByDay[planIdx]?.length ?? 0;
         plannedExercises =
           input.workoutsByDay[planIdx]?.exercises?.length ?? 0;
       }
     }
 
-    const fuel =
-      plannedMeals > 0
-        ? Math.min(1, completion.mealIds.length / plannedMeals)
-        : fuelScoreFallback(completion);
-
     return {
       dateKey,
       train: trainScore(completion, plannedExercises),
-      fuel,
       faith: faithScore(faith),
     };
   });

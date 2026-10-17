@@ -39,11 +39,9 @@ export function ScreenHeader({ title = 'FLIGHT FITNESS', rightSlot }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.outline,
-    paddingHorizontal: 24,
-    paddingBottom: 12,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   row: {
     flexDirection: 'row',
@@ -57,8 +55,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   logo: {
-    width: 38,
-    height: 38,
+    width: 32,
+    height: 32,
   },
   rightSlot: {
     flexShrink: 0,

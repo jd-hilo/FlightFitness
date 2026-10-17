@@ -111,7 +111,7 @@ async function fetchAllPages<T>(initialUrl: string): Promise<T[]> {
   let next: string | null = initialUrl;
 
   while (next) {
-    const page = await fetchJson<WgerPage<T>>(next);
+    const page: WgerPage<T> = await fetchJson<WgerPage<T>>(next);
     items.push(...page.results);
     next = page.next;
     process.stdout.write(`\r  fetched ${items.length}…`);

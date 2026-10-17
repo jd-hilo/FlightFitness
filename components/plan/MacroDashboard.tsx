@@ -133,6 +133,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 16,
+    borderRadius: theme.radii.md,
   },
   heroKicker: {
     fontFamily: theme.fonts.label,
@@ -189,6 +190,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.outlineStrong,
     padding: 20,
+    borderRadius: theme.radii.md,
   },
   tileLabel: {
     fontFamily: theme.fonts.label,

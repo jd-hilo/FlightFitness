@@ -17,6 +17,11 @@ export type SavedWorkout = {
 type WorkoutLibraryState = {
   workouts: SavedWorkout[];
   createWorkout: (title?: string) => string | null;
+  /**
+   * Insert one saved workout that already has exercises.
+   * Same free-tier cap as createWorkout. Does not change createWorkout.
+   */
+  seedSavedWorkout: (input: { title: string; exercises: Exercise[] }) => string | null;
   updateWorkoutTitle: (id: string, title: string) => void;
   deleteWorkout: (id: string) => void;
   addExercise: (workoutId: string, exercise: Exercise) => void;
@@ -47,6 +52,26 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()((set, get) =
           id,
           title,
           exercises: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((s) => ({ workouts: [workout, ...s.workouts] }));
+        scheduleTrackingRemoteSave();
+        return id;
+      },
+
+      seedSavedWorkout: ({ title, exercises }) => {
+        const tier = useSubscriptionStore.getState().tier;
+        if (!canAddSavedWorkout(tier, get().workouts.length)) {
+          return null;
+        }
+
+        const id = newId('sw');
+        const now = new Date().toISOString();
+        const workout: SavedWorkout = {
+          id,
+          title: title.trim() || 'Workout',
+          exercises: exercises.map((exercise) => ensureExerciseSetRows(exercise)),
           createdAt: now,
           updatedAt: now,
         };

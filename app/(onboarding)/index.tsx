@@ -1,5 +1,5 @@
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 
 export default function OnboardingIndex() {
-  return <Redirect href="/(onboarding)/name" />;
+  return <Redirect href={'/(onboarding)/faith-goals' as Href} />;
 }

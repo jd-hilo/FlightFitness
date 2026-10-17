@@ -1,9 +1,11 @@
 import {
-  Epilogue_700Bold,
-  Epilogue_900Black,
-  Epilogue_900Black_Italic,
-} from '@expo-google-fonts/epilogue';
-import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  Inter_900Black,
+} from '@expo-google-fonts/inter';
 import { ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -59,11 +61,12 @@ export default function RootLayout() {
   useRevenueCatSubscriptionSync();
 
   const [loaded, error] = useFonts({
-    Epilogue_700Bold,
-    Epilogue_900Black,
-    Epilogue_900Black_Italic,
     Inter_400Regular,
     Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
   });
 
   useEffect(() => {
@@ -87,21 +90,12 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="welcome" />
             <Stack.Screen name="email-sign-in" />
-            {/* No swipe-back out of onboarding into welcome, or out of the app into onboarding. */}
+            {/* No swipe-back out of intake or onboarding into the screen behind them. */}
+            <Stack.Screen name="(intake)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="workout-session" options={{ headerShown: false }} />
             <Stack.Screen name="workout/[id]" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="grocery"
-              options={{
-                presentation: 'modal',
-                headerShown: true,
-                title: 'Grocery list',
-                headerStyle: { backgroundColor: '#000' },
-                headerTintColor: '#FFD700',
-              }}
-            />
             <Stack.Screen
               name="paywall"
               options={{
@@ -119,7 +113,7 @@ export default function RootLayout() {
                 headerBackTitle: '',
                 headerBackButtonDisplayMode: 'minimal',
                 headerTitleStyle: {
-                  fontFamily: 'Epilogue_700Bold',
+                  fontFamily: theme.fonts.labelBold,
                 },
               }}
             />
@@ -134,7 +128,7 @@ export default function RootLayout() {
                 /** iOS: chevron only, no label beside the back button */
                 headerBackButtonDisplayMode: 'minimal',
                 headerTitleStyle: {
-                  fontFamily: 'Epilogue_700Bold',
+                  fontFamily: theme.fonts.labelBold,
                 },
               }}
             />

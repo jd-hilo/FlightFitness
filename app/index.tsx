@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -6,7 +6,7 @@ import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { pullProfileOnboardingIntoStore } from '@/lib/api/profileOnboarding';
 import { useStoresHydrated } from '@/lib/hydration';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
-import { useOnboardingStore } from '@/stores/onboardingStore';
+import { isIntakeReady, useOnboardingStore } from '@/stores/onboardingStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { theme } from '@/constants/theme';
 
@@ -14,6 +14,7 @@ export default function Index() {
   const hydrated = useStoresHydrated();
   const { ready: authReady, registered: authRegistered } = useRegisteredAuth();
   const completed = useOnboardingStore((s) => s.completedAt != null);
+  const intakeReady = useOnboardingStore(isIntakeReady);
   const [remoteOnboardingChecked, setRemoteOnboardingChecked] = useState(false);
 
   /**
@@ -64,7 +65,9 @@ export default function Index() {
   }
 
   if (!authRegistered) {
-    return <Redirect href="/welcome" />;
+    return (
+      <Redirect href={(intakeReady ? '/(intake)/sign-in' : '/welcome') as Href} />
+    );
   }
 
   if (!completed && !remoteOnboardingChecked) {

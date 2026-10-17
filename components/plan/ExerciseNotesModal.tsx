@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.onBackground,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   inputMulti: { minHeight: 120, textAlignVertical: 'top' },
   hint: {

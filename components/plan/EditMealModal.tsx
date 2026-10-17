@@ -279,6 +279,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginBottom: 16,
+    borderRadius: theme.radii.full,
   },
   slotTxt: {
     fontFamily: theme.fonts.label,
@@ -304,6 +305,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.onBackground,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   inputMulti: { minHeight: 88, textAlignVertical: 'top' },
   macroRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },

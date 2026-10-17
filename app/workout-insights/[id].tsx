@@ -497,6 +497,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outlineStrong,
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 14,
+    borderRadius: theme.radii.md,
   },
   statValue: {
     fontFamily: theme.fonts.headlineBold,
@@ -523,6 +524,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     gap: 12,
+    borderRadius: theme.radii.md,
   },
   recentText: { flex: 1, gap: 4 },
   recentDate: {
@@ -588,6 +590,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 16,
     marginTop: 12,
+    borderRadius: theme.radii.md,
   },
   exHeadRow: {
     flexDirection: 'row',
@@ -624,7 +627,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body,
     fontSize: 11,
     color: theme.colors.onSurfaceVariant,
-    fontStyle: 'italic',
     marginTop: 10,
   },
   emptyBox: {
@@ -635,6 +637,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 24,
     marginTop: 16,
+    borderRadius: theme.radii.md,
   },
   emptyTitle: {
     fontFamily: theme.fonts.headlineBold,

@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 40,
     alignItems: 'center',
+    borderRadius: theme.radii.md,
   },
   previewLabel: {
     fontFamily: theme.fonts.label,

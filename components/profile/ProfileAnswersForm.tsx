@@ -15,22 +15,12 @@ import { ScrollNumberPicker } from '@/components/onboarding/ScrollNumberPicker';
 import { WeightPicker } from '@/components/onboarding/WeightPicker';
 import { theme } from '@/constants/theme';
 import {
-  ALLERGY_NONE_ID,
-  ALLERGY_OPTIONS,
-  COOKING_SKILL_OPTIONS,
-  DIET_MODIFIER_OPTIONS,
-  DIET_PATTERN_OPTIONS,
   EQUIPMENT_OPTIONS,
   EXPERIENCE_OPTIONS,
-  FOOD_PREFERENCE_OPTIONS,
-  MAX_FOOD_PREFERENCE_SELECTIONS,
   GOAL_OPTIONS,
   INJURY_LIMITATION_OPTIONS,
   INJURY_NONE_ID,
-  MAX_ALLERGY_SELECTIONS,
   MAX_INJURY_SELECTIONS,
-  MEALS_PER_DAY_OPTIONS,
-  NUTRITION_PACE_OPTIONS,
   SESSION_LENGTH_OPTIONS,
   SEX_OPTIONS,
   TRAINING_DAYS_OPTIONS,
@@ -38,12 +28,10 @@ import {
   ageValues,
   formatHeightInchesLabel,
   heightInchesValues,
-  isDietModifierOptionDisabled,
   isEquipmentOptionDisabled,
 } from '@/lib/onboardingOptions';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 
-const MAX_MODIFIERS = 5;
 const AGE_VALUES = ageValues();
 const HEIGHT_VALUES = heightInchesValues();
 
@@ -54,20 +42,14 @@ export function ProfileAnswersForm() {
   const toggleGoal = useOnboardingStore((s) => s.toggleGoal);
   const setSingle = useOnboardingStore((s) => s.setSingle);
   const toggleEquipment = useOnboardingStore((s) => s.toggleEquipment);
-  const toggleDietModifier = useOnboardingStore((s) => s.toggleDietModifier);
-  const toggleFoodPreference = useOnboardingStore((s) => s.toggleFoodPreference);
   const toggleTrainingTime = useOnboardingStore((s) => s.toggleTrainingTime);
   const toggleInjuryLimitation = useOnboardingStore((s) => s.toggleInjuryLimitation);
-  const toggleAllergy = useOnboardingStore((s) => s.toggleAllergy);
   const setNotes = useOnboardingStore((s) => s.setNotes);
   const setAnswers = useOnboardingStore((s) => s.setAnswers);
   const setWeight = useOnboardingStore((s) => s.setWeight);
 
   const injuryRealCount = answers.injuryLimitationIds.filter(
     (id) => id !== INJURY_NONE_ID
-  ).length;
-  const allergyRealCount = answers.allergyIds.filter(
-    (id) => id !== ALLERGY_NONE_ID
   ).length;
 
   const scrollNotesIntoView = () => {
@@ -100,13 +82,10 @@ export function ProfileAnswersForm() {
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}>
-      <Text style={styles.lead}>
-        Changes save automatically. They apply the next time your week plan is
-        updated.
-      </Text>
+      <Text style={styles.lead}>Changes save automatically.</Text>
 
       <Section title="Your name">
-        <Text style={styles.subLabel}>First name (shown on Home)</Text>
+        <Text style={styles.subLabel}>First name</Text>
         <TextInput
           style={styles.textField}
           placeholder="Alex"
@@ -163,7 +142,7 @@ export function ProfileAnswersForm() {
         </ChipGrid>
         <ScrollNumberPicker
           label="Age"
-          hint="Years — for calorie estimates."
+          hint="Years"
           values={AGE_VALUES}
           value={answers.ageYears}
           onChange={(y) => setAnswers({ ageYears: y })}
@@ -264,125 +243,6 @@ export function ProfileAnswersForm() {
         />
       </Section>
 
-      <Section title="How do you usually eat?">
-        <ChipGrid>
-          {DIET_PATTERN_OPTIONS.map((opt) => {
-            const selected = answers.dietPattern === opt.id;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                onPress={() => setSingle('dietPattern', opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-      </Section>
-
-      <Section
-        title="Diet rules & macro style"
-        subtitle={`Up to ${MAX_MODIFIERS} — optional.`}>
-        <Text style={styles.capHint}>{answers.dietModifiers.length} / {MAX_MODIFIERS}</Text>
-        <ChipGrid>
-          {DIET_MODIFIER_OPTIONS.map((opt) => {
-            const selected = answers.dietModifiers.includes(opt.id);
-            const ruleDisabled = isDietModifierOptionDisabled(
-              answers.dietModifiers,
-              opt.id
-            );
-            const atCap =
-              answers.dietModifiers.length >= MAX_MODIFIERS && !selected;
-            const disabled = atCap || ruleDisabled;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                disabled={disabled}
-                onPress={() => toggleDietModifier(opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-      </Section>
-
-      <Section
-        title="Tastes & meal style"
-        subtitle={`Pick what fits you — up to ${MAX_FOOD_PREFERENCE_SELECTIONS}. Add dislikes or cuisines in “Anything else about food?” below.`}>
-        <Text style={styles.capHint}>
-          {answers.foodPreferences.length} / {MAX_FOOD_PREFERENCE_SELECTIONS}
-        </Text>
-        <ChipGrid>
-          {FOOD_PREFERENCE_OPTIONS.map((opt) => {
-            const selected = answers.foodPreferences.includes(opt.id);
-            const atCap =
-              answers.foodPreferences.length >= MAX_FOOD_PREFERENCE_SELECTIONS &&
-              !selected;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                disabled={atCap}
-                onPress={() => toggleFoodPreference(opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-      </Section>
-
-      <Section title="Anything else about food?">
-        <TextInput
-          style={styles.textArea}
-          placeholder="Cultural foods, fasting, details for “other / flexible”…"
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-          multiline
-          returnKeyType="done"
-          submitBehavior="blurAndSubmit"
-          value={answers.dietOtherNotes}
-          onChangeText={(t) => setNotes('dietOtherNotes', t)}
-          onFocus={scrollNotesIntoView}
-          maxLength={600}
-        />
-      </Section>
-
-      <Section title="Food allergies">
-        <Text style={styles.capHint}>
-          {allergyRealCount} / {MAX_ALLERGY_SELECTIONS} allergens
-        </Text>
-        <ChipGrid>
-          {ALLERGY_OPTIONS.map((opt) => {
-            const selected = answers.allergyIds.includes(opt.id);
-            const isNone = opt.id === ALLERGY_NONE_ID;
-            const atCap =
-              allergyRealCount >= MAX_ALLERGY_SELECTIONS && !selected && !isNone;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                disabled={atCap}
-                onPress={() => toggleAllergy(opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-        <Text style={[styles.subLabel, { marginTop: 16 }]}>Other allergies</Text>
-        <TextInput
-          style={styles.textArea}
-          placeholder="e.g. Mango, mustard…"
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-          multiline
-          returnKeyType="done"
-          submitBehavior="blurAndSubmit"
-          value={answers.allergyOtherNotes}
-          onChangeText={(t) => setNotes('allergyOtherNotes', t)}
-          onFocus={scrollNotesIntoView}
-          maxLength={300}
-        />
-      </Section>
-
       <Section title="Training days per week">
         <ChipGrid>
           {TRAINING_DAYS_OPTIONS.map((opt) => {
@@ -417,55 +277,10 @@ export function ProfileAnswersForm() {
         </ChipGrid>
       </Section>
 
-      <Section title="Pace & kitchen">
-        <Text style={styles.subLabel}>Weight-change pace</Text>
-        <ChipGrid>
-          {NUTRITION_PACE_OPTIONS.map((opt) => {
-            const selected = answers.nutritionPaceId === opt.id;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                onPress={() => setSingle('nutritionPaceId', opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-        <Text style={[styles.subLabel, { marginTop: 16 }]}>Meals per day</Text>
-        <ChipGrid>
-          {MEALS_PER_DAY_OPTIONS.map((opt) => {
-            const selected = answers.mealsPerDayId === opt.id;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                onPress={() => setSingle('mealsPerDayId', opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-        <Text style={[styles.subLabel, { marginTop: 16 }]}>Cooking level</Text>
-        <ChipGrid>
-          {COOKING_SKILL_OPTIONS.map((opt) => {
-            const selected = answers.cookingSkillId === opt.id;
-            return (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={selected}
-                onPress={() => setSingle('cookingSkillId', opt.id)}
-              />
-            );
-          })}
-        </ChipGrid>
-      </Section>
-
       <Section title="Current weight">
         <WeightPicker
           label="Pounds (lb)"
-          hint="Used with height and age for calorie context."
+          hint="Where you are now."
           value={answers.currentWeightLb}
           onChange={(lb) => setWeight('currentWeightLb', lb)}
         />
@@ -600,6 +415,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outline,
     backgroundColor: theme.colors.surfaceContainerLow,
     maxWidth: '100%',
+    borderRadius: theme.radii.full,
   },
   chipSelected: {
     borderColor: theme.colors.gold,
@@ -626,6 +442,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.onBackground,
     textAlignVertical: 'top',
+    borderRadius: theme.radii.md,
   },
   textField: {
     minHeight: 52,
@@ -637,5 +454,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.headlineBold,
     fontSize: 18,
     color: theme.colors.onBackground,
+    borderRadius: theme.radii.md,
   },
 });

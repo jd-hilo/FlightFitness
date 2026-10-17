@@ -70,11 +70,11 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: useClientOnlyValue(false, false),
         }}>
-        <Tabs.Screen name="index" options={{ title: 'Home' }} />
-        <Tabs.Screen name="train" options={{ title: 'Train' }} />
-        <Tabs.Screen name="fuel" options={{ title: 'Fuel' }} />
+        <Tabs.Screen name="index" options={{ title: 'Fitness' }} />
+        <Tabs.Screen name="train" options={{ title: 'Train', href: null }} />
+        <Tabs.Screen name="fuel" options={{ title: 'Fuel', href: null }} />
         <Tabs.Screen name="faith" options={{ title: 'Faith' }} />
-        <Tabs.Screen name="elite" options={{ title: 'Track' }} />
+        <Tabs.Screen name="elite" options={{ title: 'Profile' }} />
       </Tabs>
       <VerseCelebrationModal
         visible={visible}

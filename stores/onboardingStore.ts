@@ -3,9 +3,12 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
+  AGE_MAX,
+  AGE_MIN,
   ALLERGY_NONE_ID,
   INJURY_NONE_ID,
   MAX_ALLERGY_SELECTIONS,
+  MAX_FAITH_GOALS,
   MAX_FOOD_PREFERENCE_SELECTIONS,
   MAX_INJURY_SELECTIONS,
   isDietModifierOptionDisabled,
@@ -22,6 +25,8 @@ const defaultAnswers: OnboardingAnswers = {
   firstName: '',
   goal: [],
   experience: '',
+  faithTenure: '',
+  faithGoals: [],
   equipment: [],
   dietPattern: '',
   dietModifiers: [],
@@ -46,6 +51,7 @@ const defaultAnswers: OnboardingAnswers = {
 
 type SingleStringKey =
   | 'experience'
+  | 'faithTenure'
   | 'dietPattern'
   | 'trainingDaysPerWeek'
   | 'sex'
@@ -59,7 +65,11 @@ type NotesKey = 'injuryNotes' | 'dietOtherNotes' | 'allergyOtherNotes';
 type OnboardingState = {
   answers: OnboardingAnswers;
   completedAt: string | null;
+  /** True after they confirm age. The picker default is not an answer until then. */
+  intakeComplete: boolean;
   toggleGoal: (optionId: string) => void;
+  toggleFaithGoal: (optionId: string) => void;
+  setIntakeComplete: (value: boolean) => void;
   setSingle: (key: SingleStringKey, value: string) => void;
   toggleEquipment: (optionId: string) => void;
   toggleDietModifier: (optionId: string) => void;
@@ -95,6 +105,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set) => ({
       answers: { ...defaultAnswers },
       completedAt: null,
+      intakeComplete: false,
       toggleGoal: (optionId) =>
         set((s) => ({
           answers: {
@@ -102,6 +113,14 @@ export const useOnboardingStore = create<OnboardingState>()(
             goal: toggleCapped(s.answers.goal, optionId, 2),
           },
         })),
+      toggleFaithGoal: (optionId) =>
+        set((s) => ({
+          answers: {
+            ...s.answers,
+            faithGoals: toggleCapped(s.answers.faithGoals, optionId, MAX_FAITH_GOALS),
+          },
+        })),
+      setIntakeComplete: (value) => set({ intakeComplete: value }),
       setSingle: (key, value) =>
         set((s) => ({
           answers: { ...s.answers, [key]: value },
@@ -239,19 +258,24 @@ export const useOnboardingStore = create<OnboardingState>()(
         set({
           answers: { ...defaultAnswers },
           completedAt: null,
+          intakeComplete: false,
         }),
     }),
     {
       name: 'flight-onboarding-v5',
       storage: createJSONStorage(() => AsyncStorage),
       merge: (persisted, current) => {
-        const p = persisted as Partial<Pick<OnboardingState, 'answers' | 'completedAt'>> | undefined;
+        const p = persisted as
+          | Partial<Pick<OnboardingState, 'answers' | 'completedAt' | 'intakeComplete'>>
+          | undefined;
         if (!p || typeof p !== 'object') return current;
         const merged: OnboardingAnswers = {
           ...defaultAnswers,
           ...(p.answers ?? {}),
         };
         merged.goal = normalizeStringList((p.answers as { goal?: unknown } | undefined)?.goal).slice(0, 2);
+        merged.faithTenure = typeof merged.faithTenure === 'string' ? merged.faithTenure : '';
+        merged.faithGoals = normalizeStringList(merged.faithGoals).slice(0, MAX_FAITH_GOALS);
         // Drop legacy non-binary sex values that are no longer offered.
         if (merged.sex === 'sex_nonbinary') {
           merged.sex = '';
@@ -270,6 +294,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         return {
           ...current,
           completedAt: p.completedAt ?? current.completedAt,
+          intakeComplete: p.intakeComplete === true,
           answers: merged,
         };
       },
@@ -279,6 +304,22 @@ export const useOnboardingStore = create<OnboardingState>()(
 
 export function useOnboardingComplete() {
   return useOnboardingStore((s) => s.completedAt != null);
+}
+
+/** Pre-auth questions are done only after they confirm age. The default age is not enough. */
+export function isIntakeReady(state: {
+  intakeComplete: boolean;
+  answers: OnboardingAnswers;
+}): boolean {
+  const { answers, intakeComplete } = state;
+  return (
+    intakeComplete &&
+    answers.goal.length > 0 &&
+    answers.experience.length > 0 &&
+    answers.faithTenure.length > 0 &&
+    answers.ageYears >= AGE_MIN &&
+    answers.ageYears <= AGE_MAX
+  );
 }
 
 export function isStepComplete(

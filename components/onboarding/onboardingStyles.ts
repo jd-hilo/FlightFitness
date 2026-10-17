@@ -1,8 +1,15 @@
 import { StyleSheet } from 'react-native';
 
-import { theme } from '@/constants/theme';
+import { glassCard, theme } from '@/constants/theme';
 
-export const ONBOARDING_STEP_COUNT = 9;
+/**
+ * Post-auth shell screens are faith goals, first workout, and the two slides.
+ * The paywall is the fourth screen and does not use the shell.
+ */
+export const ONBOARDING_STEP_COUNT = 4;
+
+/** Pre-auth questions: fitness goal, lifting, faith tenure, age. */
+export const INTAKE_STEP_COUNT = 4;
 
 export const onboardingStyles = StyleSheet.create({
   kavRoot: {
@@ -14,76 +21,83 @@ export const onboardingStyles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     paddingHorizontal: 24,
   },
+  shellBody: {
+    flex: 1,
+    minHeight: 0,
+  },
   brand: {
     fontFamily: theme.fonts.headline,
-    fontSize: 28,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginBottom: 8,
+    fontSize: 15,
+    letterSpacing: 0.5,
+    color: theme.colors.onBackground,
+    marginBottom: 16,
   },
   progressTrack: {
-    height: 5,
+    height: 4,
     width: '100%',
-    backgroundColor: theme.colors.surfaceVariant,
-    borderRadius: 2,
+    backgroundColor: theme.colors.glassStrong,
+    borderRadius: theme.radii.full,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 28,
   },
   progressFill: {
     height: '100%',
     backgroundColor: theme.colors.gold,
-    borderRadius: 2,
+    borderRadius: theme.radii.full,
   },
   title: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 22,
+    fontFamily: theme.fonts.headline,
+    fontSize: 30,
+    lineHeight: 33,
+    letterSpacing: -0.8,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
   subtitle: {
     fontFamily: theme.fonts.body,
-    fontSize: 14,
+    fontSize: 15,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 22,
+    marginBottom: 20,
   },
   capHint: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontSize: 13,
     color: theme.colors.gold,
     marginBottom: 12,
   },
   chipsScroll: { flexGrow: 1, paddingBottom: 16 },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: theme.radii.full,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
     maxWidth: '100%',
   },
   chipSelected: {
     borderColor: theme.colors.gold,
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    backgroundColor: theme.colors.goldSoft,
   },
   chipText: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 15,
     color: theme.colors.onBackground,
   },
   chipTextSelected: {
-    fontFamily: theme.fonts.label,
+    fontFamily: theme.fonts.labelBold,
     color: theme.colors.gold,
   },
   textField: {
     minHeight: 56,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    paddingHorizontal: 16,
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
+    paddingHorizontal: 18,
     paddingVertical: 14,
     fontFamily: theme.fonts.headlineBold,
     fontSize: 20,
@@ -92,10 +106,8 @@ export const onboardingStyles = StyleSheet.create({
   weightScroll: { flexGrow: 1 },
   sectionLabel: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 10,
     marginTop: 8,
   },
@@ -106,32 +118,31 @@ export const onboardingStyles = StyleSheet.create({
   },
   secondary: {
     flex: 1,
+    borderRadius: theme.radii.full,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    paddingVertical: 16,
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
+    paddingVertical: 17,
     alignItems: 'center',
   },
   secondaryTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
   disabled: { opacity: 0.3 },
   primary: {
     flex: 2,
     backgroundColor: theme.colors.gold,
-    paddingVertical: 16,
+    borderRadius: theme.radii.full,
+    paddingVertical: 17,
     alignItems: 'center',
   },
   primaryDisabled: { opacity: 0.4 },
   primaryTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
     color: theme.colors.onGold,
-    textTransform: 'uppercase',
   },
   macroFieldRow: {
     flexDirection: 'row',
@@ -142,16 +153,15 @@ export const onboardingStyles = StyleSheet.create({
   macroLabel: {
     flex: 1,
     fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.5,
+    fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
   },
   macroInput: {
     width: 100,
+    borderRadius: theme.radii.sm,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: theme.fonts.headlineBold,
@@ -160,16 +170,15 @@ export const onboardingStyles = StyleSheet.create({
     textAlign: 'right',
   },
   infoCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
+    ...glassCard,
     padding: 20,
     marginTop: 8,
   },
   infoTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.gold,
+    fontFamily: theme.fonts.headline,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: theme.colors.onBackground,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
@@ -184,6 +193,10 @@ export const onboardingStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
+  },
+  proofBody: {
+    flex: 1,
+    justifyContent: 'center',
   },
   loadingText: {
     fontFamily: theme.fonts.body,

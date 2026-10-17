@@ -129,7 +129,7 @@ export default function FaithScreen() {
           contentContainerStyle={[
             styles.scroll,
             {
-              paddingBottom: insets.bottom + 16,
+              paddingBottom: insets.bottom + 120,
             },
           ]}
           showsVerticalScrollIndicator={false}
@@ -279,7 +279,8 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
   head: {
     fontFamily: theme.fonts.headline,
-    fontSize: 36,
+    fontSize: 34,
+    letterSpacing: -1,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -292,28 +293,29 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   streakCard: {
-    backgroundColor: theme.colors.surfaceContainerHigh,
+    backgroundColor: theme.colors.glass,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
+    borderColor: theme.colors.glassEdge,
     padding: 20,
     marginBottom: 24,
+    borderRadius: theme.radii.md,
   },
   streakLabel: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
   },
   streakNum: {
     fontFamily: theme.fonts.headline,
-    fontSize: 44,
+    fontSize: 48,
+    letterSpacing: -1.5,
     color: theme.colors.onBackground,
     marginVertical: 6,
   },
   section: {
     fontFamily: theme.fonts.headline,
-    fontSize: 22,
+    fontSize: 20,
+    letterSpacing: -0.4,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
     marginBottom: 12,
@@ -391,7 +393,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    fontStyle: 'italic',
     marginBottom: 14,
   },
   passageLoading: {
@@ -418,7 +419,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: theme.colors.onSurfaceVariant,
     marginBottom: 14,
-    fontStyle: 'italic',
   },
   readingReflect: {
     fontFamily: theme.fonts.body,
@@ -466,6 +466,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     paddingVertical: 15,
     paddingHorizontal: 18,
+    borderRadius: theme.radii.full,
   },
   checkOffBtnDone: {
     borderColor: 'rgba(255, 215, 0, 0.5)',
@@ -506,5 +507,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.onBackground,
     textAlignVertical: 'top',
+    borderRadius: theme.radii.md,
   },
 });

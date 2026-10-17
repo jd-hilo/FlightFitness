@@ -22,10 +22,11 @@ import { EditSessionDurationModal } from '@/components/insights/EditSessionDurat
 import { RestTimerOverlay } from '@/components/workout/RestTimerOverlay';
 import { theme } from '@/constants/theme';
 import { formatDuration } from '@/lib/formatDuration';
+import { volumeLbFromExercises } from '@/lib/insights/workoutInsights';
 import { paywallHref, track } from '@/lib/analytics';
 import { scheduleFirstWorkoutReviewPrompt } from '@/lib/appReview';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
-import { volumeLbFromExercises } from '@/lib/insights/workoutInsights';
+import { flushTrackingRemoteSave } from '@/lib/api/trackingPersistence';
 import { parseTargetReps } from '@/lib/repUtils';
 import { resolveDailyVerse } from '@/lib/dailyVerse';
 import {
@@ -270,31 +271,34 @@ export default function WorkoutSessionScreen() {
       router.replace('/(tabs)/train');
     };
 
-    if (durationSec > LONG_WORKOUT_SEC) {
-      exitAfterFixRef.current = exit;
-      Alert.alert(
-        'Forget to end your workout?',
-        `This session logged as ${formatDuration(durationSec)}. Want to edit the duration?`,
-        [
-          { text: `Keep ${formatDuration(durationSec)}`, style: 'cancel', onPress: exit },
-          {
-            text: 'Edit duration',
-            onPress: () =>
-              setDurationFix({
-                id: live.sessionId,
-                title: live.title,
-                sourceWorkoutId: live.sourceWorkoutId,
-                dateKey: formatYmdLocal(new Date(finishedAt)),
-                finishedAt,
-                durationSec,
-                volumeLb,
-              }),
-          },
-        ]
-      );
-      return;
-    }
-    exit();
+    void (async () => {
+      await flushTrackingRemoteSave();
+      if (durationSec > LONG_WORKOUT_SEC) {
+        exitAfterFixRef.current = exit;
+        Alert.alert(
+          'Forget to end your workout?',
+          `This session logged as ${formatDuration(durationSec)}. Want to edit the duration?`,
+          [
+            { text: `Keep ${formatDuration(durationSec)}`, style: 'cancel', onPress: exit },
+            {
+              text: 'Edit duration',
+              onPress: () =>
+                setDurationFix({
+                  id: live.sessionId,
+                  title: live.title,
+                  sourceWorkoutId: live.sourceWorkoutId,
+                  dateKey: formatYmdLocal(new Date(finishedAt)),
+                  finishedAt,
+                  durationSec,
+                  volumeLb,
+                }),
+            },
+          ]
+        );
+        return;
+      }
+      exit();
+    })();
   };
 
   if (!session) return null;
@@ -626,6 +630,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.gold,
     paddingVertical: 10,
     alignItems: 'center',
+    borderRadius: theme.radii.full,
   },
   controlTxt: {
     fontFamily: theme.fonts.label,
@@ -640,6 +645,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outline,
     paddingVertical: 10,
     alignItems: 'center',
+    borderRadius: theme.radii.full,
   },
   controlTxtDanger: {
     fontFamily: theme.fonts.label,
@@ -655,6 +661,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
     gap: 10,
+    borderRadius: theme.radii.md,
   },
   exCardSuperset: {
     borderColor: theme.colors.goldDim,
@@ -707,7 +714,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body,
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
-    fontStyle: 'italic',
     marginBottom: 4,
   },
   setCard: {
@@ -715,6 +721,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outline,
     backgroundColor: theme.colors.surfaceContainerHigh,
     padding: 12,
+    borderRadius: theme.radii.md,
   },
   setCardFocused: {
     borderColor: theme.colors.gold,
@@ -765,6 +772,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gold,
     paddingVertical: 14,
     marginTop: 4,
+    borderRadius: theme.radii.full,
   },
   addExerciseTxt: {
     fontFamily: theme.fonts.label,

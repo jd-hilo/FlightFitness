@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     paddingVertical: 36,
     paddingHorizontal: 28,
+    borderRadius: theme.radii.md,
   },
   kicker: {
     fontFamily: theme.fonts.label,

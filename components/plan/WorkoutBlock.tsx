@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outlineStrong,
     padding: 20,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   cardReadOnly: { opacity: 0.55 },
   textMuted: { color: theme.colors.onSurfaceVariant },
@@ -198,6 +199,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.gold,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderRadius: theme.radii.full,
   },
   completeBtnDisabled: { borderColor: theme.colors.outline },
   completeTxt: {
@@ -265,7 +267,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
     marginTop: 6,
-    fontStyle: 'italic',
   },
   cardCompact: { padding: 8, marginBottom: 6 },
   headCompact: { marginBottom: 8, gap: 6 },

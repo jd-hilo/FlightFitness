@@ -140,7 +140,7 @@ export function FlightUpgradeOffer({
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={['rgba(255,255,255,0.16)', 'rgba(255,215,0,0.12)', 'transparent']}
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,215,0,0.08)', 'transparent']}
         locations={[0, 0.42, 1]}
         style={styles.topGlow}
         pointerEvents="none"
@@ -167,8 +167,8 @@ export function FlightUpgradeOffer({
           </Text>
           <Text style={styles.subhead}>
             {isOnboarding
-              ? '3 days on us — full access to workouts, meals, insights, and rest verses'
-              : 'Faith, fuel, and training without limits'}
+              ? '3 days on us — full access to workouts, insights, and rest verses'
+              : 'Workouts, insights, and scripture without limits'}
           </Text>
         </View>
 
@@ -206,7 +206,7 @@ export function FlightUpgradeOffer({
                 monthlyLocked
                   ? 'rgba(255,255,255,0.18)'
                   : selected === 'monthly'
-                    ? '#FFFFFF'
+                    ? theme.colors.gold
                     : 'rgba(255,255,255,0.42)'
               }
               style={styles.offerCheck}
@@ -248,7 +248,7 @@ export function FlightUpgradeOffer({
                 lifetimeLocked
                   ? 'rgba(255,255,255,0.18)'
                   : selected === 'lifetime'
-                    ? '#FFFFFF'
+                    ? theme.colors.gold
                     : 'rgba(255,255,255,0.42)'
               }
               style={styles.offerCheck}
@@ -288,7 +288,7 @@ export function FlightUpgradeOffer({
             <Text style={styles.coachingInfoSub}>
               {coachingActive
                 ? 'Your coach-led plan is active'
-                : 'Coach-led workouts, meals, and faith practices'}
+                : 'Coach-led workouts and faith practices'}
             </Text>
           </View>
           <View style={styles.coachingInfoAction}>
@@ -426,17 +426,19 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontFamily: theme.fonts.headline,
-    fontSize: 24,
+    fontSize: 30,
+    letterSpacing: -0.8,
     color: '#FFFFFF',
     textAlign: 'center',
-    lineHeight: 28,
+    lineHeight: 33,
     textTransform: 'uppercase',
     paddingHorizontal: 8,
   },
   subhead: {
-    marginTop: 6,
+    marginTop: 10,
     fontFamily: theme.fonts.body,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 21,
     color: 'rgba(255,255,255,0.58)',
     textAlign: 'center',
     paddingHorizontal: 12,
@@ -446,45 +448,43 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   showcaseHeading: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2.4,
-    color: 'rgba(255,255,255,0.45)',
+    fontFamily: theme.fonts.headline,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: '#FFFFFF',
     textTransform: 'uppercase',
-    textAlign: 'center',
     marginBottom: 4,
   },
   showcaseCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
-    borderRadius: 16,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   showcaseIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: theme.radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: theme.colors.glassStrong,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.22)',
+    borderColor: theme.colors.glassEdge,
   },
   showcaseText: {
     flex: 1,
     minWidth: 0,
   },
   showcaseTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 15,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 4,
   },
   showcaseDesc: {
@@ -495,12 +495,11 @@ const styles = StyleSheet.create({
   },
   essentialsHeading: {
     fontFamily: theme.fonts.headline,
-    fontSize: 18,
+    fontSize: 20,
     color: '#FFFFFF',
     textTransform: 'uppercase',
-    textAlign: 'center',
-    marginBottom: 14,
-    letterSpacing: 0.5,
+    marginBottom: 12,
+    letterSpacing: -0.4,
   },
   offerRow: {
     flexDirection: 'row',
@@ -510,18 +509,18 @@ const styles = StyleSheet.create({
   offerCard: {
     flex: 1,
     minHeight: 132,
-    borderRadius: 20,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    backgroundColor: 'rgba(255,255,255,0.045)',
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
     paddingHorizontal: 14,
     paddingVertical: 15,
     position: 'relative',
     overflow: 'hidden',
   },
   offerCardSelected: {
-    borderColor: 'rgba(255,255,255,0.82)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.goldSoft,
   },
   offerCardLocked: {
     opacity: 0.38,
@@ -551,11 +550,10 @@ const styles = StyleSheet.create({
     minHeight: 28,
   },
   offerName: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 16,
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 15,
     color: '#FFFFFF',
     lineHeight: 21,
-    textTransform: 'uppercase',
   },
   offerBottom: {
     flexDirection: 'row',
@@ -564,8 +562,9 @@ const styles = StyleSheet.create({
     minHeight: 31,
   },
   offerPrice: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 24,
+    fontFamily: theme.fonts.headline,
+    fontSize: 26,
+    letterSpacing: -0.6,
     color: '#FFFFFF',
     lineHeight: 29,
   },
@@ -587,10 +586,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderRadius: 20,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.22)',
-    backgroundColor: 'rgba(255, 215, 0, 0.06)',
+    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.glass,
     paddingHorizontal: 16,
     paddingVertical: 16,
     marginBottom: 16,
@@ -603,10 +602,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   coachingInfoTitle: {
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.labelBold,
     fontSize: 15,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
     marginBottom: 4,
   },
   coachingInfoSub: {
@@ -623,15 +621,12 @@ const styles = StyleSheet.create({
   },
   coachingInfoLink: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 13,
     color: theme.colors.gold,
-    textTransform: 'uppercase',
   },
   continueBtn: {
-    borderWidth: 1.4,
-    borderColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 999,
+    backgroundColor: theme.colors.gold,
+    borderRadius: theme.radii.full,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -640,19 +635,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   continueBtnDisabled: {
-    opacity: 0.72,
+    opacity: 0.5,
   },
   continueTxt: {
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.labelBold,
     fontSize: 17,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    color: theme.colors.onGold,
     textAlign: 'center',
   },
   continueSubtext: {
-    fontFamily: theme.fonts.body,
+    fontFamily: theme.fonts.bodyMedium,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.58)',
+    color: 'rgba(0,0,0,0.62)',
     textAlign: 'center',
   },
   secondaryActions: {
@@ -667,17 +661,13 @@ const styles = StyleSheet.create({
   },
   enterCodeText: {
     fontFamily: theme.fonts.label,
-    fontSize: 13,
-    letterSpacing: 1.4,
+    fontSize: 14,
     color: theme.colors.gold,
-    textTransform: 'uppercase',
   },
   secondaryActionText: {
     fontFamily: theme.fonts.label,
-    fontSize: 12,
-    letterSpacing: 1.2,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.78)',
-    textTransform: 'uppercase',
   },
   legal: {
     marginTop: 8,

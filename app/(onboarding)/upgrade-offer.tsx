@@ -8,6 +8,7 @@ import type { PurchasesPackage } from 'react-native-purchases';
 
 import { FlightUpgradeOffer } from '@/components/FlightUpgradeOffer';
 import { theme } from '@/constants/theme';
+import { persistProfileOnboarding } from '@/lib/api/profileOnboarding';
 import { track } from '@/lib/analytics';
 import {
   customerHasEssentialsEntitlement,
@@ -65,9 +66,13 @@ export default function OnboardingUpgradeOfferScreen() {
   const finishOnboarding = useCallback((exit: OnboardingExit) => {
     const onboarding = useOnboardingStore.getState();
     const { answers } = onboarding;
+    const completedAt = onboarding.completedAt ?? new Date().toISOString();
     if (onboarding.completedAt == null) {
-      onboarding.complete(new Date().toISOString());
+      onboarding.complete(completedAt);
     }
+    void persistProfileOnboarding(answers, completedAt).then((res) => {
+      if (!res.ok && __DEV__) console.warn('[upgrade-offer] persist onboarding', res.error);
+    });
     track('onboarding completed', {
       goal: answers.goal,
       experience: answers.experience,

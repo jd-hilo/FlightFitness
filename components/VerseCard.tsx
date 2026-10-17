@@ -31,6 +31,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.outline,
     padding: 20,
     marginBottom: 20,
+    borderRadius: theme.radii.md,
   },
   cardEmbedded: {
     backgroundColor: 'transparent',
@@ -38,6 +39,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderRadius: theme.radii.md,
   },
   kicker: {
     fontFamily: theme.fonts.label,
@@ -58,6 +60,5 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
-    fontStyle: 'italic',
   },
 });

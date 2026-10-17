@@ -3,7 +3,7 @@
     "name": "Flight Fitness",
     "slug": "flight-fitness",
     "owner": "jd-hilo",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lightfunction",
@@ -13,6 +13,7 @@
       "buildNumber": "5",
       "supportsTablet": false,
       "bundleIdentifier": "com.jdhilo.flightfitness",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -43,7 +44,8 @@
           "imageWidth": 50
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

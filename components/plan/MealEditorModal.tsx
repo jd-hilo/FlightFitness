@@ -499,6 +499,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerHigh,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    borderRadius: theme.radii.full,
   },
   templatePickerValue: {
     flex: 1,
@@ -553,6 +554,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerHigh,
     padding: 16,
     gap: 14,
+    borderRadius: theme.radii.md,
   },
   slotGrid: {
     flexDirection: 'row',
@@ -567,6 +569,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainer,
     paddingVertical: 12,
     alignItems: 'center',
+    borderRadius: theme.radii.md,
   },
   slotOptionActive: {
     backgroundColor: theme.colors.gold,
@@ -597,6 +600,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body,
     fontSize: 16,
     color: theme.colors.onBackground,
+    borderRadius: theme.radii.md,
   },
   fieldInputMulti: { minHeight: 88, textAlignVertical: 'top' },
   kcalHero: {
@@ -605,6 +609,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainer,
     padding: 14,
     gap: 6,
+    borderRadius: theme.radii.md,
   },
   kcalHeroTop: {
     flexDirection: 'row',
@@ -668,6 +673,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.outline,
     backgroundColor: theme.colors.surfaceContainerHigh,
+    borderRadius: theme.radii.full,
   },
   syncChipTxt: {
     fontFamily: theme.fonts.label,

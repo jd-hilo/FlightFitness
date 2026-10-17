@@ -1,4 +1,7 @@
-import { persistProfileOnboarding } from '@/lib/api/profileOnboarding';
+import {
+  persistProfileOnboarding,
+  pullProfileOnboardingIntoStore,
+} from '@/lib/api/profileOnboarding';
 import { newId } from '@/lib/exerciseNormalize';
 import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -48,7 +51,45 @@ function seedStarterWorkout() {
   });
 }
 
-/** Persist profile, mark onboarding complete, and keep the demo workout they just felt. */
+/**
+ * After Apple or email sign-in, keep the answers they gave before creating an account.
+ * Does not set completedAt. Returning users who already finished onboarding go home
+ * instead of overwriting that completion.
+ */
+export async function continueAfterRegisteredAuth(): Promise<
+  | { ok: true; destination: 'home' | 'onboarding' }
+  | { ok: false; error: string }
+> {
+  const localAnswers = { ...useOnboardingStore.getState().answers };
+
+  let remoteComplete = false;
+  try {
+    remoteComplete = await pullProfileOnboardingIntoStore();
+  } catch (error) {
+    if (__DEV__) console.warn('[continueAfterRegisteredAuth]', error);
+  }
+
+  if (remoteComplete || useOnboardingStore.getState().completedAt) {
+    return { ok: true, destination: 'home' };
+  }
+
+  const pulledName = useOnboardingStore.getState().answers.firstName.trim();
+  const answersToSave = {
+    ...localAnswers,
+    firstName: localAnswers.firstName.trim() || pulledName,
+  };
+  useOnboardingStore.getState().setAnswers(answersToSave);
+
+  // The helper requires a string. Empty means "not finished"; pull treats that as incomplete.
+  const saved = await persistProfileOnboarding(answersToSave, '');
+  if (!saved.ok) return saved;
+  return { ok: true, destination: 'onboarding' };
+}
+
+/**
+ * Legacy helper. The live path must not call this before the paywall —
+ * completedAt is set only when they skip, purchase, or restore.
+ */
 export async function completeOnboardingAfterFirstSession(opts?: {
   seedWorkout?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {

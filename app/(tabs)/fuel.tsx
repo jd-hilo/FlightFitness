@@ -1,10 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +21,6 @@ import { MealCard } from '@/components/plan/MealCard';
 import { MealEditorModal } from '@/components/plan/MealEditorModal';
 import { WeekStrip } from '@/components/WeekStrip';
 import { theme } from '@/constants/theme';
-import { paywallHref } from '@/lib/analytics';
 import { sumMacrosForMeals } from '@/lib/mealTotals';
 import {
   dateKeyForViewStripDay,
@@ -39,7 +35,7 @@ import { normalizeDay, useCompletionStore } from '@/stores/completionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { usePlanWeekEnsureStore } from '@/stores/planWeekEnsureStore';
 import { useUiStore } from '@/stores/uiStore';
-import { useSubscriptionStore, savedMealLimit } from '@/stores/subscriptionStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useVerseModalStore } from '@/stores/verseModalStore';
 import type { Meal } from '@/types/plan';
 
@@ -156,7 +152,6 @@ export default function FuelScreen() {
   };
 
   const canLogToday = !isPastDay && planMealIndex != null;
-  const mealLimit = savedMealLimit(tier);
 
   const resolveMealDayIndex = () => {
     const ws = usePlanStore.getState().weekStart;
@@ -210,11 +205,6 @@ export default function FuelScreen() {
 
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Daily log</Text>
-              {mealLimit != null ? (
-                <Text style={styles.limitHint}>
-                  {mealTemplates.length} of {mealLimit} saved meals on Free
-                </Text>
-              ) : null}
             </View>
 
             {planMealIndex == null ? (
@@ -320,17 +310,7 @@ export default function FuelScreen() {
                 showVerse(v, 'Give thanks — your body is a gift.', { confetti: true });
               }
             }
-            const saved = saveMealTemplate(updated);
-            if (!saved) {
-              Alert.alert(
-                'Saved meal limit reached',
-                'Free includes up to 5 saved meals. Upgrade to Essentials for unlimited saved meals.',
-                [
-                  { text: 'OK', style: 'cancel' },
-                  { text: 'Upgrade', onPress: () => router.push(paywallHref('fuel_gate')) },
-                ]
-              );
-            }
+            saveMealTemplate(updated);
           }
           setEditor(null);
         }}
@@ -393,11 +373,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 6,
   },
-  limitHint: {
-    fontFamily: theme.fonts.body,
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
-  },
   addMealBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -410,6 +385,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginTop: 4,
     marginBottom: 12,
+    borderRadius: theme.radii.full,
   },
   addMealBtnTxt: {
     fontFamily: theme.fonts.label,
@@ -502,6 +478,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   tip: {
+    borderRadius: theme.radii.md,
     marginTop: 24,
     marginBottom: 32,
     padding: 24,

@@ -88,6 +88,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   bubble: {
+    borderRadius: theme.radii.md,
     borderWidth: 1,
     borderColor: theme.colors.gold,
     backgroundColor: 'rgba(255, 215, 0, 0.12)',

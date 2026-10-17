@@ -115,6 +115,10 @@ export type OnboardingAnswers = {
   goal: string[];
   /** Single experience tier id. */
   experience: string;
+  /** How long they have been in faith. See FAITH_TENURE_OPTIONS. */
+  faithTenure: string;
+  /** Up to three faith aim ids. See FAITH_GOAL_OPTIONS. */
+  faithGoals: string[];
   equipment: string[];
   /** Exactly one base eating pattern (omnivore, vegan, etc.). */
   dietPattern: string;

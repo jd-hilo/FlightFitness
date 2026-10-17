@@ -1,203 +1,100 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  Image,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
-import { DailyCompletedSection } from '@/components/home/DailyCompletedSection';
-import { WeightLogSection } from '@/components/home/WeightLogSection';
-import { MacroDashboard } from '@/components/plan/MacroDashboard';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { theme } from '@/constants/theme';
+import { glassCard, glassChip, theme } from '@/constants/theme';
+import { formatDuration } from '@/lib/formatDuration';
+import { formatRelativeDate } from '@/lib/insights/workoutInsights';
 import { getDailyVerse } from '@/lib/verses';
-import { useDailyContentStore } from '@/stores/dailyContentStore';
 import {
-  dateKeyForViewStripDay,
-  mealDayIndexForViewStrip,
-  viewStripIndexForToday,
+  formatYmdLocal,
   viewWeekStartYmdLocal,
+  weekDatesFromStart,
 } from '@/lib/weekUtils';
-import { sumMacrosForMeals } from '@/lib/mealTotals';
-import {
-  normalizeDay,
-  useCompletionStore,
-} from '@/stores/completionStore';
-import { useFaithDailyStore } from '@/stores/faithDailyStore';
-import { useOnboardingStore } from '@/stores/onboardingStore';
-import { usePlanStore } from '@/stores/planStore';
-import { useUiStore } from '@/stores/uiStore';
+import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
+import { useCompletionStore } from '@/stores/completionStore';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
-const HOME_HERO_SOURCE = require('@/assets/images/home-hero.png');
-
-const HERO_H = 400;
-
-function formatTimeLabel(d: Date) {
-  let h = d.getHours();
-  const m = d.getMinutes();
-  const am = h >= 12 ? 'PM' : 'AM';
-  h = h % 12;
-  if (h === 0) h = 12;
-  const mm = m < 10 ? `0${m}` : `${m}`;
-  return `${h}:${mm} ${am}`;
-}
-
-function intensityFromHour(h: number) {
-  if (h >= 5 && h < 12) return 'HIGH';
-  if (h >= 12 && h < 17) return 'MEDIUM';
-  return 'LOW';
-}
-
-/** Local device time; same bands as `intensityFromHour` for consistency. */
-function timeOfDayGreetingWord(d: Date): 'Morning' | 'Afternoon' | 'Evening' {
-  const h = d.getHours();
-  if (h >= 5 && h < 12) return 'Morning';
-  if (h >= 12 && h < 17) return 'Afternoon';
-  return 'Evening';
-}
-
-function verseWatermark(ref: string) {
-  const compact = ref.replace(/\s+/g, ' ').trim();
-  const book = compact.split(/\d/)[0]?.trim() ?? compact;
-  const num = compact.slice(book.length).trim();
-  const abbr = book
-    .split(/\s+/)
-    .map((w) => w.slice(0, 3).toUpperCase())
-    .join(' ');
-  const head = num.split(/[,\s–-]/)[0] ?? num;
-  return `${abbr.split(' ').slice(0, 2).join(' ')} ${head}`.trim().slice(0, 14);
-}
+const RECENT_LIMIT = 6;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const weekStart = usePlanStore((s) => s.weekStart);
-  const macroTargets = usePlanStore((s) => s.macroTargets);
-  const mealsByDay = usePlanStore((s) => s.mealsByDay);
-  const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
-  const setSelectedPlanDay = useUiStore((s) => s.setSelectedPlanDay);
-  const byDay = useCompletionStore((s) => s.byDay);
-  const backfillExerciseIdsIfWorkoutDone = useCompletionStore(
-    (s) => s.backfillExerciseIdsIfWorkoutDone
-  );
-  const streak = useCompletionStore((s) => s.streak);
-  const faithByDay = useFaithDailyStore((s) => s.byDay);
-  const workoutSessions = useWorkoutSessionLogStore((s) => s.sessions);
   const dailyRemote = useDailyContentStore((s) => s.content);
+  const streak = useCompletionStore((s) => s.streak);
+  const sessions = useWorkoutSessionLogStore((s) => s.sessions);
+  const activeSession = useActiveWorkoutStore((s) => s.session);
+  const startSession = useActiveWorkoutStore((s) => s.startSession);
+  const workouts = useWorkoutLibraryStore((s) => s.workouts);
   const tier = useSubscriptionStore((s) => s.tier);
-  const remoteHeroUrl = dailyRemote?.image_url;
-  const heroFadeOpacity = useRef(new Animated.Value(0)).current;
-  const [, setClockTick] = useState(0);
 
   useEffect(() => {
-    heroFadeOpacity.setValue(0);
-  }, [remoteHeroUrl, heroFadeOpacity]);
-
-  /** Re-render periodically so greeting / clock stay accurate if the user stays on Home with no other updates. */
-  useEffect(() => {
-    const id = setInterval(() => setClockTick((t) => t + 1), 60_000);
-    return () => clearInterval(id);
+    void useDailyContentStore.getState().load();
   }, []);
-
-  /** Same mapping as Fuel/Train: calendar week (Mon–Sun) ↔ plan `mealsByDay` / `workoutsByDay` index. */
-  const viewWeekYmd = viewWeekStartYmdLocal();
-  const stripToday = viewStripIndexForToday(viewWeekYmd);
-  const planDayIndex =
-    weekStart != null
-      ? mealDayIndexForViewStrip(weekStart, viewWeekYmd, stripToday)
-      : null;
-  const dateKey = dateKeyForViewStripDay(viewWeekYmd, stripToday);
-  const dayMeals =
-    planDayIndex != null && mealsByDay ? mealsByDay[planDayIndex] ?? [] : [];
-  const workout =
-    planDayIndex != null && workoutsByDay
-      ? workoutsByDay[planDayIndex] ?? null
-      : null;
-  const completion = normalizeDay(byDay[dateKey]);
-
-  const hasPlan = Boolean(weekStart && macroTargets && mealsByDay);
-
-  useEffect(() => {
-    if (weekStart) setSelectedPlanDay(stripToday);
-  }, [weekStart, setSelectedPlanDay, stripToday]);
-
-  useEffect(() => {
-    if (!weekStart || !workoutsByDay || !dateKey || planDayIndex == null) return;
-    const w = workoutsByDay[planDayIndex];
-    if (!w) return;
-    backfillExerciseIdsIfWorkoutDone(
-      dateKey,
-      w.exercises.map((e) => e.id)
-    );
-  }, [
-    weekStart,
-    workoutsByDay,
-    planDayIndex,
-    dateKey,
-    backfillExerciseIdsIfWorkoutDone,
-  ]);
 
   const verse = useMemo(
     () => dailyRemote?.verse ?? getDailyVerse(),
     [dailyRemote]
   );
-  const hasRemoteHero = Boolean(dailyRemote?.image_url);
-  const now = new Date();
-  const firstName = useOnboardingStore((s) => s.answers.firstName.trim());
-  const greetingWord = timeOfDayGreetingWord(now);
-  const timeLine = `${formatTimeLabel(now).toUpperCase()} // INTENSITY: ${intensityFromHour(
-    now.getHours()
-  )}`;
-  const watermark = verseWatermark(verse.reference);
 
-  const logged = useMemo(() => {
-    const done = dayMeals.filter((m) => completion.mealIds.includes(m.id));
-    return sumMacrosForMeals(done);
-  }, [dayMeals, completion.mealIds]);
+  const recent = sessions.slice(0, RECENT_LIMIT);
 
-  const librarySessionsToday = useMemo(
-    () => workoutSessions.filter((s) => s.dateKey === dateKey),
-    [workoutSessions, dateKey]
-  );
+  const todayKey = formatYmdLocal(new Date());
+  const weekDays = useMemo(() => {
+    const trained = new Set(sessions.map((s) => s.dateKey));
+    return weekDatesFromStart(viewWeekStartYmdLocal()).map((d) => {
+      const key = formatYmdLocal(d);
+      return {
+        key,
+        label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        done: trained.has(key),
+        isToday: key === todayKey,
+      };
+    });
+  }, [sessions, todayKey]);
+  const weekCount = weekDays.filter((d) => d.done).length;
+  const nextWorkout = activeSession
+    ? activeSession.title
+    : workouts.length === 1
+      ? workouts[0]?.title
+      : undefined;
 
-  const completedMeals = useMemo(() => {
-    if (!mealsByDay || completion.mealIds.length === 0) return [];
-    const ids = new Set(completion.mealIds);
-    const found: typeof dayMeals = [];
-    for (const day of mealsByDay) {
-      for (const meal of day) {
-        if (ids.has(meal.id)) found.push(meal);
-      }
-    }
-    return found;
-  }, [mealsByDay, completion.mealIds]);
-
-  const faithToday = faithByDay[dateKey] ?? {
-    verseRead: false,
-    studyRead: false,
-    journalDone: false,
-    journalLine: '',
+  const onStudyScripture = () => {
+    router.push('/(tabs)/faith');
   };
 
-  const onShareInsight = async () => {
-    try {
-      await Share.share({
-        message: `"${verse.text}" — ${verse.reference}`,
-      });
-    } catch {
-      /* ignore */
+  const onCompleteWorkout = () => {
+    if (activeSession) {
+      router.push('/workout-session');
+      return;
     }
+
+    if (workouts.length === 1) {
+      const workout = workouts[0];
+      if (!workout) {
+        router.push('/(tabs)/train');
+        return;
+      }
+      if (workout.exercises.length === 0) {
+        Alert.alert(
+          'Add exercises first',
+          'Open this workout and add at least one exercise.'
+        );
+        router.push(`/workout/${workout.id}`);
+        return;
+      }
+      startSession(workout);
+      router.push('/workout-session');
+      return;
+    }
+
+    router.push('/(tabs)/train');
   };
 
   return (
@@ -207,140 +104,119 @@ export default function HomeScreen() {
       />
       <ScrollView
         contentContainerStyle={[
-          styles.scrollContent,
+          styles.scroll,
           { paddingBottom: insets.bottom + 120 },
         ]}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.heroWrap}>
-          {hasRemoteHero && dailyRemote?.image_url ? (
-            <Animated.Image
-              key={dailyRemote.image_url}
-              source={{ uri: dailyRemote.image_url }}
-              style={[styles.heroImg, { opacity: heroFadeOpacity }]}
-              resizeMode="cover"
-              onLoad={() => {
-                Animated.timing(heroFadeOpacity, {
-                  toValue: 0.85,
-                  duration: 520,
-                  useNativeDriver: true,
-                }).start();
-              }}
-              onError={() => {
-                Animated.timing(heroFadeOpacity, {
-                  toValue: 0.85,
-                  duration: 280,
-                  useNativeDriver: true,
-                }).start();
-              }}
+        <Text style={styles.pageTitle}>Today</Text>
+
+        <View style={styles.weekRow}>
+          {weekDays.map((d) => (
+            <View key={d.key} style={[styles.dayCol, d.isToday && styles.dayColToday]}>
+              <Text style={[styles.dayLabel, d.isToday && styles.dayLabelToday]}>
+                {d.label}
+              </Text>
+              <View style={[styles.dayCheck, d.done && styles.dayCheckDone]}>
+                {d.done ? (
+                  <MaterialIcons name="check" size={14} color={theme.colors.onGold} />
+                ) : null}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroChip}>
+            <MaterialIcons
+              name={activeSession ? 'play-arrow' : 'fitness-center'}
+              size={14}
+              color={theme.colors.gold}
             />
-          ) : (
-            <Image
-              source={HOME_HERO_SOURCE}
-              style={[styles.heroImg, styles.heroOp]}
-              resizeMode="cover"
-            />
-          )}
-          <LinearGradient
-            colors={['#131313', 'rgba(19,19,19,0.4)', 'rgba(19,19,19,0)']}
-            locations={[0, 0.5, 1]}
-            style={styles.heroGrad}
-          />
-          <View style={styles.heroTextBlock}>
-            <Text style={styles.heroKicker}>{timeLine}</Text>
-            <Text style={styles.heroTitle}>
-              {firstName ? (
-                <>
-                  {greetingWord},{' '}
-                  <Text style={styles.heroName}>{firstName}</Text>
-                </>
-              ) : (
-                greetingWord
-              )}
+            <Text style={styles.heroChipTxt}>
+              {activeSession ? 'In progress' : 'Training'}
             </Text>
+          </View>
+          <Text style={styles.heroTitle} numberOfLines={2}>
+            {nextWorkout ?? 'Pick your workout'}
+          </Text>
+          <Text style={styles.heroMeta}>
+            {activeSession
+              ? 'Pick up where you left off.'
+              : 'Show up today. Strength and scripture, one session at a time.'}
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.primaryPill, pressed && styles.pressed]}
+            onPress={onCompleteWorkout}
+            accessibilityRole="button"
+            accessibilityLabel={activeSession ? 'Resume workout' : 'Start workout'}>
+            <Text style={styles.primaryPillTxt}>
+              {activeSession ? 'Resume workout' : 'Start workout'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.statRow}>
+          <View style={styles.statTile}>
+            <Text style={styles.statLabel}>Streak</Text>
+            <View style={styles.statValueRow}>
+              <Text style={styles.statValue}>{streak}</Text>
+              <Text style={styles.statUnit}>{streak === 1 ? 'day' : 'days'}</Text>
+            </View>
+          </View>
+          <View style={styles.statTile}>
+            <Text style={styles.statLabel}>This week</Text>
+            <View style={styles.statValueRow}>
+              <Text style={styles.statValue}>{weekCount}</Text>
+              <Text style={styles.statUnit}>
+                {weekCount === 1 ? 'session' : 'sessions'}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.contentPull}>
-          <View style={styles.wordCard}>
-            <Text style={styles.wordBgRef}>{watermark}</Text>
-            <View style={styles.wordRuleRow}>
-              <View style={styles.wordRule} />
-              <Text style={styles.wordSectionLabel}>The Word</Text>
+        <Pressable
+          style={({ pressed }) => [styles.verseCard, pressed && styles.pressed]}
+          onPress={onStudyScripture}
+          accessibilityRole="button"
+          accessibilityLabel="Study scripture">
+          <View style={styles.verseHead}>
+            <View style={styles.iconChip}>
+              <MaterialIcons name="menu-book" size={16} color={theme.colors.gold} />
             </View>
-            <Text style={styles.wordQuote}>&ldquo;{verse.text}&rdquo;</Text>
-            <Text style={styles.wordRef}>
-              {verse.reference.toUpperCase()} // Wisdom Series
-            </Text>
-            <View style={styles.wordBtns}>
-              <Pressable
-                style={styles.btnGold}
-                onPress={() => router.push('/(tabs)/faith')}>
-                <Text style={styles.btnGoldTxt}>Study Context</Text>
-              </Pressable>
-              <Pressable style={styles.btnOutline} onPress={onShareInsight}>
-                <Text style={styles.btnOutlineTxt}>Share Insight</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <Pressable
-            style={styles.faithTeaser}
-            onPress={() => router.push('/(tabs)/faith')}>
-            <MaterialIcons name="menu-book" size={22} color={theme.colors.gold} />
-            <View style={styles.faithTeaserText}>
-              <Text style={styles.faithTeaserTitle}>Faith &amp; Bible study</Text>
-              <Text style={styles.faithTeaserSub}>
-                Daily reading, full passages, and habit check-ins
-              </Text>
-            </View>
+            <Text style={styles.kicker}>Verse of the day</Text>
             <MaterialIcons
               name="chevron-right"
-              size={24}
+              size={22}
               color={theme.colors.onSurfaceVariant}
             />
-          </Pressable>
-
-          <View style={styles.streakRow}>
-            <Text style={styles.streakLabel}>Training streak</Text>
-            <Text style={styles.streakVal}>{streak} days</Text>
           </View>
+          <Text style={styles.verseText}>{verse.text}</Text>
+          <Text style={styles.reference}>{verse.reference}</Text>
+        </Pressable>
 
-          {!hasPlan ? (
-            <Text style={styles.mutedInline}>
-              No active plan. Finish onboarding to see fuel and training for today.
-            </Text>
+        <Text style={styles.sectionTitle}>Recent</Text>
+        <View style={styles.listCard}>
+          {recent.length === 0 ? (
+            <Text style={styles.muted}>Finished sessions will show up here.</Text>
           ) : (
-            <>
-              <Text style={styles.section}>Energy &amp; macros</Text>
-              <MacroDashboard
-                targets={macroTargets!}
-                loggedKcal={logged.kcal}
-                loggedProtein={logged.proteinG}
-                loggedCarbs={logged.carbsG}
-                loggedFat={logged.fatG}
-              />
-            </>
+            recent.map((session, i) => (
+              <View
+                key={session.id}
+                style={[styles.sessionRow, i > 0 && styles.sessionRowDivider]}>
+                <View style={styles.sessionText}>
+                  <Text style={styles.sessionTitle} numberOfLines={1}>
+                    {session.title}
+                  </Text>
+                  <Text style={styles.sessionMeta}>
+                    {formatRelativeDate(session.dateKey)}
+                  </Text>
+                </View>
+                <Text style={styles.sessionDuration}>
+                  {formatDuration(session.durationSec)}
+                </Text>
+              </View>
+            ))
           )}
-
-          <WeightLogSection dateKey={dateKey} />
-
-          <Text style={styles.section}>What have you completed today…</Text>
-          <DailyCompletedSection
-            librarySessions={librarySessionsToday}
-            planWorkoutTitle={workout?.title ?? null}
-            planWorkoutDone={completion.workoutDone}
-            meals={completedMeals.map((m) => ({
-              id: m.id,
-              name: m.name,
-              kcal: m.macros.kcal,
-              proteinG: m.macros.proteinG,
-            }))}
-            faith={{
-              verseRead: faithToday.verseRead,
-              studyRead: faithToday.studyRead,
-              journalDone: faithToday.journalDone,
-            }}
-          />
         </View>
       </ScrollView>
     </View>
@@ -349,262 +225,213 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
-  scrollContent: { paddingHorizontal: 0 },
-  heroWrap: {
-    height: HERO_H,
-    width: '100%',
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
+  scroll: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  heroImg: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  heroOp: {
-    opacity: 0.85,
-  },
-  heroGrad: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroTextBlock: {
-    paddingHorizontal: 32,
-    paddingBottom: 28,
-    zIndex: 2,
-  },
-  heroKicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 3,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 40,
-    lineHeight: 44,
-    letterSpacing: -1.5,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-  },
-  heroName: {
+  pageTitle: {
     fontFamily: theme.fonts.headline,
-    fontSize: 40,
-    lineHeight: 44,
-    fontStyle: 'italic',
-    color: theme.colors.gold,
-  },
-  contentPull: {
-    marginTop: -32,
-    paddingHorizontal: 24,
-    gap: 0,
-    zIndex: 20,
-  },
-  wordCard: {
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 32,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  wordBgRef: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 48,
+    fontSize: 34,
+    letterSpacing: -1,
     color: theme.colors.onBackground,
-    opacity: 0.08,
     textTransform: 'uppercase',
-  },
-  wordRuleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  wordRule: {
-    width: 32,
-    height: 4,
-    backgroundColor: theme.colors.gold,
-  },
-  wordSectionLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 4,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  wordQuote: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 26,
-    lineHeight: 32,
-    color: theme.colors.onBackground,
-    fontStyle: 'italic',
     marginBottom: 16,
-    maxWidth: 640,
   },
-  wordRef: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 3,
-    color: '#737373',
-    textTransform: 'uppercase',
-  },
-  wordBtns: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-    marginTop: 32,
-  },
-  btnGold: {
-    backgroundColor: theme.colors.gold,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  btnGoldTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
-  },
-  btnOutline: {
-    borderWidth: 1,
-    borderColor: 'rgba(81,69,50,0.3)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  btnOutlineTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  faithTeaser: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    padding: 16,
-    marginBottom: 20,
-  },
-  faithTeaserText: { flex: 1, marginLeft: 12 },
-  faithTeaserTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  faithTeaserSub: {
-    fontFamily: theme.fonts.body,
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
-    lineHeight: 17,
-  },
-  streakRow: {
+  weekRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    padding: 16,
     marginBottom: 20,
   },
-  streakLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-  },
-  streakVal: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 28,
-    color: theme.colors.gold,
-  },
-  section: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 22,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  card: {
-    backgroundColor: theme.colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardKicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-  },
-  cardMeta: {
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  rowBtn: {
-    flexDirection: 'row',
+  dayCol: {
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    paddingVertical: 10,
+    width: 44,
+    borderRadius: theme.radii.full,
   },
-  rowBtnTxt: {
+  dayColToday: {
+    ...glassChip,
+  },
+  dayLabel: {
+    fontFamily: theme.fonts.label,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+  },
+  dayLabelToday: { color: theme.colors.onBackground },
+  dayCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.colors.outlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCheckDone: {
+    backgroundColor: theme.colors.gold,
+    borderColor: theme.colors.gold,
+  },
+  heroCard: {
+    ...glassCard,
+    padding: 20,
+    marginBottom: 12,
+  },
+  heroChip: {
+    ...glassChip,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 16,
+  },
+  heroChipTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 12,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  mealRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.outlineStrong,
-  },
-  mealText: { flex: 1, marginLeft: 10 },
-  mealName: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 15,
+  heroTitle: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 30,
+    lineHeight: 32,
+    letterSpacing: -0.8,
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  mealMeta: {
+  heroMeta: {
     fontFamily: theme.fonts.body,
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 20,
     color: theme.colors.onSurfaceVariant,
-    marginTop: 2,
+    marginTop: 8,
+    marginBottom: 20,
   },
-  mutedInline: {
+  primaryPill: {
+    backgroundColor: theme.colors.gold,
+    borderRadius: theme.radii.full,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  primaryPillTxt: {
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onGold,
+  },
+  pressed: { opacity: 0.85 },
+  statRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  statTile: {
+    ...glassCard,
+    flex: 1,
+    padding: 16,
+  },
+  statLabel: {
+    fontFamily: theme.fonts.label,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    marginBottom: 8,
+  },
+  statValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  statValue: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 34,
+    letterSpacing: -1,
+    color: theme.colors.onBackground,
+  },
+  statUnit: {
+    fontFamily: theme.fonts.label,
+    fontSize: 14,
+    color: theme.colors.onSurfaceVariant,
+  },
+  verseCard: {
+    ...glassCard,
+    padding: 20,
+    marginBottom: 28,
+  },
+  verseHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  iconChip: {
+    ...glassChip,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kicker: {
+    flex: 1,
+    fontFamily: theme.fonts.label,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+  },
+  verseText: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 18,
+    lineHeight: 27,
+    color: theme.colors.onBackground,
+  },
+  reference: {
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 14,
+    color: theme.colors.gold,
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: theme.colors.onBackground,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  listCard: {
+    ...glassCard,
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+  },
+  muted: {
+    fontFamily: theme.fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.colors.onSurfaceVariant,
+    paddingVertical: 14,
+  },
+  sessionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  sessionRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+  },
+  sessionText: { flex: 1, minWidth: 0 },
+  sessionTitle: {
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onBackground,
+  },
+  sessionMeta: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    marginBottom: 16,
-    lineHeight: 19,
+    marginTop: 3,
   },
-  mutedCard: {
-    fontFamily: theme.fonts.body,
-    color: theme.colors.onSurfaceVariant,
+  sessionDuration: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 16,
+    color: theme.colors.onBackground,
   },
 });

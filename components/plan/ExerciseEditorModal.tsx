@@ -382,6 +382,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.onBackground,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   inputMulti: { minHeight: 88, textAlignVertical: 'top' },
   nameRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
@@ -455,6 +456,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerHigh,
     padding: 14,
     marginBottom: 10,
+    borderRadius: theme.radii.md,
   },
   setCardHeader: {
     flexDirection: 'row',
@@ -505,6 +507,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainer,
     paddingVertical: 14,
     marginBottom: 16,
+    borderRadius: theme.radii.md,
   },
   addSetTxt: {
     fontFamily: theme.fonts.label,

@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.outline,
     padding: 28,
+    borderRadius: theme.radii.md,
   },
   icon: { alignSelf: 'center', marginBottom: 12 },
   label: {
@@ -122,7 +123,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
     marginTop: 12,
-    fontStyle: 'italic',
   },
   reflect: {
     fontFamily: theme.fonts.body,
@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gold,
     paddingVertical: 14,
     alignItems: 'center',
+    borderRadius: theme.radii.full,
   },
   btnText: {
     fontFamily: theme.fonts.label,

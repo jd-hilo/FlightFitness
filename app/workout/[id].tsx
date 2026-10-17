@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
@@ -33,9 +33,15 @@ type EditorState =
 
 type NotesEditorState = { exerciseIndex: number; exercise: Exercise };
 
+function onboardingParam(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === '1';
+}
+
 export default function WorkoutDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, onboarding } = useLocalSearchParams<{ id: string; onboarding?: string | string[] }>();
+  const fromOnboarding = onboardingParam(onboarding);
   const workouts = useWorkoutLibraryStore((s) => s.workouts);
   const updateWorkoutTitle = useWorkoutLibraryStore((s) => s.updateWorkoutTitle);
   const addExercise = useWorkoutLibraryStore((s) => s.addExercise);
@@ -60,15 +66,26 @@ export default function WorkoutDetailScreen() {
 
   useEffect(() => {
     if (id && !workout && workouts.length >= 0) {
+      if (fromOnboarding) {
+        router.replace('/(onboarding)/first-workout' as Href);
+        return;
+      }
       router.replace('/(tabs)/train');
     }
-  }, [id, workout, workouts.length]);
+  }, [fromOnboarding, id, workout, workouts.length]);
 
   const leave = useCallback(() => {
     if (id && titleDraft.trim()) {
       updateWorkoutTitle(id, titleDraft.trim());
     }
     router.back();
+  }, [id, titleDraft, updateWorkoutTitle]);
+
+  const continueOnboarding = useCallback(() => {
+    if (id && titleDraft.trim()) {
+      updateWorkoutTitle(id, titleDraft.trim());
+    }
+    router.push('/(onboarding)/feature-slides' as Href);
   }, [id, titleDraft, updateWorkoutTitle]);
 
   if (!workout) return null;
@@ -85,7 +102,12 @@ export default function WorkoutDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingHorizontal: 20 }}>
+      <ScrollView
+        style={fromOnboarding ? { flex: 1 } : undefined}
+        contentContainerStyle={{
+          paddingBottom: fromOnboarding ? 24 : insets.bottom + 40,
+          paddingHorizontal: 20,
+        }}>
         <Text style={styles.label}>Workout name</Text>
         <TextInput
           style={styles.input}
@@ -202,6 +224,18 @@ export default function WorkoutDetailScreen() {
         })}
       </ScrollView>
 
+      {fromOnboarding ? (
+        <View style={[styles.onboardingBar, { paddingBottom: insets.bottom + 12 }]}>
+          <Pressable
+            style={styles.onboardingBtn}
+            onPress={continueOnboarding}
+            accessibilityRole="button"
+            accessibilityLabel="Continue">
+            <Text style={styles.onboardingBtnTxt}>Continue</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <ExerciseEditorModal
         visible={editor != null}
         mode={editor?.mode ?? 'add'}
@@ -291,6 +325,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body,
     fontSize: 16,
     color: theme.colors.onBackground,
+    borderRadius: theme.radii.md,
   },
   sectionHead: {
     flexDirection: 'row',
@@ -333,6 +368,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.outlineStrong,
     backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: theme.radii.md,
   },
   bigAddBtn: {
     flexDirection: 'row',
@@ -343,6 +379,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 32,
     width: '100%',
+    borderRadius: theme.radii.full,
   },
   bigAddTxt: {
     fontFamily: theme.fonts.headlineBold,
@@ -352,6 +389,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   supersetBanner: {
+    borderRadius: theme.radii.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -387,6 +425,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceContainerLow,
     padding: 14,
     marginBottom: 8,
+    borderRadius: theme.radii.md,
   },
   exRowSuperset: {
     borderColor: theme.colors.goldDim,
@@ -449,6 +488,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: theme.colors.onSurfaceVariant,
     marginTop: 4,
-    fontStyle: 'italic',
+  },
+  onboardingBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.outline,
+    backgroundColor: theme.colors.background,
+  },
+  onboardingBtn: {
+    backgroundColor: theme.colors.gold,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: theme.radii.full,
+  },
+  onboardingBtnTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: theme.colors.onGold,
+    textTransform: 'uppercase',
   },
 });

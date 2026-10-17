@@ -15,19 +15,15 @@ export const ESSENTIALS_LIFETIME_FOOTNOTE = 'Pay once · yours forever';
 export const ESSENTIALS_FEATURES = [
   {
     icon: 'fitness-center',
-    label: 'Unlimited saved workouts and meal plans.',
-  },
-  {
-    icon: 'menu-book',
-    label: 'Full verse rotation on rest timers.',
+    label: 'Unlimited saved workouts.',
   },
   {
     icon: 'insights',
     label: 'Workout insights — progress, volume, and PRs.',
   },
   {
-    icon: 'calendar-month',
-    label: 'Plan meals and training for your week.',
+    icon: 'menu-book',
+    label: 'Unlimited scriptures on rest timers.',
   },
 ] as const;
 
@@ -41,14 +37,9 @@ export const ESSENTIALS_PAYWALL_HIGHLIGHTS = [
     description: 'Save as many workouts as you need — no caps on Free.',
   },
   {
-    icon: 'restaurant',
-    title: 'Unlimited saved meals',
-    description: 'Build your fuel library without hitting the limit.',
-  },
-  {
     icon: 'menu-book',
-    title: 'Full verses on rest',
-    description: 'Rotate through up to 15 scriptures each workout.',
+    title: 'Unlimited scriptures',
+    description: 'Rotate through the full set of rest verses each workout.',
   },
   {
     icon: 'insights',
@@ -60,7 +51,7 @@ export const ESSENTIALS_PAYWALL_HIGHLIGHTS = [
 export type EssentialsPaywallHighlight = (typeof ESSENTIALS_PAYWALL_HIGHLIGHTS)[number];
 
 export const COACHING_DESCRIPTION =
-  'A real coach builds your meals and training for your life and walks with you toward strength in body and spirit.';
+  'A real coach builds your training for your life and walks with you toward strength in body and spirit.';
 
 export const COACHING_FEATURES = [
   {
@@ -99,12 +90,6 @@ export const COACHING_INFO_HIGHLIGHTS = [
     title: 'Custom workouts',
     description:
       'Training built for your body and life — not a generic template. Updated as you progress.',
-  },
-  {
-    icon: 'restaurant',
-    title: 'Custom meal plans',
-    description:
-      'Fuel that matches your macros, preferences, and routine — planned with your coach.',
   },
   {
     icon: 'auto-stories',

@@ -104,6 +104,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     gap: 12,
+    borderRadius: theme.radii.md,
   },
   empty: {
     fontFamily: theme.fonts.body,

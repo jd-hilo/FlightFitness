@@ -67,6 +67,51 @@ export const EXPERIENCE_OPTIONS = [
   },
 ] as const;
 
+/** Single choice — how long they have been in faith. */
+export const FAITH_TENURE_OPTIONS = [
+  {
+    id: 'faith_new',
+    label: 'New to faith',
+    ai: 'New to faith; keep scripture and prayer gentle and concrete.',
+  },
+  {
+    id: 'faith_few_years',
+    label: 'A few years',
+    ai: 'A few years in faith; a steady scripture habit fits.',
+  },
+  {
+    id: 'faith_most_of_life',
+    label: 'Most of my life',
+    ai: 'Lifelong faith; room for deeper study between sets and outside training.',
+  },
+] as const;
+
+/** Multi-select, max 3. */
+export const MAX_FAITH_GOALS = 3;
+
+export const FAITH_GOAL_OPTIONS = [
+  {
+    id: 'closer_to_god',
+    label: 'Closer to God',
+    ai: 'Wants to feel closer to God through training and scripture.',
+  },
+  {
+    id: 'scripture_habit',
+    label: 'A scripture habit',
+    ai: 'Wants a regular habit of reading scripture.',
+  },
+  {
+    id: 'prayer',
+    label: 'Prayer',
+    ai: 'Wants prayer woven into training and the rest of the day.',
+  },
+  {
+    id: 'discipline',
+    label: 'Discipline',
+    ai: 'Wants discipline that serves both faith and training.',
+  },
+] as const;
+
 export const EQUIPMENT_OPTIONS = [
   {
     id: 'full_commercial_gym',
@@ -556,6 +601,8 @@ export function weightLbValues(): number[] {
 
 export type GoalId = (typeof GOAL_OPTIONS)[number]['id'];
 export type ExperienceId = (typeof EXPERIENCE_OPTIONS)[number]['id'];
+export type FaithTenureId = (typeof FAITH_TENURE_OPTIONS)[number]['id'];
+export type FaithGoalId = (typeof FAITH_GOAL_OPTIONS)[number]['id'];
 export type EquipmentId = (typeof EQUIPMENT_OPTIONS)[number]['id'];
 export type DietPatternId = (typeof DIET_PATTERN_OPTIONS)[number]['id'];
 export type DietModifierId = (typeof DIET_MODIFIER_OPTIONS)[number]['id'];

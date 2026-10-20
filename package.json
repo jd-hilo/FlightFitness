@@ -23,7 +23,8 @@
     "gen:repdb-images": "node scripts/gen-repdb-images.cjs",
     "recolor:repdb": "python3 scripts/recolor-repdb-flight.py",
     "seed:wger": "npx tsx scripts/seed-wger-exercises.ts",
-    "coaches": "npm --prefix coaches run dev"
+    "coaches": "npm --prefix coaches run dev",
+    "screenshots:capture": "EXPO_PUBLIC_SCREENSHOT_MODE=1 node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/epilogue": "^0.4.2",
@@ -71,6 +72,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "eas-cli": "^16.28.0",
+    "playwright": "^1.56.1",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },

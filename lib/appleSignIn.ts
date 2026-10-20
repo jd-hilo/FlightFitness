@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 
 export type AppleAuthenticationModule = typeof import('expo-apple-authentication');
@@ -11,6 +12,11 @@ let cachedModule: AppleAuthenticationModule | null | undefined;
  * and a dev client built before the module was added fails the require instead of crashing the app.
  */
 export function getAppleAuthenticationModule(): AppleAuthenticationModule | null {
+  if (isScreenshotMode) {
+    return {
+      isAvailableAsync: async () => true,
+    } as AppleAuthenticationModule;
+  }
   if (Platform.OS !== 'ios') return null;
   if (cachedModule !== undefined) return cachedModule;
   try {
@@ -22,6 +28,7 @@ export function getAppleAuthenticationModule(): AppleAuthenticationModule | null
 }
 
 export async function isAppleSignInAvailable(): Promise<boolean> {
+  if (isScreenshotMode) return true;
   const apple = getAppleAuthenticationModule();
   if (!apple) return false;
   try {

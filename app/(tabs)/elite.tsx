@@ -16,6 +16,7 @@ import {
   PROGRESS_RANGES,
   type ProgressRange,
 } from '@/lib/progressStats';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { getDailyVerse } from '@/lib/verses';
 import { buildWeightChartEntries } from '@/lib/weightChartEntries';
 import { useCompletionStore } from '@/stores/completionStore';
@@ -27,7 +28,7 @@ import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
-  const [range, setRange] = useState<ProgressRange>('week');
+  const [range, setRange] = useState<ProgressRange>(isScreenshotMode ? 'all' : 'week');
 
   const onboardingWeight = useOnboardingStore((s) => s.answers.currentWeightLb);
   const targetWeight = useOnboardingStore((s) => s.answers.targetWeightLb);
@@ -86,6 +87,13 @@ export default function ProgressScreen() {
             <MaterialIcons name="more-horiz" size={22} color={theme.colors.onBackground} />
           </Pressable>
         </View>
+
+        {isScreenshotMode ? (
+          <View style={[styles.verseCard, { marginBottom: 16 }]}>
+            <Text style={styles.verseText}>“{verse.text}”</Text>
+            <Text style={styles.verseRef}>{verse.reference}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.segment}>
           {PROGRESS_RANGES.map((r) => {
@@ -299,10 +307,12 @@ export default function ProgressScreen() {
           />
         </View>
 
-        <View style={styles.verseCard}>
-          <Text style={styles.verseText}>“{verse.text}”</Text>
-          <Text style={styles.verseRef}>{verse.reference}</Text>
-        </View>
+        {isScreenshotMode ? null : (
+          <View style={styles.verseCard}>
+            <Text style={styles.verseText}>“{verse.text}”</Text>
+            <Text style={styles.verseRef}>{verse.reference}</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );

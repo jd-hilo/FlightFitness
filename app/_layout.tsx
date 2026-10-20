@@ -1,3 +1,10 @@
+import '@/lib/screenshotClock';
+
+import {
+  Epilogue_400Regular,
+  Epilogue_600SemiBold,
+  Epilogue_700Bold,
+} from '@expo-google-fonts/epilogue';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -13,12 +20,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, type ReactNode } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { DevotionalNotificationSync } from '@/components/DevotionalNotificationSync';
 import { PostHogScreenTracker } from '@/components/PostHogScreenTracker';
 import { AnalyticsBinder } from '@/components/AnalyticsBinder';
+import { ScreenshotSafeArea } from '@/components/screenshot/ScreenshotSafeArea';
+import { ScreenshotStatusBar } from '@/components/screenshot/ScreenshotStatusBar';
 import { stackFade } from '@/constants/screenFade';
 import { navigationDarkTheme, theme } from '@/constants/theme';
 import {
@@ -27,6 +35,9 @@ import {
   posthogConfigured,
 } from '@/lib/posthog';
 import { useRevenueCatSubscriptionSync } from '@/lib/revenueCat';
+import { applyScreenshotFixtures } from '@/lib/screenshotBootstrap';
+import { useStoresHydrated } from '@/lib/hydration';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { usePostHogUserSync } from '@/lib/usePostHogUserSync';
 
 export { ErrorBoundary } from 'expo-router';
@@ -35,6 +46,15 @@ SplashScreen.preventAutoHideAsync();
 
 function PostHogUserSync() {
   usePostHogUserSync();
+  return null;
+}
+
+function ScreenshotBootstrap() {
+  const hydrated = useStoresHydrated();
+  useEffect(() => {
+    if (!isScreenshotMode || !hydrated) return;
+    applyScreenshotFixtures();
+  }, [hydrated]);
   return null;
 }
 
@@ -69,6 +89,13 @@ export default function RootLayout() {
     Inter_700Bold,
     Inter_800ExtraBold,
     Inter_900Black,
+    ...(isScreenshotMode
+      ? {
+          Epilogue_400Regular,
+          Epilogue_600SemiBold,
+          Epilogue_700Bold,
+        }
+      : {}),
   });
 
   useEffect(() => {
@@ -83,11 +110,13 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <SafeAreaProvider>
+    <ScreenshotSafeArea>
       <PostHogRoot>
         <ThemeProvider value={navigationDarkTheme}>
           <StatusBar style="light" />
           <DevotionalNotificationSync />
+          <ScreenshotBootstrap />
+          <ScreenshotStatusBar />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -142,6 +171,6 @@ export default function RootLayout() {
           </Stack>
         </ThemeProvider>
       </PostHogRoot>
-    </SafeAreaProvider>
+    </ScreenshotSafeArea>
   );
 }

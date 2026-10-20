@@ -1,7 +1,9 @@
 import { Easing } from 'react-native';
 
+import { isScreenshotMode } from '@/lib/screenshotMode';
+
 /** How long a newly opened screen takes to fade in. */
-export const SCREEN_FADE_MS = 300;
+export const SCREEN_FADE_MS = isScreenshotMode ? 0 : 300;
 
 export const stackFade = {
   animation: 'fade' as const,

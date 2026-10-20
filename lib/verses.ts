@@ -1,4 +1,5 @@
 import versesData from '@/assets/data/verses.json';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import type { VerseTag } from '@/types/plan';
 
 export type VerseEntry = {
@@ -21,6 +22,10 @@ function hashDateKey(utcYmd: string): number {
 
 /** Global daily verse: same for all users per UTC calendar day. */
 export function getDailyVerse(date = new Date()): VerseEntry {
+  if (isScreenshotMode) {
+    const v22 = verses.find((v) => v.id === 'v22');
+    if (v22) return v22;
+  }
   const key = date.toISOString().slice(0, 10);
   const idx = hashDateKey(key) % verses.length;
   return verses[idx]!;

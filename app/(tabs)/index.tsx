@@ -15,6 +15,8 @@ import { FREE_TIER_MAX_SAVED_WORKOUTS } from '@/stores/subscriptionStore';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { formatDuration } from '@/lib/formatDuration';
 import { formatRelativeDate } from '@/lib/insights/workoutInsights';
+import { isScreenshotMode } from '@/lib/screenshotMode';
+import { screenshotSundayWeekStart } from '@/screenshot/fixtures';
 import { formatYmdLocal, viewWeekStartYmdLocal, weekDatesFromStart } from '@/lib/weekUtils';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
@@ -63,7 +65,8 @@ export default function HomeScreen() {
   const todayKey = formatYmdLocal(new Date());
   const weekDays = useMemo(() => {
     const trained = new Set(sessions.map((s) => s.dateKey));
-    return weekDatesFromStart(viewWeekStartYmdLocal()).map((d) => {
+    const weekStart = isScreenshotMode ? screenshotSundayWeekStart() : viewWeekStartYmdLocal();
+    return weekDatesFromStart(weekStart).map((d) => {
       const key = formatYmdLocal(d);
       return {
         key,
@@ -185,7 +188,7 @@ export default function HomeScreen() {
               <View style={styles.headerActions}>
                 {tier === 'coaching' ? (
                   <CoachChatHeaderButton />
-                ) : (
+                ) : isScreenshotMode ? null : (
                   <Pressable
                     style={({ pressed }) => [styles.upgradeBtn, pressed && styles.pressed]}
                     onPress={() => router.push(paywallHref('home'))}

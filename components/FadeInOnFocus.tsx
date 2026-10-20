@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { SCREEN_FADE_MS } from '@/constants/screenFade';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 
 /** Fades its children in each time the screen is focused. */
 export function FadeInOnFocus({ children }: { children: ReactNode }) {
@@ -16,6 +17,10 @@ export function FadeInOnFocus({ children }: { children: ReactNode }) {
   const opacity = useSharedValue(0);
 
   useLayoutEffect(() => {
+    if (isScreenshotMode) {
+      opacity.value = 1;
+      return;
+    }
     if (!focused) {
       opacity.value = 0;
       return;

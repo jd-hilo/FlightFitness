@@ -1,4 +1,5 @@
 import readings from '@/assets/data/faithReadings.json';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 
 export type FaithReading = {
   id: string;
@@ -23,6 +24,10 @@ function hashDateKey(utcYmd: string): number {
 
 /** Rotating study by UTC date (shared “today” for all users, like daily verse). */
 export function getDailyFaithReading(date = new Date()): FaithReading {
+  if (isScreenshotMode) {
+    const perseverance = list.find((r) => r.id === 'fr5');
+    if (perseverance) return perseverance;
+  }
   const key = date.toISOString().slice(0, 10);
   const idx = hashDateKey(key) % list.length;
   return list[idx]!;

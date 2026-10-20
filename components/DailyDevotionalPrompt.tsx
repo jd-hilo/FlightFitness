@@ -11,6 +11,7 @@ import Animated, {
 
 import { sunriseImage } from '@/components/SunriseBackdrop';
 import { theme } from '@/constants/theme';
+import { displayAppName } from '@/lib/screenshotMode';
 import {
   requestDevotionalPermission,
   syncDailyDevotionalNotifications,
@@ -129,7 +130,7 @@ function PromptCard({
               <View style={styles.noteText}>
                 <View style={styles.noteTop}>
                   <Text style={styles.noteApp} numberOfLines={1}>
-                    Flight Fitness
+                    {displayAppName()}
                   </Text>
                   <Text style={styles.noteTime}>now</Text>
                 </View>

@@ -25,6 +25,8 @@ import { theme } from '@/constants/theme';
 import { fetchCoachReflectionForDate, type CoachReflectionPrompt } from '@/lib/api/coachReflection';
 import { fetchWebPassage } from '@/lib/bibleApi';
 import { getDailyFaithReading, type FaithReading } from '@/lib/faithReadings';
+import { applyScreenshotReflectionCompleted } from '@/lib/screenshotBootstrap';
+import { isScreenshotMode, screenshotSearchParam } from '@/lib/screenshotMode';
 import { formatYmdLocal, parseYmdLocal } from '@/lib/weekUtils';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 
@@ -111,6 +113,17 @@ export default function FaithScreen() {
   }, [byDay]);
 
   useEffect(() => {
+    if (
+      isScreenshotMode &&
+      (screenshotSearchParam('reflection') === 'completed' ||
+        screenshotSearchParam('reflection') === 'done')
+    ) {
+      applyScreenshotReflectionCompleted();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isScreenshotMode) return;
     let cancelled = false;
     void (async () => {
       const prompt = await fetchCoachReflectionForDate(dateKey);
@@ -133,6 +146,13 @@ export default function FaithScreen() {
   }, [day.studyRead, dateKey, toggleStudyRead]);
 
   const loadFromApi = useCallback(async () => {
+    if (isScreenshotMode) {
+      setApiLoading(false);
+      setApiText(reading.passage);
+      setApiMeta(null);
+      setApiError(false);
+      return;
+    }
     setApiLoading(true);
     setApiError(false);
     const res = await fetchWebPassage(reading.apiSlug);

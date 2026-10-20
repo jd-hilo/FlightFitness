@@ -13,6 +13,7 @@ import { pullUserTrackingIntoStores } from '@/lib/api/trackingPersistence';
 import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
 import { useStoresHydrated } from '@/lib/hydration';
 import { PlanRemoteRealtimeSync } from '@/lib/planRemoteRealtime';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { supabaseConfigured } from '@/lib/supabase';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 import { useCoachChatStore } from '@/stores/coachChatStore';
@@ -77,7 +78,7 @@ export default function TabLayout() {
           name="train"
           options={{
             title: 'Train',
-            href: null,
+            href: isScreenshotMode ? undefined : null,
             // The tab transition drops this fade after the screen has been opened once.
             // Train fades its own content every time it is focused instead.
             animation: 'none',

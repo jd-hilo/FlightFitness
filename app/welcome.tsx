@@ -27,6 +27,7 @@ import {
   FLIGHT_FITNESS_PRIVACY_POLICY_URL,
   FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
 } from '@/lib/legalUrls';
+import { displayAppName } from '@/lib/screenshotMode';
 import { supabaseConfigured } from '@/lib/supabase';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 
@@ -35,7 +36,7 @@ const SLIDES = [
     key: 'brand',
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     image: require('../assets/images/onboarding/3d-brand.jpg') as number,
-    kicker: 'Flight Fitness',
+    kicker: displayAppName(),
     title: 'Where faith\nmeets function',
     body: 'Train your body and stay in the Word, in the same session.',
   },

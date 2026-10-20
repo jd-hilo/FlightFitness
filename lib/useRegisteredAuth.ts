@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 
 /**
@@ -23,10 +24,11 @@ export function useRegisteredAuth(): {
   ready: boolean;
   registered: boolean;
 } {
-  const [ready, setReady] = useState(!supabaseConfigured);
-  const [registered, setRegistered] = useState(false);
+  const [ready, setReady] = useState(isScreenshotMode || !supabaseConfigured);
+  const [registered, setRegistered] = useState(isScreenshotMode);
 
   useEffect(() => {
+    if (isScreenshotMode) return;
     if (!supabaseConfigured || !supabase) {
       setReady(true);
       setRegistered(false);

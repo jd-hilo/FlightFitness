@@ -43,6 +43,8 @@ import {
   WORKOUT_VERSE_CYCLE_SIZE,
 } from '@/lib/workoutVerseCycle';
 import { prefetchVersePassage } from '@/lib/versePassageCache';
+import { isScreenshotMode, screenshotSearchParam } from '@/lib/screenshotMode';
+import { SCREENSHOT_WORKOUT_IDS, screenshotNow } from '@/screenshot/fixtures';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useExerciseHistoryStore } from '@/stores/exerciseHistoryStore';
@@ -129,11 +131,49 @@ export default function WorkoutSessionScreen() {
   }, []);
 
   useEffect(() => {
+    if (!isScreenshotMode) return;
+    if (useActiveWorkoutStore.getState().session) return;
+    const upper = useWorkoutLibraryStore
+      .getState()
+      .workouts.find((w) => w.id === SCREENSHOT_WORKOUT_IDS.upper);
+    if (!upper) return;
+    useActiveWorkoutStore.getState().startSession(upper);
+    const live = useActiveWorkoutStore.getState().session;
+    if (!live) return;
+    const startedAt = new Date(screenshotNow().getTime() - 8 * 60 * 1000).toISOString();
+    const bench = live.exercises[0];
+    const rows = (bench?.setRows ?? []).map((row, i) =>
+      i === 0 ? { ...row, completed: true, actualReps: row.actualReps ?? row.targetReps } : row
+    );
+    const exercises = live.exercises.map((ex, i) =>
+      i === 0 ? { ...ex, setRows: rows } : ex
+    );
+    useActiveWorkoutStore.setState({
+      session: { ...live, startedAt, exercises },
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isScreenshotMode && !session) return;
     if (!session) {
       router.replace('/(tabs)/train');
       return;
     }
-    setFocus(findFirstIncompleteSet(session.exercises));
+    if (isScreenshotMode) {
+      setFocus({ exerciseIndex: 0, setRowIndex: 1 });
+      if (screenshotSearchParam('rest') === '1') {
+        const nextFocus = { exerciseIndex: 0, setRowIndex: 2 };
+        setRest({
+          seconds: 90,
+          endsAt: Date.now() + 72 * 1000,
+          nextLabel: focusLabel(session.exercises, nextFocus),
+          nextFocus,
+          verseIndex: 0,
+        });
+      }
+    } else {
+      setFocus(findFirstIncompleteSet(session.exercises));
+    }
     const tick = () => setElapsed(getElapsedSeconds());
     tick();
     const id = setInterval(tick, 1000);

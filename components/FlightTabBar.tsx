@@ -13,6 +13,7 @@ const ITEMS: {
   activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
   { name: 'index', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'train', label: 'Train', icon: 'dumbbell', activeIcon: 'dumbbell' },
   { name: 'faith', label: 'Faith', icon: 'cross-outline', activeIcon: 'cross' },
   { name: 'elite', label: 'Progress', icon: 'chart-bar', activeIcon: 'chart-bar' },
 ];

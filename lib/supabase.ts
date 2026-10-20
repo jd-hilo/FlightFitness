@@ -2,10 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 
+import { isScreenshotMode } from '@/lib/screenshotMode';
+
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const supabaseConfigured = Boolean(url && anon);
+export const supabaseConfigured = isScreenshotMode ? false : Boolean(url && anon);
 
 /** Node static/SSR has no `window`; AsyncStorage throws and kills Metro. */
 const canUseNativeStorage = typeof window !== 'undefined';

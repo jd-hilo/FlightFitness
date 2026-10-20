@@ -3,13 +3,14 @@ import { Image, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '@/constants/theme';
+import { displayAppName } from '@/lib/screenshotMode';
 
 type Props = {
   title?: string;
   rightSlot?: ReactNode;
 };
 
-export function ScreenHeader({ title = 'FLIGHT FITNESS', rightSlot }: Props) {
+export function ScreenHeader({ title = displayAppName().toUpperCase(), rightSlot }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -19,7 +20,7 @@ export function ScreenHeader({ title = 'FLIGHT FITNESS', rightSlot }: Props) {
           style={styles.titleSide}
           accessible
           accessibilityRole="header"
-          accessibilityLabel={`${title}, Flight Fitness logo`}>
+          accessibilityLabel={`${title}, ${displayAppName()} logo`}>
           <Image
             source={require('../assets/images/header-logo.png')}
             style={[

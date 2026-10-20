@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
+import { applyScreenshotFixtures } from '@/lib/screenshotBootstrap';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
@@ -34,6 +36,7 @@ export function useStoresHydrated(): boolean {
       useWeightLogStore.persist.rehydrate(),
       useDailyContentStore.persist.rehydrate(),
     ]).then(() => {
+      if (isScreenshotMode) applyScreenshotFixtures();
       if (!cancelled) setReady(true);
     });
     return () => {

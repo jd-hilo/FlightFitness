@@ -28,7 +28,7 @@ const SHOTS = [
   { file: '04_faith.png', path: '/faith', waitText: 'Run With Perseverance' },
   { file: '04b_faith_completed.png', path: '/faith?reflection=completed', waitText: 'Completed today' },
   { file: '05_progress_full.png', path: '/elite', waitText: 'Devotionals', scrollTo: 'Devotionals' },
-  { file: '05b_workout_insights.png', path: '/workout-insights/sw-upper-strength-a', waitText: 'Upper Strength' },
+  { file: '05b_workout_insights.png', path: '/workout-insights/sw-upper-strength-a', waitText: 'Upper Strength', scrollTo: 'Exercise trends' },
   { file: '06_intake_goal.png', path: '/fitness-goal', waitText: 'fitness goal' },
   { file: '06_intake_lifting.png', path: '/lifting', waitText: 'been lifting' },
   { file: '06_intake_faith.png', path: '/faith-tenure', waitText: 'been in faith' },

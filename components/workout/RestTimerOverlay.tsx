@@ -42,6 +42,7 @@ import { formatRestNextLabel, restVerseHeroText } from '@/lib/restVerseDisplay';
 import { playRestTimerDing, prepareRestTimerDing } from '@/lib/restTimerDing';
 import { getCachedVersePassage, loadVersePassage } from '@/lib/versePassageCache';
 import { isVerseHighlighted, parseVerseReference } from '@/lib/versePassage';
+import { displayAppName } from '@/lib/screenshotMode';
 import type { VerseEntry } from '@/lib/verses';
 
 type Props = {
@@ -515,7 +516,7 @@ export function RestTimerOverlay({
           </Animated.View>
         ) : (
           <>
-            <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
+            <Text style={styles.brandMark}>{displayAppName().toUpperCase()}</Text>
 
             <View style={styles.ringWrap}>
               <RestRing size={ringSize} remaining={remaining} seconds={seconds} urgent={urgent} />

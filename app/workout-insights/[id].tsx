@@ -20,6 +20,7 @@ import {
   mergeSessionsForInsights,
   type ExerciseProgress,
 } from '@/lib/insights/workoutInsights';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { supabaseConfigured } from '@/lib/supabase';
 import { useExerciseHistoryStore } from '@/stores/exerciseHistoryStore';
 import { hasEssentialsAccess, useSubscriptionStore } from '@/stores/subscriptionStore';
@@ -85,6 +86,7 @@ export default function WorkoutInsightsScreen() {
   const progress = useMemo(() => buildExerciseProgress(entries), [entries]);
 
   useEffect(() => {
+    if (isScreenshotMode) return;
     if (!hasEssentialsAccess(tier)) {
       router.replace(paywallHref('insights_gate'));
     }
@@ -95,7 +97,7 @@ export default function WorkoutInsightsScreen() {
     void pullUserTrackingIntoStores();
   }, [tier, id]);
 
-  if (!hasEssentialsAccess(tier)) {
+  if (!isScreenshotMode && !hasEssentialsAccess(tier)) {
     return <View style={[styles.screen, { paddingTop: insets.top + 8 }]} />;
   }
 

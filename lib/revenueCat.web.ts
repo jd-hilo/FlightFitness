@@ -26,8 +26,38 @@ export function packageIdForEssentialsPlan(plan: EssentialsPurchasePlan): string
   return plan === 'monthly' ? REVENUECAT_MONTHLY_PACKAGE_ID : REVENUECAT_LIFETIME_PACKAGE_ID;
 }
 
+export async function fetchEssentialsOwnership(): Promise<EssentialsOwnership> {
+  return { hasMonthly: true, hasLifetime: false };
+}
+
 export async function configureRevenueCat() {
   return false;
+}
+
+export async function purchaseEssentials() {
+  return { ok: false as const, error: 'Purchases are unavailable on web.' };
+}
+
+export async function purchaseWeeklyEssentials() {
+  return { ok: false as const, error: 'Purchases are unavailable on web.' };
+}
+
+export async function redeemAppStoreOfferCode() {
+  return { ok: false as const, error: 'Offer codes are unavailable on web.' };
+}
+
+export async function logOutRevenueCatUser() {}
+
+export function revenueCatPurchaseWasCancelled() {
+  return false;
+}
+
+export function revenueCatPurchaseErrorCode() {
+  return '';
+}
+
+export function formatRevenueCatPurchaseError(_error?: unknown) {
+  return 'Purchases are unavailable on web.';
 }
 
 export async function refreshRevenueCatCustomerInfo() {

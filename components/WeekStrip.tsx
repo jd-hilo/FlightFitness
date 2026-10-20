@@ -72,6 +72,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
   },
   domActive: {
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
 });

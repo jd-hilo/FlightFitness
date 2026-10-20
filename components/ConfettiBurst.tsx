@@ -12,7 +12,7 @@ import Animated, {
 import { theme } from '@/constants/theme';
 
 const COLORS = [
-  theme.colors.gold,
+  theme.colors.champagne,
   '#FFFFFF',
   '#FFE070',
   '#C9A227',

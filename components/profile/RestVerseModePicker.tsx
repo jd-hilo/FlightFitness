@@ -80,7 +80,7 @@ export function RestVerseModePicker() {
                   locked
                     ? theme.colors.onSurfaceVariant
                     : selected
-                      ? theme.colors.gold
+                      ? theme.colors.champagne
                       : theme.colors.onSurfaceVariant
                 }
               />
@@ -102,10 +102,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
@@ -129,8 +127,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   rowSelected: {
-    borderColor: 'rgba(255, 215, 0, 0.55)',
-    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+    borderColor: 'rgba(235,213,174, 0.55)',
+    backgroundColor: 'rgba(235,213,174, 0.08)',
   },
   rowLocked: {
     opacity: 0.88,
@@ -143,7 +141,7 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  labelSelected: { color: theme.colors.gold },
+  labelSelected: { color: theme.colors.champagne },
   labelLocked: { color: theme.colors.onSurfaceVariant },
   desc: {
     fontFamily: theme.fonts.body,

@@ -1,253 +1,297 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, type Href } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-
+import { frostedTile, pageTitleStyle } from '@/components/FrostedCard';
 import { WeightProgressChart } from '@/components/home/WeightProgressChart';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { ProfileUpgradeBanner } from '@/components/profile/ProfileUpgradeBanner';
-import { RestTimerSoundPicker } from '@/components/profile/RestTimerSoundPicker';
-import { RestVerseModePicker } from '@/components/profile/RestVerseModePicker';
-import { SessionMinutesChart } from '@/components/tracking/SessionMinutesChart';
-import { WeeklyHabitChart } from '@/components/tracking/WeeklyHabitChart';
+import { ProgressRing, TrendLine } from '@/components/progress/TrendLine';
 import { theme } from '@/constants/theme';
-import { deleteAccount } from '@/lib/api/deleteAccount';
-import { generateWeekPlan } from '@/lib/api/plan';
-import { paywallHref, trackPlanGenerated } from '@/lib/analytics';
-import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 import {
-  FEEDBACK_MAILTO,
-  FLIGHT_FITNESS_PRIVACY_POLICY_URL,
-  FLIGHT_FITNESS_TERMS_OF_SERVICE_URL,
-  REPDB_URL,
-} from '@/lib/legalUrls';
-import {
-  buildLast7DayHabitScores,
-  buildLast7DaySessionMinutes,
-} from '@/lib/trackingWeekScores';
+  buildFaithTrend,
+  buildProgressSummary,
+  buildStrengthTrend,
+  formatTrained,
+  PROGRESS_RANGES,
+  type ProgressRange,
+} from '@/lib/progressStats';
+import { getDailyVerse } from '@/lib/verses';
 import { buildWeightChartEntries } from '@/lib/weightChartEntries';
-import { presentRevenueCatCustomerCenter } from '@/lib/revenueCat';
-import { resetLocalAppStateForSignOut } from '@/lib/signOutReset';
-import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { viewWeekStartYmdLocal } from '@/lib/weekUtils';
 import { useCompletionStore } from '@/stores/completionStore';
+import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { usePlanStore } from '@/stores/planStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { useWeightLogStore } from '@/stores/weightLogStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
-export default function EliteScreen() {
+export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
-  const [signingOut, setSigningOut] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [managingSubscription, setManagingSubscription] = useState(false);
-  const [regeneratingPlan, setRegeneratingPlan] = useState(false);
+  const [range, setRange] = useState<ProgressRange>('week');
 
-  const tier = useSubscriptionStore((s) => s.tier);
-  const firstName = useOnboardingStore((s) => s.answers.firstName.trim());
   const onboardingWeight = useOnboardingStore((s) => s.answers.currentWeightLb);
   const targetWeight = useOnboardingStore((s) => s.answers.targetWeightLb);
-  const answers = useOnboardingStore((s) => s.answers);
-  const setFromWeekPlan = usePlanStore((s) => s.setFromWeekPlan);
-  const weekStart = usePlanStore((s) => s.weekStart);
-  const workoutsByDay = usePlanStore((s) => s.workoutsByDay);
-
   const trainingStreak = useCompletionStore((s) => s.streak);
   const completionByDay = useCompletionStore((s) => s.byDay);
-  const faithStreak = useFaithDailyStore((s) => s.faithStreak);
   const faithByDay = useFaithDailyStore((s) => s.byDay);
-
   const weightEntries = useWeightLogStore((s) => s.entries);
   const sessions = useWorkoutSessionLogStore((s) => s.sessions);
+  const dailyRemote = useDailyContentStore((s) => s.content);
+
+  const verse = useMemo(() => dailyRemote?.verse ?? getDailyVerse(), [dailyRemote]);
+
+  const workoutDoneDays = useMemo(
+    () =>
+      Object.entries(completionByDay)
+        .filter(([, d]) => d?.workoutDone)
+        .map(([k]) => k),
+    [completionByDay],
+  );
+
+  const summary = useMemo(
+    () => buildProgressSummary({ range, sessions, workoutDoneDays, faithByDay }),
+    [range, sessions, workoutDoneDays, faithByDay],
+  );
+  const trend = useMemo(() => buildStrengthTrend(range, sessions), [range, sessions]);
+  const faithTrend = useMemo(() => buildFaithTrend(range, faithByDay), [range, faithByDay]);
+  const hasVolume = trend.points.some((p) => p > 0);
+  const hasFaith = faithTrend.points.some((p) => p > 0);
 
   const chartEntries = useMemo(
     () => buildWeightChartEntries(weightEntries, onboardingWeight),
-    [weightEntries, onboardingWeight]
+    [weightEntries, onboardingWeight],
   );
-
   const latestWeight =
     weightEntries.length > 0
-      ? [...weightEntries].sort((a, b) => a.dateKey.localeCompare(b.dateKey)).at(-1)
-          ?.weightLb ?? onboardingWeight
+      ? ([...weightEntries].sort((a, b) => a.dateKey.localeCompare(b.dateKey)).at(-1)?.weightLb ??
+        onboardingWeight)
       : onboardingWeight;
-
-  const habitDays = useMemo(
-    () =>
-      buildLast7DayHabitScores({
-        completionByDay,
-        faithByDay,
-        planWeekStart: weekStart,
-        workoutsByDay,
-      }),
-    [completionByDay, faithByDay, weekStart, workoutsByDay]
-  );
-
-  const sessionMinutes = useMemo(
-    () => buildLast7DaySessionMinutes(sessions),
-    [sessions]
-  );
-
-  const workoutsThisWeek = useMemo(
-    () => habitDays.filter((d) => d.train >= 1).length,
-    [habitDays]
-  );
-
-  const onSignOut = () => {
-    Alert.alert('Sign out?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: async () => {
-          setSigningOut(true);
-          try {
-            resetLocalAppStateForSignOut();
-            if (supabase) {
-              await supabase.auth.signOut({ scope: 'local' });
-            }
-          } finally {
-            setSigningOut(false);
-            router.replace('/welcome' as Href);
-          }
-        },
-      },
-    ]);
-  };
-
-  const onDeleteAccount = useCallback(() => {
-    Alert.alert(
-      'Delete account?',
-      'This permanently deletes your account and cloud data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              setDeletingAccount(true);
-              const res = await deleteAccount();
-              setDeletingAccount(false);
-              if (!res.ok) {
-                Alert.alert('Could not delete account', res.error);
-                return;
-              }
-              resetLocalAppStateForSignOut();
-              if (supabase) await supabase.auth.signOut({ scope: 'local' });
-              router.replace('/welcome' as Href);
-            })();
-          },
-        },
-      ]
-    );
-  }, []);
-
-  const onManagePlan = useCallback(() => {
-    if (tier === 'free') {
-      router.push(paywallHref('elite'));
-      return;
-    }
-    void (async () => {
-      setManagingSubscription(true);
-      try {
-        await presentRevenueCatCustomerCenter();
-      } catch (error) {
-        Alert.alert(
-          'Subscriptions',
-          error instanceof Error ? error.message : 'Try again shortly.'
-        );
-      } finally {
-        setManagingSubscription(false);
-      }
-    })();
-  }, [tier]);
-
-  const onSubmitFeedback = useCallback(() => {
-    void Linking.openURL(FEEDBACK_MAILTO).catch(() => {
-      Alert.alert('Email', 'Could not open mail. Write us at hello@hilo.media');
-    });
-  }, []);
-
-  const onDevRegeneratePlan = useCallback(() => {
-    Alert.alert('Regenerate week?', 'Dev only — replaces this week\'s plan.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Regenerate',
-        onPress: () => {
-          void (async () => {
-            setRegeneratingPlan(true);
-            const started = Date.now();
-            const res = await generateWeekPlan({
-              onboarding: answers,
-              action: 'full',
-              weekStartHint: viewWeekStartYmdLocal(),
-            });
-            trackPlanGenerated({
-              source: 'regenerate',
-              success: res.ok,
-              durationMs: Date.now() - started,
-              wasMock: res.ok ? Boolean(res.wasMock) : false,
-            });
-            setRegeneratingPlan(false);
-            if (!res.ok) {
-              Alert.alert('Failed', res.error);
-              return;
-            }
-            setFromWeekPlan(res.plan);
-          })();
-        },
-      },
-    ]);
-  }, [answers, setFromWeekPlan]);
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + 120 },
-        ]}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>
-            {firstName ? `${firstName}'s profile` : 'Profile'}
-          </Text>
+          { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 120 },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.headRow}>
+          <Text style={styles.title}>Progress</Text>
           <Pressable
-            onPress={() => router.push('/profile-edit' as Href)}
-            hitSlop={12}
+            style={({ pressed }) => [styles.moreBtn, pressed && styles.pressed]}
+            onPress={() => router.push('/settings' as Href)}
+            hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Edit profile">
-            <MaterialIcons name="edit" size={22} color={theme.colors.gold} />
+            accessibilityLabel="Profile and settings">
+            <MaterialIcons name="more-horiz" size={22} color={theme.colors.onBackground} />
           </Pressable>
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>{trainingStreak}</Text>
-            <Text style={styles.statLabel}>Train streak</Text>
+        <View style={styles.segment}>
+          {PROGRESS_RANGES.map((r) => {
+            const active = r.key === range;
+            return (
+              <Pressable
+                key={r.key}
+                style={[styles.segmentItem, active && styles.segmentItemActive]}
+                onPress={() => setRange(r.key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}>
+                <Text
+                  style={[styles.segmentTxt, active && styles.segmentTxtActive]}
+                  numberOfLines={1}>
+                  {r.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.grid}>
+          <View style={styles.tile}>
+            <View style={styles.tileHead}>
+              <Text style={styles.tileLabel} numberOfLines={1}>
+                Workouts
+              </Text>
+              <MaterialIcons name="bar-chart" size={24} color={theme.colors.champagne} />
+            </View>
+            <Text
+              style={styles.tileValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
+              {summary.workouts}
+            </Text>
+            <Text style={styles.tileSub} numberOfLines={1}>
+              {summary.workoutsDelta}
+            </Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>{faithStreak}</Text>
-            <Text style={styles.statLabel}>Faith streak</Text>
+          <View style={styles.tile}>
+            <View style={styles.tileHead}>
+              <Text style={styles.tileLabel} numberOfLines={1}>
+                Time Trained
+              </Text>
+              <MaterialIcons name="schedule" size={22} color={theme.colors.onBackground} />
+            </View>
+            <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit>
+              {formatTrained(summary.trainedSec)}
+            </Text>
+            <Text style={styles.tileSub} numberOfLines={1}>
+              {summary.timeDelta}
+            </Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>{workoutsThisWeek}</Text>
-            <Text style={styles.statLabel}>Workouts / 7d</Text>
+          <View style={styles.tile}>
+            <View style={styles.tileHead}>
+              <Text style={styles.tileLabel} numberOfLines={1}>
+                Consistency
+              </Text>
+              <ProgressRing value={summary.consistency} size={24} />
+            </View>
+            <Text
+              style={styles.tileValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
+              {Math.round(summary.consistency * 100)}%
+            </Text>
+            <Text style={styles.tileSub} numberOfLines={1}>
+              {summary.rangeCaption}
+            </Text>
+          </View>
+          <View style={styles.tile}>
+            <View style={styles.tileHead}>
+              <Text style={styles.tileLabel} numberOfLines={1}>
+                Streak
+              </Text>
+              <MaterialIcons name="local-fire-department" size={24} color={theme.colors.orange} />
+            </View>
+            <Text
+              style={styles.tileValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
+              {trainingStreak}
+            </Text>
+            <Text style={styles.tileSub} numberOfLines={1}>
+              {trainingStreak === 1 ? 'Day' : 'Days'}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.chartCard}>
-          <Text style={styles.chartKicker}>Weight</Text>
-          <View style={styles.weightHead}>
-            <Text style={styles.weightNow}>{latestWeight} lb</Text>
-            {targetWeight > 0 ? (
-              <Text style={styles.weightTarget}>→ {targetWeight} lb</Text>
-            ) : null}
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              Strength Trend
+            </Text>
+            <View style={styles.trendRight}>
+              {trend.changePct != null ? (
+                <Text
+                  style={styles.trendPct}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}>
+                  {trend.changePct >= 0 ? '+' : ''}
+                  {trend.changePct}%
+                </Text>
+              ) : null}
+              <Text style={styles.tileSub} numberOfLines={1}>
+                {trend.caption}
+              </Text>
+            </View>
+          </View>
+          {hasVolume ? (
+            <TrendLine points={trend.points} />
+          ) : (
+            <Text style={styles.muted}>
+              Log weight and reps in a workout to see your lifted volume trend here.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.grid}>
+          <View style={styles.tile}>
+            <View style={styles.tileHead}>
+              <Text style={styles.tileLabel} numberOfLines={1}>
+                Devotionals
+              </Text>
+              <MaterialIcons name="menu-book" size={20} color={theme.colors.champagne} />
+            </View>
+            <Text
+              style={styles.tileValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
+              {summary.devotionals}
+            </Text>
+            <Text style={styles.tileSub} numberOfLines={1}>
+              {summary.devotionalsDelta}
+            </Text>
+          </View>
+          <View style={styles.tile}>
+            <View style={styles.tileHead}>
+              <Text style={styles.tileLabel} numberOfLines={1}>
+                Reflections
+              </Text>
+              <MaterialIcons name="edit" size={20} color={theme.colors.onBackground} />
+            </View>
+            <Text
+              style={styles.tileValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
+              {summary.reflections}
+            </Text>
+            <Text style={styles.tileSub} numberOfLines={1}>
+              {summary.reflectionsDelta}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              Faith Trend
+            </Text>
+            <View style={styles.trendRight}>
+              {faithTrend.changePct != null ? (
+                <Text
+                  style={styles.trendPct}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}>
+                  {faithTrend.changePct >= 0 ? '+' : ''}
+                  {faithTrend.changePct}%
+                </Text>
+              ) : null}
+              <Text style={styles.tileSub} numberOfLines={1}>
+                {faithTrend.caption}
+              </Text>
+            </View>
+          </View>
+          {hasFaith ? (
+            <TrendLine points={faithTrend.points} />
+          ) : (
+            <Text style={styles.muted}>
+              Mark a devotional as read or finish a reflection to see your faith trend here.
+            </Text>
+          )}
+        </View>
+
+        <View style={[styles.card, styles.weightCard]}>
+          <View style={styles.cardHead}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              Weight
+            </Text>
+            <Text
+              style={styles.weightNow}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}>
+              {latestWeight} lb
+              {targetWeight > 0 ? (
+                <Text style={styles.weightTarget}> → {targetWeight} lb</Text>
+              ) : null}
+            </Text>
           </View>
           <WeightProgressChart
             entries={chartEntries}
@@ -255,119 +299,10 @@ export default function EliteScreen() {
           />
         </View>
 
-        <View style={styles.chartCard}>
-          <Text style={styles.chartKicker}>7-day habits</Text>
-          <WeeklyHabitChart days={habitDays} />
+        <View style={styles.verseCard}>
+          <Text style={styles.verseText}>“{verse.text}”</Text>
+          <Text style={styles.verseRef}>{verse.reference}</Text>
         </View>
-
-        <View style={styles.chartCard}>
-          <Text style={styles.chartKicker}>Training time</Text>
-          <SessionMinutesChart points={sessionMinutes} />
-          {sessionMinutes.every((p) => p.minutes === 0) ? (
-            <Text style={styles.chartEmpty}>
-              Finish a workout session to log minutes here.
-            </Text>
-          ) : null}
-        </View>
-
-        {__DEV__ && isAiWeekPlanEnabled() ? (
-          <Pressable
-            style={styles.devBtn}
-            onPress={onDevRegeneratePlan}
-            disabled={regeneratingPlan}>
-            <Text style={styles.devBtnTxt}>
-              {regeneratingPlan ? 'Regenerating…' : 'Dev: regenerate week'}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <RestTimerSoundPicker />
-        <RestVerseModePicker />
-
-        <ProfileUpgradeBanner
-          tier={tier}
-          onUpgrade={() => router.push(paywallHref('elite'))}
-          onCoaching={() => router.push('/coaching-info')}
-        />
-        {tier !== 'free' ? (
-          <Pressable
-            style={styles.manageLink}
-            onPress={onManagePlan}
-            disabled={managingSubscription}
-            hitSlop={8}>
-            <Text style={styles.manageLinkTxt}>
-              {managingSubscription ? 'Opening subscriptions…' : 'Manage subscription'}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <View style={styles.settingsCard}>
-          <Text style={styles.chartKicker}>Settings</Text>
-
-          <Pressable
-            style={styles.settingsRow}
-            onPress={onSubmitFeedback}
-            accessibilityRole="button"
-            accessibilityLabel="Submit app feedback">
-            <MaterialIcons name="mail-outline" size={20} color={theme.colors.gold} />
-            <View style={styles.settingsRowText}>
-              <Text style={styles.settingsRowTitle}>Have feedback?</Text>
-              <Text style={styles.settingsRowSub}>Submit app feedback</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={theme.colors.onSurfaceVariant} />
-          </Pressable>
-
-          <Pressable
-            style={styles.settingsRow}
-            onPress={() => void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_TERMS_OF_SERVICE_URL)}
-            accessibilityRole="link"
-            accessibilityLabel="Terms of Service">
-            <MaterialIcons name="description" size={20} color={theme.colors.gold} />
-            <Text style={[styles.settingsRowTitle, styles.settingsRowTitleSolo]}>
-              Terms of Service
-            </Text>
-            <MaterialIcons name="open-in-new" size={18} color={theme.colors.onSurfaceVariant} />
-          </Pressable>
-
-          <Pressable
-            style={styles.settingsRow}
-            onPress={() => void WebBrowser.openBrowserAsync(FLIGHT_FITNESS_PRIVACY_POLICY_URL)}
-            accessibilityRole="link"
-            accessibilityLabel="Privacy Policy">
-            <MaterialIcons name="privacy-tip" size={20} color={theme.colors.gold} />
-            <Text style={[styles.settingsRowTitle, styles.settingsRowTitleSolo]}>
-              Privacy Policy
-            </Text>
-            <MaterialIcons name="open-in-new" size={18} color={theme.colors.onSurfaceVariant} />
-          </Pressable>
-
-          <Pressable
-            style={styles.signOutBtn}
-            onPress={onSignOut}
-            disabled={signingOut || deletingAccount}>
-            <Text style={styles.signOutTxt}>
-              {signingOut ? 'Signing out…' : 'Sign out'}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={onDeleteAccount}
-            disabled={signingOut || deletingAccount}
-            hitSlop={8}>
-            <Text style={styles.deleteTxt}>
-              {deletingAccount ? 'Deleting…' : 'Delete account'}
-            </Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.attribution}>
-          Exercise data by{' '}
-          <Text
-            style={styles.attributionLink}
-            onPress={() => void WebBrowser.openBrowserAsync(REPDB_URL)}>
-            RepDB (repdb.co)
-          </Text>
-        </Text>
       </ScrollView>
     </View>
   );
@@ -375,78 +310,124 @@ export default function EliteScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
-  scroll: { paddingHorizontal: 24, paddingTop: 8 },
-  titleRow: {
+  scroll: { paddingHorizontal: 16 },
+  pressed: { opacity: 0.85 },
+  headRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 18,
   },
-  title: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 30,
-    letterSpacing: -0.8,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    flex: 1,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+  title: pageTitleStyle,
+  moreBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.glass,
     borderWidth: 1,
     borderColor: theme.colors.glassEdge,
-    backgroundColor: theme.colors.glass,
-    borderRadius: theme.radii.md,
   },
-  statVal: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 28,
-    letterSpacing: -0.8,
-    color: theme.colors.onBackground,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
-  },
-  chartCard: {
+  segment: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 16,
+    borderColor: 'rgba(255,255,255,0.08)',
     marginBottom: 16,
-    borderRadius: theme.radii.md,
   },
-  chartKicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-    marginBottom: 12,
+  segmentItem: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  chartEmpty: {
-    fontFamily: theme.fonts.body,
+  segmentItemActive: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  segmentTxt: {
+    fontFamily: theme.fonts.bodyMedium,
     fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 19,
   },
-  weightHead: {
+  segmentTxtActive: {
+    fontFamily: theme.fonts.label,
+    color: theme.colors.onBackground,
+  },
+  grid: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+    marginBottom: 12,
+  },
+  tile: {
+    ...frostedTile,
+    width: '48.5%',
+    padding: 16,
+  },
+  tileHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
   },
+  tileLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  tileValue: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 32,
+    letterSpacing: -0.8,
+    color: theme.colors.onBackground,
+  },
+  tileSub: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  card: {
+    ...frostedTile,
+    padding: 18,
+    marginBottom: 12,
+  },
+  cardHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 12,
+  },
+  cardTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.onBackground,
+  },
+  trendRight: { alignItems: 'flex-end' },
+  trendPct: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 22,
+    color: theme.colors.champagne,
+  },
+  muted: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: theme.colors.onSurfaceVariant,
+  },
+  weightCard: { marginTop: 0 },
   weightNow: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 28,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
     color: theme.colors.onBackground,
   },
   weightTarget: {
@@ -454,108 +435,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
   },
-  settingsCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 16,
-    marginBottom: 20,
-    borderRadius: theme.radii.md,
-  },
-  settingsRow: {
-    flexDirection: 'row',
+  verseCard: {
+    ...frostedTile,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.glassEdge,
-    backgroundColor: theme.colors.glass,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-    borderRadius: theme.radii.md,
   },
-  settingsRowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  settingsRowTitle: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.2,
+  verseText: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 15,
+    lineHeight: 22,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-  },
-  settingsRowTitleSolo: {
-    flex: 1,
-  },
-  settingsRowSub: {
-    marginTop: 3,
-    fontFamily: theme.fonts.body,
-    fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
-  },
-  manageLink: {
-    alignItems: 'center',
-    paddingVertical: 4,
-    marginBottom: 16,
-  },
-  manageLinkTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    textDecorationLine: 'underline',
-  },
-  devBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderRadius: theme.radii.full,
-  },
-  devBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-  },
-  signOutBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.error,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 12,
-    borderRadius: theme.radii.full,
-  },
-  signOutTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.error,
-    textTransform: 'uppercase',
-  },
-  deleteTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
     textAlign: 'center',
   },
-  attribution: {
-    fontFamily: theme.fonts.body,
+  verseRef: {
+    fontFamily: theme.fonts.label,
     fontSize: 11,
-    lineHeight: 16,
+    letterSpacing: 1.6,
     color: theme.colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  attributionLink: {
-    color: theme.colors.gold,
-    textDecorationLine: 'underline',
+    textTransform: 'uppercase',
+    marginTop: 14,
   },
 });

@@ -65,9 +65,7 @@ export default function Index() {
   }
 
   if (!authRegistered) {
-    return (
-      <Redirect href={(intakeReady ? '/(intake)/sign-in' : '/welcome') as Href} />
-    );
+    return <Redirect href={'/welcome' as Href} />;
   }
 
   if (!completed && !remoteOnboardingChecked) {
@@ -79,7 +77,9 @@ export default function Index() {
   }
 
   if (!completed) {
-    return <Redirect href="/(onboarding)" />;
+    return (
+      <Redirect href={(intakeReady ? '/(onboarding)' : '/(intake)/fitness-goal') as Href} />
+    );
   }
 
   return <Redirect href="/(tabs)" />;

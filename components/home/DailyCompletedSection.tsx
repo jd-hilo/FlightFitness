@@ -35,7 +35,7 @@ function DoneRow({
 }) {
   return (
     <View style={styles.row}>
-      <MaterialIcons name="check-circle" size={22} color={theme.colors.gold} />
+      <MaterialIcons name="check-circle" size={22} color={theme.colors.champagne} />
       <View style={styles.rowText}>
         <Text style={styles.rowTitle}>{title}</Text>
         {meta ? <Text style={styles.rowMeta}>{meta}</Text> : null}

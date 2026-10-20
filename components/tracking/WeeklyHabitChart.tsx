@@ -17,7 +17,7 @@ function dayLabel(ymd: string) {
 }
 
 const ROWS: { key: keyof Pick<DayHabitScores, 'train' | 'faith'>; label: string; color: string }[] = [
-  { key: 'train', label: 'Train', color: theme.colors.gold },
+  { key: 'train', label: 'Train', color: theme.colors.champagne },
   { key: 'faith', label: 'Faith', color: '#9AA0A6' },
 ];
 
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   summaryVal: {
     fontFamily: theme.fonts.headline,
     fontSize: 22,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   legend: {
     flexDirection: 'row',

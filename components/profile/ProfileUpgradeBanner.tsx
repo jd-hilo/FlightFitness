@@ -60,7 +60,7 @@ export function ProfileUpgradeBanner({ tier, onUpgrade, onCoaching }: Props) {
         accessibilityRole="button"
         accessibilityLabel="Upgrade to Essentials">
         <LinearGradient
-          colors={['rgba(255,255,255,0.14)', 'rgba(255,215,0,0.10)', 'rgba(255,255,255,0.04)']}
+          colors={['rgba(255,255,255,0.14)', 'rgba(235,213,174,0.10)', 'rgba(255,255,255,0.04)']}
           locations={[0, 0.55, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -72,7 +72,7 @@ export function ProfileUpgradeBanner({ tier, onUpgrade, onCoaching }: Props) {
               <Text style={styles.caption}>{ESSENTIALS_MONTHLY_CAPTION}</Text>
             </View>
             <View style={styles.iconBadge}>
-              <MaterialIcons name="bolt" size={22} color={theme.colors.gold} />
+              <MaterialIcons name="bolt" size={22} color={theme.colors.champagne} />
             </View>
           </View>
           <View style={styles.priceRow}>
@@ -101,7 +101,7 @@ export function ProfileUpgradeBanner({ tier, onUpgrade, onCoaching }: Props) {
         coachingWaitlistJoined ? 'Custom coaching waitlist joined' : 'Join custom coaching waitlist'
       }>
       <LinearGradient
-        colors={['rgba(255,255,255,0.16)', 'rgba(255,215,0,0.14)', 'rgba(255,255,255,0.05)']}
+        colors={['rgba(255,255,255,0.16)', 'rgba(235,213,174,0.14)', 'rgba(255,255,255,0.05)']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -114,12 +114,12 @@ export function ProfileUpgradeBanner({ tier, onUpgrade, onCoaching }: Props) {
           </View>
           {coachingWaitlistJoined ? (
             <View style={styles.waitlistPill}>
-              <MaterialIcons name="check" size={12} color={theme.colors.gold} />
+              <MaterialIcons name="check" size={12} color={theme.colors.champagne} />
               <Text style={styles.waitlistPillTxt}>Joined</Text>
             </View>
           ) : (
             <View style={styles.iconBadge}>
-              <MaterialIcons name="workspace-premium" size={22} color={theme.colors.gold} />
+              <MaterialIcons name="workspace-premium" size={22} color={theme.colors.champagne} />
             </View>
           )}
         </View>
@@ -173,19 +173,17 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 2.5,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   name: {
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.headlineBold,
     fontSize: 22,
     color: '#FFFFFF',
     lineHeight: 26,
-    textTransform: 'uppercase',
+    letterSpacing: -0.3,
   },
   caption: {
     marginTop: 5,
@@ -199,8 +197,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.35)',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderColor: 'rgba(235,213,174, 0.35)',
+    backgroundColor: 'rgba(235,213,174, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -209,17 +207,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.45)',
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderColor: 'rgba(235,213,174, 0.45)',
+    backgroundColor: 'rgba(235,213,174, 0.12)',
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: theme.radii.full,
   },
   waitlistPillTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
   },
   priceRow: {
@@ -260,11 +256,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cta: {
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.labelBold,
     fontSize: 15,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   note: {
     fontFamily: theme.fonts.body,

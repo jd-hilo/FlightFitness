@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   summaryWeight: {
     fontFamily: theme.fonts.headline,
     fontSize: 32,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   summaryDate: {
     fontFamily: theme.fonts.body,
@@ -234,14 +234,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     opacity: 0.4,
     zIndex: 1,
   },
   segment: {
     position: 'absolute',
     height: 2,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     zIndex: 2,
   },
   dotHit: {
@@ -256,13 +256,13 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
   },
   dotActive: {
     width: 13,
     height: 13,
     borderRadius: 7,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     borderWidth: 2,
     borderColor: theme.colors.onBackground,
   },
@@ -283,6 +283,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   xLabelActive: {
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
 });

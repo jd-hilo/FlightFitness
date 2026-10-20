@@ -92,8 +92,8 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    letterSpacing: 1.6,
+    color: 'rgba(255,255,255,0.65)',
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -122,9 +122,9 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: theme.colors.gold,
+    borderColor: theme.colors.champagne,
     zIndex: 1,
-    backgroundColor: 'rgba(255, 215, 0, 0.06)',
+    backgroundColor: theme.colors.champagneSoft,
   },
   list: {
     flexGrow: 0,

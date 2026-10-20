@@ -140,7 +140,7 @@ export function FlightUpgradeOffer({
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={['rgba(255,255,255,0.10)', 'rgba(255,215,0,0.08)', 'transparent']}
+        colors={['rgba(255,255,255,0.10)', 'rgba(235,213,174,0.08)', 'transparent']}
         locations={[0, 0.42, 1]}
         style={styles.topGlow}
         pointerEvents="none"
@@ -177,7 +177,7 @@ export function FlightUpgradeOffer({
           {ESSENTIALS_PAYWALL_HIGHLIGHTS.map((item) => (
             <View key={item.title} style={styles.showcaseCard}>
               <View style={styles.showcaseIconWrap}>
-                <MaterialIcons name={item.icon} size={22} color={theme.colors.gold} />
+                <MaterialIcons name={item.icon} size={22} color={theme.colors.champagne} />
               </View>
               <View style={styles.showcaseText}>
                 <Text style={styles.showcaseTitle}>{item.title}</Text>
@@ -206,7 +206,7 @@ export function FlightUpgradeOffer({
                 monthlyLocked
                   ? 'rgba(255,255,255,0.18)'
                   : selected === 'monthly'
-                    ? theme.colors.gold
+                    ? theme.colors.champagne
                     : 'rgba(255,255,255,0.42)'
               }
               style={styles.offerCheck}
@@ -248,7 +248,7 @@ export function FlightUpgradeOffer({
                 lifetimeLocked
                   ? 'rgba(255,255,255,0.18)'
                   : selected === 'lifetime'
-                    ? theme.colors.gold
+                    ? theme.colors.champagne
                     : 'rgba(255,255,255,0.42)'
               }
               style={styles.offerCheck}
@@ -295,7 +295,7 @@ export function FlightUpgradeOffer({
             <Text style={styles.coachingInfoLink}>
               {coachingActive ? 'Open' : 'See more info'}
             </Text>
-            <MaterialIcons name="arrow-forward" size={16} color={theme.colors.gold} />
+            <MaterialIcons name="arrow-forward" size={16} color={theme.colors.champagne} />
           </View>
         </Pressable>
 
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     height: 260,
   },
   scrollContent: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
   },
   hero: {
     alignItems: 'center',
@@ -425,13 +425,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   headline: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 30,
-    letterSpacing: -0.8,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 24,
+    letterSpacing: -0.4,
     color: '#FFFFFF',
     textAlign: 'center',
-    lineHeight: 33,
-    textTransform: 'uppercase',
+    lineHeight: 29,
     paddingHorizontal: 8,
   },
   subhead: {
@@ -448,23 +447,20 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   showcaseHeading: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 20,
-    letterSpacing: -0.4,
+    ...theme.type.section,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
     marginBottom: 4,
   },
   showcaseCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
-    borderRadius: theme.radii.md,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.glassEdge,
     backgroundColor: theme.colors.glass,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   showcaseIconWrap: {
     width: 40,
@@ -472,9 +468,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.glassStrong,
-    borderWidth: 1,
-    borderColor: theme.colors.glassEdge,
+    backgroundColor: theme.colors.champagneSoft,
   },
   showcaseText: {
     flex: 1,
@@ -494,12 +488,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   essentialsHeading: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 20,
+    ...theme.type.section,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
     marginBottom: 12,
-    letterSpacing: -0.4,
   },
   offerRow: {
     flexDirection: 'row',
@@ -509,7 +500,7 @@ const styles = StyleSheet.create({
   offerCard: {
     flex: 1,
     minHeight: 132,
-    borderRadius: theme.radii.md,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.glassEdge,
     backgroundColor: theme.colors.glass,
@@ -519,8 +510,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   offerCardSelected: {
-    borderColor: theme.colors.gold,
-    backgroundColor: theme.colors.goldSoft,
+    borderColor: theme.colors.champagne,
+    backgroundColor: theme.colors.champagneSoft,
   },
   offerCardLocked: {
     opacity: 0.38,
@@ -562,8 +553,8 @@ const styles = StyleSheet.create({
     minHeight: 31,
   },
   offerPrice: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 26,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 22,
     letterSpacing: -0.6,
     color: '#FFFFFF',
     lineHeight: 29,
@@ -586,7 +577,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderRadius: theme.radii.md,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.glassEdge,
     backgroundColor: theme.colors.glass,
@@ -622,15 +613,15 @@ const styles = StyleSheet.create({
   coachingInfoLink: {
     fontFamily: theme.fonts.label,
     fontSize: 13,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   continueBtn: {
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     borderRadius: theme.radii.full,
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 52,
     marginBottom: 14,
     gap: 4,
   },
@@ -639,14 +630,14 @@ const styles = StyleSheet.create({
   },
   continueTxt: {
     fontFamily: theme.fonts.labelBold,
-    fontSize: 17,
-    color: theme.colors.onGold,
+    fontSize: 16,
+    color: theme.colors.onChampagne,
     textAlign: 'center',
   },
   continueSubtext: {
     fontFamily: theme.fonts.bodyMedium,
     fontSize: 12,
-    color: 'rgba(0,0,0,0.62)',
+    color: 'rgba(26,20,8,0.62)',
     textAlign: 'center',
   },
   secondaryActions: {
@@ -662,7 +653,7 @@ const styles = StyleSheet.create({
   enterCodeText: {
     fontFamily: theme.fonts.label,
     fontSize: 14,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   secondaryActionText: {
     fontFamily: theme.fonts.label,
@@ -687,7 +678,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   termsLink: {
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textDecorationLine: 'underline',
   },
 });

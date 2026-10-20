@@ -44,7 +44,7 @@ export function ExerciseIcon({
   thumbnailUrl: thumbnailUrlProp,
   iconKey,
   size = 22,
-  color = theme.colors.gold,
+  color = theme.colors.champagne,
   fallback = true,
 }: Props) {
   const imageModuleFromStore = useExerciseCatalogStore((s) =>

@@ -51,7 +51,7 @@ export function RemoteSvg({ uri, width, height }: Props) {
   if (!xml) {
     return (
       <View style={[styles.placeholder, { width, height }]}>
-        <ActivityIndicator size="small" color={theme.colors.gold} />
+        <ActivityIndicator size="small" color={theme.colors.champagne} />
       </View>
     );
   }

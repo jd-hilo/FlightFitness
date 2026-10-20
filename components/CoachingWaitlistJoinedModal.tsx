@@ -39,7 +39,7 @@ export function CoachingWaitlistJoinedModal({ visible, onDismiss }: Props) {
             },
           ]}>
           <LinearGradient
-            colors={['rgba(255,255,255,0.12)', 'rgba(255,215,0,0.08)', 'transparent']}
+            colors={['rgba(255,255,255,0.12)', 'rgba(235,213,174,0.08)', 'transparent']}
             locations={[0, 0.35, 1]}
             style={styles.sheetGlow}
             pointerEvents="none"
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   sheet: {
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.35)',
+    borderColor: 'rgba(235,213,174, 0.35)',
     backgroundColor: '#0a0a0a',
     paddingHorizontal: 26,
     paddingTop: 32,
@@ -84,19 +84,14 @@ const styles = StyleSheet.create({
     height: 160,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 3,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 14,
   },
   title: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 24,
+    ...theme.type.cardTitle,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
-    lineHeight: 28,
     marginBottom: 14,
   },
   body: {
@@ -107,16 +102,16 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   primary: {
-    borderWidth: 1.4,
-    borderColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 999,
+    backgroundColor: theme.colors.champagne,
+    borderRadius: theme.radii.full,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
   primaryTxt: {
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.labelBold,
     fontSize: 16,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    color: theme.colors.onChampagne,
   },
 });

@@ -5,6 +5,7 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useCompletionStore } from '@/stores/completionStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { useDevotionalNotificationStore } from '@/stores/devotionalNotificationStore';
 import { useFaithDailyStore } from '@/stores/faithDailyStore';
 import { useWeightLogStore } from '@/stores/weightLogStore';
 
@@ -29,6 +30,7 @@ export function useStoresHydrated(): boolean {
       useCompletionStore.persist.rehydrate(),
       useSubscriptionStore.persist.rehydrate(),
       useFaithDailyStore.persist.rehydrate(),
+      useDevotionalNotificationStore.persist.rehydrate(),
       useWeightLogStore.persist.rehydrate(),
       useDailyContentStore.persist.rehydrate(),
     ]).then(() => {

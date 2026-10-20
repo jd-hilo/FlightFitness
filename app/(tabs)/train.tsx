@@ -1,33 +1,25 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CoachChatHeaderButton } from '@/components/CoachChatHeaderButton';
-import { PlanUpgradeBadge } from '@/components/PlanUpgradeBadge';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { TabScreenHeading } from '@/components/TabScreenHeading';
+import { FadeInOnFocus } from '@/components/FadeInOnFocus';
+import { SheenTile } from '@/components/FrostedCard';
 import { theme } from '@/constants/theme';
 import { paywallHref } from '@/lib/analytics';
 import { formatDuration } from '@/lib/formatDuration';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
-import {
-  buildOverview,
-  formatRelativeDate,
-  formatVolume,
-} from '@/lib/insights/workoutInsights';
+import { buildOverview, formatRelativeDate, formatVolume } from '@/lib/insights/workoutInsights';
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { useExerciseHistoryStore } from '@/stores/exerciseHistoryStore';
 import { usePlanStore } from '@/stores/planStore';
-import { useSubscriptionStore, hasEssentialsAccess, savedWorkoutLimit } from '@/stores/subscriptionStore';
+import {
+  useSubscriptionStore,
+  hasEssentialsAccess,
+  savedWorkoutLimit,
+} from '@/stores/subscriptionStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
@@ -47,10 +39,7 @@ export default function TrainScreen() {
   const [timerTick, setTimerTick] = useState(0);
 
   const insightByWorkout = useMemo(() => {
-    const map = new Map<
-      string,
-      { times: number; volumeLb: number; lastKey: string | null }
-    >();
+    const map = new Map<string, { times: number; volumeLb: number; lastKey: string | null }>();
     for (const workout of workouts) {
       const sessions = allSessions.filter((s) => s.sourceWorkoutId === workout.id);
       const entries = allHistory.filter((e) => e.sourceWorkoutId === workout.id);
@@ -63,9 +52,6 @@ export default function TrainScreen() {
     }
     return map;
   }, [workouts, allSessions, allHistory]);
-
-  const headerRight =
-    tier === 'coaching' ? <CoachChatHeaderButton /> : <PlanUpgradeBadge />;
 
   useEffect(() => {
     importFromLegacyTemplates(legacyTemplates);
@@ -83,14 +69,7 @@ export default function TrainScreen() {
   const onCreateWorkout = () => {
     const id = createWorkout('New workout');
     if (!id) {
-      Alert.alert(
-        'Workout limit reached',
-        'Free includes up to 3 saved workouts. Upgrade to Essentials for unlimited workouts.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Upgrade', onPress: () => router.push(paywallHref('train_gate')) },
-        ]
-      );
+      router.push(paywallHref('train_gate'));
       return;
     }
     router.push(`/workout/${id}`);
@@ -109,7 +88,7 @@ export default function TrainScreen() {
     if (session && session.sourceWorkoutId !== workoutId) {
       Alert.alert(
         'Workout in progress',
-        'Finish or discard your current session before starting another.'
+        'Finish or discard your current session before starting another.',
       );
       return;
     }
@@ -125,289 +104,488 @@ export default function TrainScreen() {
     router.push(`/workout-insights/${workoutId}`);
   };
 
-  return (
-    <View style={styles.screen}>
-      <ScreenHeader />
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + 120 },
-        ]}>
-        <TabScreenHeading title="Train" rightSlot={headerRight} />
+  const onDelete = (workoutId: string, title: string) => {
+    Alert.alert('Delete workout?', title, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteWorkout(workoutId),
+      },
+    ]);
+  };
 
+  const onMore = (workoutId: string, title: string) => {
+    Alert.alert(title, undefined, [
+      { text: 'Edit workout', onPress: () => router.push(`/workout/${workoutId}`) },
+      { text: 'Delete', style: 'destructive', onPress: () => onDelete(workoutId, title) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const sessionSets = useMemo(() => {
+    if (!session) return null;
+    const rows = session.exercises.flatMap((ex) => ensureExerciseSetRows(ex).setRows ?? []);
+    return { done: rows.filter((r) => r.completed).length, total: rows.length };
+  }, [session]);
+
+  return (
+    <FadeInOnFocus>
+      <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back">
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.onBackground} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.title}>Workouts</Text>
+          <Text style={styles.titleSub} numberOfLines={1}>
+            {workoutLimit == null
+              ? `${workouts.length} saved`
+              : workouts.length > workoutLimit
+                ? `${workouts.length} saved`
+                : `${workouts.length} of ${workoutLimit} saved`}
+          </Text>
+        </View>
+        <Pressable
+          onPress={onCreateWorkout}
+          hitSlop={12}
+          style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Add workout">
+          <MaterialIcons name="add" size={26} color={theme.colors.onBackground} />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 120 }]}
+        showsVerticalScrollIndicator={false}>
         {session ? (
-          <Pressable style={styles.resumeBanner} onPress={() => router.push('/workout-session')}>
-            <View>
-              <Text style={styles.resumeKicker}>Workout in progress</Text>
-              <Text style={styles.resumeTitle}>{session.title}</Text>
-            </View>
-            <View style={styles.resumeRight}>
-              <Text style={styles.resumeTimer}>{formatDuration(elapsed)}</Text>
-              <Text style={styles.resumeLink}>Resume</Text>
-            </View>
+          <Pressable
+            onPress={() => router.push('/workout-session')}
+            style={({ pressed }) => pressed && styles.pressed}
+            accessibilityRole="button"
+            accessibilityLabel={`Resume ${session.title}`}>
+            <SheenTile style={[styles.card, styles.resumeCard]}>
+              <View style={styles.cardTop}>
+                <View style={styles.cardText}>
+                  <Text style={[styles.kicker, styles.kickerActive]} numberOfLines={1}>
+                    In progress · {formatDuration(elapsed)}
+                  </Text>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {session.title}
+                  </Text>
+                  {sessionSets ? (
+                    <Text style={styles.cardMeta} numberOfLines={1}>
+                      {sessionSets.done} of {sessionSets.total} sets done
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.playCircle}>
+                  <MaterialIcons name="play-arrow" size={28} color={theme.colors.onChampagne} />
+                </View>
+              </View>
+              {sessionSets && sessionSets.total > 0 ? (
+                <View style={styles.segments}>
+                  {Array.from({ length: Math.min(sessionSets.total, 12) }).map((_, i, arr) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.segment,
+                        i < Math.round((sessionSets.done / sessionSets.total) * arr.length) &&
+                          styles.segmentFilled,
+                      ]}
+                    />
+                  ))}
+                </View>
+              ) : null}
+            </SheenTile>
           </Pressable>
         ) : null}
 
-        <Pressable style={styles.primaryBtn} onPress={onCreateWorkout}>
-          <MaterialIcons name="add" size={20} color={theme.colors.onGold} />
-          <Text style={styles.primaryBtnTxt}>Create workout</Text>
-        </Pressable>
-
-        <Text style={styles.sectionTitle}>My workouts</Text>
-        {workoutLimit != null ? (
-          <Text style={styles.limitHint}>
-            {workouts.length} of {workoutLimit} saved on Free
-          </Text>
-        ) : null}
-
         {workouts.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No workouts yet</Text>
+          <SheenTile style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <MaterialIcons name="fitness-center" size={26} color={theme.colors.champagne} />
+            </View>
+            <Text style={styles.emptyTitle}>Build your first workout</Text>
             <Text style={styles.muted}>
-              Create a workout, add exercises with sets, then hit Begin when you are ready to train.
+              Add exercises with sets and reps once, then tap play whenever you&apos;re ready to
+              train.
             </Text>
-          </View>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+              onPress={onCreateWorkout}
+              accessibilityRole="button">
+              <MaterialIcons name="add" size={20} color={theme.colors.onChampagne} />
+              <Text style={styles.primaryBtnTxt}>Create workout</Text>
+            </Pressable>
+          </SheenTile>
         ) : (
           workouts.map((workout) => {
-            const exerciseCount = workout.exercises.length;
-            const setCount = workout.exercises.reduce(
-              (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? ex.sets),
-              0
+            const exercises = workout.exercises.map((ex) => ensureExerciseSetRows(ex));
+            const setCount = exercises.reduce(
+              (acc, ex) => acc + (ex.setRows?.length ?? ex.sets),
+              0,
             );
-            const noteCount = workout.exercises.reduce(
-              (acc, ex) => acc + (ex.notes?.trim() ? 1 : 0),
-              0
+            const estMinutes = Math.max(
+              5,
+              Math.round(
+                exercises.reduce(
+                  (acc, ex) => acc + (ex.setRows?.length ?? ex.sets) * (40 + ex.restSec),
+                  0,
+                ) / 60,
+              ),
             );
             const insight = insightByWorkout.get(workout.id);
-            const insightBits: string[] = [];
+            const isActive = session?.sourceWorkoutId === workout.id;
+            const kicker = isActive
+              ? 'In progress'
+              : insight?.lastKey
+                ? `Last done ${formatRelativeDate(insight.lastKey)}`
+                : 'Not started yet';
+            const stats: string[] = [];
             if (insight && insight.times > 0) {
-              insightBits.push(
-                insight.times === 1 ? '1× done' : `${insight.times}× done`
-              );
-              if (insight.volumeLb > 0) {
-                insightBits.push(formatVolume(insight.volumeLb));
-              }
-              if (insight.lastKey) {
-                insightBits.push(formatRelativeDate(insight.lastKey));
-              }
+              stats.push(insight.times === 1 ? 'Done once' : `Done ${insight.times}×`);
+              if (insight.volumeLb > 0) stats.push(`${formatVolume(insight.volumeLb)} lifted`);
             }
+            const preview = exercises.slice(0, 3);
+            const hiddenCount = exercises.length - preview.length;
+
             return (
-              <View key={workout.id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{workout.title}</Text>
-                    <Text style={styles.cardMeta}>
-                      {exerciseCount} exercise{exerciseCount === 1 ? '' : 's'} · {setCount}{' '}
-                      sets
-                      {noteCount > 0
-                        ? ` · ${noteCount} note${noteCount === 1 ? '' : 's'}`
-                        : ''}
-                    </Text>
-                    {insightBits.length > 0 ? (
-                      <Text style={styles.cardInsight}>{insightBits.join(' · ')}</Text>
-                    ) : null}
+              <Pressable
+                key={workout.id}
+                onPress={() => router.push(`/workout/${workout.id}`)}
+                style={({ pressed }) => pressed && styles.pressed}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${workout.title}`}>
+                <SheenTile style={[styles.card, isActive && styles.resumeCard]}>
+                  <View style={styles.cardTop}>
+                    <View style={styles.cardText}>
+                      <Text
+                        style={[styles.kicker, isActive && styles.kickerActive]}
+                        numberOfLines={1}>
+                        {kicker}
+                      </Text>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {workout.title}
+                      </Text>
+                      <Text style={styles.cardMeta} numberOfLines={1}>
+                        {exercises.length === 0
+                          ? 'No exercises yet'
+                          : `${exercises.length} exercise${exercises.length === 1 ? '' : 's'} · ${setCount} sets · ~${estMinutes} min`}
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={({ pressed }) => [styles.playCircle, pressed && styles.pressed]}
+                      onPress={() => onBegin(workout.id)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={isActive ? 'Resume workout' : `Begin ${workout.title}`}>
+                      <MaterialIcons
+                        name={exercises.length === 0 ? 'add' : 'play-arrow'}
+                        size={28}
+                        color={theme.colors.onChampagne}
+                      />
+                    </Pressable>
                   </View>
-                  <Pressable
-                    style={styles.beginBtn}
-                    onPress={() => onBegin(workout.id)}>
-                    <Text style={styles.beginBtnTxt}>Begin</Text>
-                  </Pressable>
-                </View>
-                <View style={styles.cardActions}>
-                  <Pressable onPress={() => router.push(`/workout/${workout.id}`)}>
-                    <Text style={styles.cardLink}>Edit</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.cardLinkRow}
-                    onPress={() => onInsights(workout.id)}>
-                    <MaterialIcons
-                      name="insights"
-                      size={13}
-                      color={theme.colors.gold}
-                    />
-                    <Text style={styles.cardLink}>Insights</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() =>
-                      Alert.alert('Delete workout?', workout.title, [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: () => deleteWorkout(workout.id),
-                        },
-                      ])
-                    }>
-                    <Text style={styles.cardLinkDanger}>Delete</Text>
-                  </Pressable>
-                </View>
-              </View>
+
+                  {preview.length > 0 ? (
+                    <View style={styles.preview}>
+                      {preview.map((ex) => (
+                        <View key={ex.id} style={styles.previewRow}>
+                          <MaterialIcons
+                            name="drag-handle"
+                            size={18}
+                            color="rgba(255,255,255,0.35)"
+                          />
+                          <Text style={styles.previewName} numberOfLines={1}>
+                            {ex.name}
+                          </Text>
+                          <Text style={styles.previewSets} numberOfLines={1}>
+                            {ex.setRows?.length ?? ex.sets} × {ex.reps}
+                          </Text>
+                        </View>
+                      ))}
+                      {hiddenCount > 0 ? (
+                        <Text style={styles.previewMore}>
+                          +{hiddenCount} more exercise{hiddenCount === 1 ? '' : 's'}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+
+                  <View style={styles.footer}>
+                    <Text style={styles.stats} numberOfLines={1}>
+                      {stats.join(' · ')}
+                    </Text>
+                    <Pressable
+                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                      onPress={() => onInsights(workout.id)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${workout.title} insights`}>
+                      <MaterialIcons name="insights" size={18} color={theme.colors.onBackground} />
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                      onPress={() => onMore(workout.id, workout.title)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${workout.title} options`}>
+                      <MaterialIcons
+                        name="more-horiz"
+                        size={20}
+                        color={theme.colors.onBackground}
+                      />
+                    </Pressable>
+                  </View>
+                </SheenTile>
+              </Pressable>
             );
           })
         )}
 
+        {workouts.length > 0 && workoutLimit != null ? (
+          <Pressable
+            style={({ pressed }) => [styles.upgradeBtn, pressed && styles.pressed]}
+            onPress={() => router.push(paywallHref('train_gate'))}
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade to add more workouts">
+            <LinearGradient
+              colors={['#F8F1E0', '#EBD5AE', '#C4A46C', '#EFE2C4']}
+              locations={[0, 0.32, 0.72, 1]}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={styles.upgradeMetal}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 0.55 }}
+                style={styles.upgradeSheen}
+              />
+              <Text style={styles.upgradeBtnTxt} numberOfLines={1}>
+                Upgrade to add more workouts
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        ) : null}
       </ScrollView>
-    </View>
+      </View>
+    </FadeInOnFocus>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
-  scroll: { paddingHorizontal: 24, paddingTop: 8 },
-  resumeBanner: {
+  scroll: { paddingHorizontal: 16, paddingTop: 4 },
+  pressed: { opacity: 0.85 },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 16,
-    marginBottom: 16,
-    borderRadius: theme.radii.md,
+    paddingHorizontal: 12,
+    paddingBottom: 14,
+    gap: 8,
   },
-  resumeKicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  resumeTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 16,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  resumeRight: { alignItems: 'flex-end' },
-  resumeTimer: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 22,
-    color: theme.colors.gold,
-  },
-  resumeLink: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    color: theme.colors.gold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  primaryBtn: {
-    backgroundColor: theme.colors.gold,
-    paddingVertical: 14,
+  headerBtn: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 24,
-    borderRadius: theme.radii.full,
   },
-  primaryBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
-  },
-  sectionTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 24,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 16,
-  },
-  limitHint: {
-    fontFamily: theme.fonts.body,
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
-    marginTop: -10,
-    marginBottom: 14,
-  },
-  empty: {
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    gap: 8,
-    marginBottom: 16,
-    borderRadius: theme.radii.md,
-  },
-  emptyTitle: {
+  headerCenter: { flex: 1, alignItems: 'center' },
+  title: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 16,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    fontSize: 22,
+    letterSpacing: -0.3,
+    color: theme.colors.onBackground,
   },
-  muted: {
-    fontFamily: theme.fonts.body,
+  titleSub: {
+    fontFamily: theme.fonts.bodyMedium,
     fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 19,
+    marginTop: 2,
   },
   card: {
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: 22,
     padding: 16,
     marginBottom: 10,
-    borderRadius: theme.radii.md,
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  resumeCard: {
+    borderColor: 'rgba(235,213,174,0.35)',
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  cardText: { flex: 1, minWidth: 0 },
+  kicker: {
+    fontFamily: theme.fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: 'rgba(255,255,255,0.6)',
+    textTransform: 'uppercase',
+  },
+  kickerActive: { color: theme.colors.champagne },
   cardTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
+    fontSize: 21,
+    letterSpacing: -0.3,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
+    marginTop: 6,
   },
   cardMeta: {
     fontFamily: theme.fonts.body,
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.72)',
     marginTop: 4,
   },
-  cardInsight: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 0.4,
-    color: theme.colors.gold,
-    marginTop: 8,
+  playCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.champagne,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  beginBtn: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: theme.radii.full,
-  },
-  beginBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
-  },
-  cardActions: {
+  segments: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 12,
+    gap: 5,
+    marginTop: 16,
+  },
+  segment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  segmentFilled: { backgroundColor: theme.colors.champagne },
+  preview: {
+    marginTop: 14,
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.outlineStrong,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+    gap: 10,
   },
-  cardLink: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    color: theme.colors.gold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  cardLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardLinkDanger: {
+  previewName: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 15,
+    color: theme.colors.onBackground,
+  },
+  previewSets: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    fontVariant: ['tabular-nums'],
+    flexShrink: 0,
+  },
+  previewMore: {
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    marginLeft: 28,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  stats: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    color: theme.colors.error,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    color: theme.colors.champagne,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCard: {
+    borderRadius: 22,
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.champagneSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 19,
+    color: theme.colors.onBackground,
+    marginBottom: 6,
+  },
+  muted: {
+    fontFamily: theme.fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
+  primaryBtn: {
+    alignSelf: 'stretch',
+    backgroundColor: theme.colors.champagne,
+    height: 50,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 18,
+  },
+  primaryBtnTxt: {
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onChampagne,
+  },
+  upgradeBtn: {
+    marginTop: 8,
+    borderRadius: 26,
+    overflow: 'hidden',
+    shadowColor: '#EBD5AE',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  upgradeMetal: {
+    height: 52,
+    paddingHorizontal: 18,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,245,220,0.7)',
+    overflow: 'hidden',
+  },
+  upgradeSheen: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  upgradeBtnTxt: {
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 15,
+    letterSpacing: 0.2,
+    color: theme.colors.onChampagne,
   },
 });

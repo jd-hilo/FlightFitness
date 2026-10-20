@@ -7,6 +7,7 @@ export type PaywallSource =
   | 'fuel_gate'
   | 'coach_chat'
   | 'badge'
+  | 'home'
   | 'elite'
   | 'insights_gate'
   | 'rest_verses_gate'

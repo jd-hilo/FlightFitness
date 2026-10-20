@@ -111,27 +111,22 @@ const styles = StyleSheet.create({
   },
   card: {
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.35)',
+    borderColor: 'rgba(235,213,174, 0.35)',
     backgroundColor: theme.colors.surfaceContainerLow,
     paddingVertical: 36,
     paddingHorizontal: 28,
     borderRadius: theme.radii.md,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 3,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 16,
   },
   title: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 26,
+    ...theme.type.cardTitle,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
     marginBottom: 12,
-    lineHeight: 30,
   },
   sub: {
     fontFamily: theme.fonts.body,
@@ -152,7 +147,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     borderRadius: 2,
   },
 });

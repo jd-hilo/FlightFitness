@@ -379,10 +379,8 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   sectionTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
+    ...theme.type.section,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
     marginBottom: 8,
   },
   sectionSubtitle: {
@@ -393,18 +391,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
   capHint: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     marginBottom: 10,
   },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -418,8 +412,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.full,
   },
   chipSelected: {
-    borderColor: theme.colors.gold,
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderColor: theme.colors.champagne,
+    backgroundColor: theme.colors.champagneSoft,
   },
   chipDisabled: { opacity: 0.35 },
   chipText: {
@@ -429,7 +423,7 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     fontFamily: theme.fonts.label,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   chipTextDisabled: { color: theme.colors.onSurfaceVariant },
   textArea: {

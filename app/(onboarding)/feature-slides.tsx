@@ -1,21 +1,26 @@
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { backOrReplace } from '@/components/onboarding/backOrReplace';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
+import { theme } from '@/constants/theme';
 
 const SLIDES = [
   {
-    kicker: 'Strength',
-    title: 'Improve your strength by tracking workouts.',
+    kicker: 'Train',
+    title: 'Improve your strength',
     body: 'Log each set. The next session starts from what you actually lifted.',
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    image: require('../../assets/images/onboarding/3d-train.jpg') as number,
   },
   {
     kicker: 'Faith',
-    title: 'Improve your faith by studying scripture between sets and outside of sets.',
+    title: 'Improve your faith',
     body: 'A verse while you rest, and time in the Word when you are away from the gym.',
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    image: require('../../assets/images/onboarding/3d-faith.jpg') as number,
   },
 ] as const;
 
@@ -23,6 +28,8 @@ export default function FeatureSlidesScreen() {
   const [slide, setSlide] = useState(0);
   const current = SLIDES[slide] ?? SLIDES[0];
   const last = slide >= SLIDES.length - 1;
+  const { width } = useWindowDimensions();
+  const imgSize = Math.round(width * 0.6);
 
   return (
     <OnboardingShell
@@ -42,14 +49,27 @@ export default function FeatureSlidesScreen() {
         }
         router.replace('/(onboarding)/upgrade-offer' as Href);
       }}>
-      <View style={styles.proofBody}>
-        <Text style={styles.capHint}>
-          {slide + 1} / {SLIDES.length}
-        </Text>
+      <View style={local.body}>
         <Text style={styles.sectionLabel}>{current.kicker}</Text>
-        <Text style={[styles.title, { textTransform: 'none' }]}>{current.title}</Text>
-        <Text style={styles.infoBody}>{current.body}</Text>
+        <Image
+          source={current.image}
+          style={[local.image, { width: imgSize, height: imgSize }]}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>{current.title}</Text>
+        <Text style={styles.subtitle}>{current.body}</Text>
       </View>
     </OnboardingShell>
   );
 }
+
+const local = StyleSheet.create({
+  body: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    marginBottom: 4,
+  },
+});

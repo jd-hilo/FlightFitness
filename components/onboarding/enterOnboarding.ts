@@ -1,7 +1,7 @@
 import { router, type Href } from 'expo-router';
 
 import { continueAfterRegisteredAuth } from '@/lib/onboardingFirstSession';
-import { useOnboardingStore } from '@/stores/onboardingStore';
+import { isIntakeReady, useOnboardingStore } from '@/stores/onboardingStore';
 
 const FIRST_NAME_MAX = 40;
 
@@ -23,6 +23,8 @@ export async function finishAuthAndRoute(givenName?: string): Promise<
   if (!next.ok) return next;
   if (next.destination === 'home') {
     router.replace('/' as Href);
+  } else if (!isIntakeReady(useOnboardingStore.getState())) {
+    router.replace('/(intake)/fitness-goal' as Href);
   } else {
     router.replace('/(onboarding)/faith-goals' as Href);
   }

@@ -7,6 +7,7 @@ import { backOrReplace } from '@/components/onboarding/backOrReplace';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
 import { theme } from '@/constants/theme';
+import { FREE_TIER_MAX_SAVED_WORKOUTS } from '@/stores/subscriptionStore';
 import { ensureStarterWorkout, STARTER_WORKOUTS, type StarterWorkoutId } from '@/lib/starterWorkouts';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 
@@ -32,7 +33,7 @@ export default function FirstWorkoutScreen() {
     setBusy(false);
     Alert.alert(
       'Workout library is full',
-      'Free includes up to 3 saved workouts. You can continue with a workout you already saved.',
+      `Free includes up to ${FREE_TIER_MAX_SAVED_WORKOUTS} saved workouts. You can continue with a workout you already saved.`,
       [
         { text: 'Not now', style: 'cancel' },
         { text: 'Continue', onPress: goSlides },
@@ -120,6 +121,6 @@ const local = StyleSheet.create({
   createTxt: {
     fontFamily: theme.fonts.body,
     fontSize: 15,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
 });

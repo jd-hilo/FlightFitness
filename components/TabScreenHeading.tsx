@@ -34,11 +34,8 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     minWidth: 0,
-    fontFamily: theme.fonts.headline,
-    fontSize: 34,
-    letterSpacing: -1,
+    ...theme.type.pageTitle,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
   rightSlot: {
     flexShrink: 0,

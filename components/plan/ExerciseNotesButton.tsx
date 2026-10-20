@@ -36,7 +36,7 @@ export function ExerciseNotesButton({
       <MaterialIcons
         name="edit"
         size={size}
-        color={count > 0 ? theme.colors.gold : theme.colors.onSurfaceVariant}
+        color={count > 0 ? theme.colors.champagne : theme.colors.onSurfaceVariant}
       />
       {count > 0 ? (
         <View style={styles.badge} accessibilityElementsHidden>
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     height: 14,
     paddingHorizontal: 3,
     borderRadius: 7,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -71,6 +71,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 9,
     lineHeight: 11,
-    color: theme.colors.onGold,
+    color: theme.colors.onChampagne,
   },
 });

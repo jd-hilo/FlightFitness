@@ -42,10 +42,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 12,
   },

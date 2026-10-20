@@ -16,8 +16,10 @@ import { useEffect, type ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
+import { DevotionalNotificationSync } from '@/components/DevotionalNotificationSync';
 import { PostHogScreenTracker } from '@/components/PostHogScreenTracker';
 import { AnalyticsBinder } from '@/components/AnalyticsBinder';
+import { stackFade } from '@/constants/screenFade';
 import { navigationDarkTheme, theme } from '@/constants/theme';
 import {
   POSTHOG_API_KEY,
@@ -85,8 +87,13 @@ export default function RootLayout() {
       <PostHogRoot>
         <ThemeProvider value={navigationDarkTheme}>
           <StatusBar style="light" />
+          <DevotionalNotificationSync />
           <Stack
-            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }}>
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#000' },
+              ...stackFade,
+            }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="welcome" />
             <Stack.Screen name="email-sign-in" />
@@ -109,7 +116,7 @@ export default function RootLayout() {
                 headerShown: true,
                 title: 'Edit profile',
                 headerStyle: { backgroundColor: '#000' },
-                headerTintColor: '#FFD700',
+                headerTintColor: '#EBD5AE',
                 headerBackTitle: '',
                 headerBackButtonDisplayMode: 'minimal',
                 headerTitleStyle: {
@@ -123,7 +130,7 @@ export default function RootLayout() {
                 headerShown: true,
                 title: 'Coach Jude',
                 headerStyle: { backgroundColor: theme.colors.background },
-                headerTintColor: theme.colors.gold,
+                headerTintColor: theme.colors.champagne,
                 headerBackTitle: '',
                 /** iOS: chevron only, no label beside the back button */
                 headerBackButtonDisplayMode: 'minimal',

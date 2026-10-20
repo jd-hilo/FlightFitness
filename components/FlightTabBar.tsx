@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,23 +9,21 @@ import { theme } from '@/constants/theme';
 const ITEMS: {
   name: string;
   label: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
-  { name: 'index', label: 'Fitness', icon: 'fitness-center' },
-  { name: 'faith', label: 'Faith', icon: 'menu-book' },
-  { name: 'elite', label: 'Profile', icon: 'person' },
+  { name: 'index', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'faith', label: 'Faith', icon: 'cross-outline', activeIcon: 'cross' },
+  { name: 'elite', label: 'Progress', icon: 'chart-bar', activeIcon: 'chart-bar' },
 ];
 
 export function FlightTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.outer, { paddingBottom: Math.max(insets.bottom - 8, 10) }]}>
-      <View style={styles.wrap}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {Platform.OS === 'ios' ? (
-        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.androidBg]} />
       )}
@@ -36,8 +34,7 @@ export function FlightTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const hidden = (options as { href?: string | null }).href === null;
           if (!meta || hidden) return null;
           const focused = state.index === index;
-          const icon = meta.icon;
-          const short = meta.label;
+          const color = focused ? theme.colors.champagne : 'rgba(255,255,255,0.55)';
 
           const onPress = () => {
             const event = navigation.emit({
@@ -54,75 +51,53 @@ export function FlightTabBar({ state, descriptors, navigation }: BottomTabBarPro
             <Pressable
               key={route.key}
               accessibilityRole="button"
+              accessibilityLabel={meta.label}
               accessibilityState={focused ? { selected: true } : {}}
               onPress={onPress}
               style={styles.item}>
-              <View style={[styles.iconChip, focused && styles.iconChipActive]}>
-                <MaterialIcons
-                  name={icon}
-                  size={22}
-                  color={focused ? theme.colors.onGold : theme.colors.onSurfaceVariant}
-                />
-              </View>
-              <Text style={[styles.label, focused && styles.labelActive]}>
-                {short}
+              <MaterialCommunityIcons
+                name={focused ? meta.activeIcon : meta.icon}
+                size={24}
+                color={color}
+              />
+              <Text style={[styles.label, { color }]} numberOfLines={1}>
+                {meta.label}
               </Text>
             </Pressable>
           );
         })}
-      </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
+  bar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 20,
-  },
-  wrap: {
-    borderRadius: theme.radii.full,
-    borderWidth: 1,
-    borderColor: theme.colors.glassEdge,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(8,8,9,0.78)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(20,20,22,0.72)',
   },
   androidBg: {
-    backgroundColor: 'rgba(20,20,22,0.96)',
+    backgroundColor: 'rgba(8,8,9,0.97)',
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingTop: 8,
   },
   item: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 72,
-    gap: 3,
-  },
-  iconChip: {
-    width: 40,
-    height: 32,
-    borderRadius: theme.radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconChipActive: {
-    backgroundColor: theme.colors.gold,
+    gap: 4,
+    paddingVertical: 2,
   },
   label: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    color: theme.colors.onSurfaceVariant,
-  },
-  labelActive: {
-    color: theme.colors.onBackground,
+    ...theme.type.tab,
   },
 });

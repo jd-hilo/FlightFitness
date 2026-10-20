@@ -227,7 +227,7 @@ export default function FuelScreen() {
 
             {canLogToday ? (
               <Pressable style={styles.addMealBtn} onPress={openAddMeal}>
-                <MaterialIcons name="add" size={20} color={theme.colors.gold} />
+                <MaterialIcons name="add" size={20} color={theme.colors.champagne} />
                 <Text style={styles.addMealBtnTxt}>Add meal</Text>
               </Pressable>
             ) : null}
@@ -254,7 +254,7 @@ export default function FuelScreen() {
               <MaterialIcons
                 name="bolt"
                 size={22}
-                color={theme.colors.gold}
+                color={theme.colors.champagne}
                 style={styles.energyIcon}
               />
               <View style={styles.energyRowText}>
@@ -352,10 +352,8 @@ const styles = StyleSheet.create({
   },
   generatingBox: { padding: 24, gap: 12, alignItems: 'flex-start' },
   generatingTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    ...theme.type.section,
+    color: theme.colors.champagne,
   },
   pastHint: {
     fontFamily: theme.fonts.label,
@@ -369,7 +367,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: 'rgba(255,215,0,0.3)',
+    borderBottomColor: 'rgba(235,213,174,0.3)',
     marginTop: 20,
     gap: 6,
   },
@@ -388,23 +386,17 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.full,
   },
   addMealBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
   },
   sectionTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 28,
+    ...theme.type.section,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
   energySectionTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 22,
+    ...theme.type.section,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
     marginBottom: 8,
     marginTop: 24,
   },
@@ -417,7 +409,7 @@ const styles = StyleSheet.create({
   },
   energyLeadEm: {
     fontFamily: theme.fonts.label,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   energyCard: {
     backgroundColor: theme.colors.surfaceContainerLow,
@@ -442,7 +434,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.headlineBold,
     fontSize: 14,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
     lineHeight: 18,
   },
   energyDetail: {
@@ -453,10 +444,8 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   energyNote: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginTop: 4,
   },
@@ -469,7 +458,7 @@ const styles = StyleSheet.create({
   energyPrice: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 16,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   energyCompareAt: {
     fontFamily: theme.fonts.body,
@@ -482,23 +471,22 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 32,
     padding: 24,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     borderLeftWidth: 8,
     borderLeftColor: '#000',
   },
   tipTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 20,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.onChampagne,
+    letterSpacing: -0.3,
     marginBottom: 8,
   },
   tipBody: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
-    color: theme.colors.onGold,
+    color: theme.colors.onChampagne,
     lineHeight: 18,
-    textTransform: 'uppercase',
     fontWeight: '600',
   },
 });

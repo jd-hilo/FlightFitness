@@ -99,10 +99,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 12,
   },
@@ -137,7 +135,7 @@ const styles = StyleSheet.create({
   targetVal: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 18,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   logLabel: {
     fontFamily: theme.fonts.label,
@@ -150,17 +148,16 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 12,
     marginBottom: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    paddingVertical: 12,
+    backgroundColor: theme.colors.champagne,
+    paddingVertical: 14,
     alignItems: 'center',
     borderRadius: theme.radii.full,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   saveBtnTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.onChampagne,
     textTransform: 'uppercase',
   },
   chartTitle: {

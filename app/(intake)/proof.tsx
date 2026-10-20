@@ -13,7 +13,7 @@ export default function IntakeProofScreen() {
       canNext
       nextLabel="Continue"
       onBackPress={() => backOrReplace('/(intake)/age' as Href)}
-      onNext={() => router.push('/(intake)/sign-in' as Href)}>
+      onNext={() => router.push('/(onboarding)/faith-goals' as Href)}>
       <View style={styles.proofBody}>
         <Text style={styles.title}>Closer, and stronger</Text>
         <View style={styles.infoCard}>

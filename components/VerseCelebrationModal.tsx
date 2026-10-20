@@ -67,7 +67,7 @@ export function VerseCelebrationModal({
           <MaterialIcons
             name="auto-awesome"
             size={40}
-            color={theme.colors.gold}
+            color={theme.colors.champagne}
             style={styles.icon}
           />
           <Text style={styles.label}>Well done</Text>
@@ -102,11 +102,9 @@ const styles = StyleSheet.create({
   },
   icon: { alignSelf: 'center', marginBottom: 12 },
   label: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
-    letterSpacing: 2,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -134,16 +132,16 @@ const styles = StyleSheet.create({
   },
   btn: {
     marginTop: 24,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
     borderRadius: theme.radii.full,
   },
   btnText: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.onGold,
+    ...theme.type.kicker,
+    color: theme.colors.onChampagne,
     textTransform: 'uppercase',
   },
 });

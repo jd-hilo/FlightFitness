@@ -1,17 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { frostedTile } from '@/components/FrostedCard';
+import { SunriseBackdrop } from '@/components/SunriseBackdrop';
 import { theme } from '@/constants/theme';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { parseYmdLocal } from '@/lib/weekUtils';
@@ -70,84 +64,79 @@ export default function PastReflectionsScreen() {
   }, [byDay]);
 
   return (
-    <View style={styles.root}>
-      <LinearGradient
-        colors={['rgba(255,255,255,0.12)', 'rgba(255,215,0,0.10)', 'transparent']}
-        locations={[0, 0.45, 1]}
-        style={styles.topGlow}
-        pointerEvents="none"
-      />
+    <View style={styles.screen}>
+      <SunriseBackdrop height={insets.top + 210} horizonY={insets.top + 72} />
+
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back">
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.onBackground} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.title} numberOfLines={1}>
+            Past reflections
+          </Text>
+          <Text style={styles.titleSub} numberOfLines={1}>
+            {reflections.length === 0
+              ? 'None yet'
+              : `${reflections.length} saved`}
+          </Text>
+        </View>
+        <View style={styles.headerBtn} />
+      </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 },
+          { paddingBottom: insets.bottom + 40 },
         ]}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.headingRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-            <MaterialIcons name="arrow-back" size={22} color={theme.colors.gold} />
-          </Pressable>
-          <Text
-            style={styles.heading}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.82}>
-            Past reflections
-          </Text>
-        </View>
-        <Text style={styles.lead}>
-          Every reflection you&apos;ve written, kept in one place.
-        </Text>
 
         {reflections.length === 0 ? (
           <View style={styles.emptyBox}>
-            <MaterialIcons
-              name="auto-stories"
-              size={28}
-              color={theme.colors.gold}
-            />
+            <MaterialIcons name="auto-stories" size={28} color={theme.colors.champagne} />
             <Text style={styles.emptyTitle}>No reflections yet</Text>
             <Text style={styles.emptyMuted}>
               Write a reflection on the Faith tab and it will show up here.
             </Text>
           </View>
         ) : (
-          <View style={styles.grid}>
+          <View style={styles.list}>
             {reflections.map((item) => (
               <Pressable
                 key={item.dateKey}
-                style={({ pressed }) => [
-                  styles.card,
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => setSelected(item)}>
+                style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+                onPress={() => setSelected(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`${formatShortDate(item.dateKey)}. ${item.text}`}>
                 <View style={styles.cardTop}>
                   <Text style={styles.cardDate}>{formatShortDate(item.dateKey)}</Text>
                   <View style={styles.cardTopIcons}>
                     <Pressable
                       onPress={() => setVerseInfo(item)}
                       hitSlop={10}
-                      style={({ pressed }) => pressed && styles.infoPressed}>
+                      accessibilityRole="button"
+                      accessibilityLabel={`Verse for ${item.reference}`}
+                      style={({ pressed }) => pressed && styles.pressed}>
                       <MaterialIcons
                         name="info-outline"
-                        size={16}
-                        color={theme.colors.gold}
+                        size={18}
+                        color={theme.colors.onSurfaceVariant}
                       />
                     </Pressable>
                     {item.done ? (
-                      <MaterialIcons
-                        name="check-circle"
-                        size={16}
-                        color={theme.colors.gold}
-                      />
+                      <MaterialIcons name="check-circle" size={18} color={theme.colors.champagne} />
                     ) : null}
                   </View>
                 </View>
                 <Text style={styles.cardRef} numberOfLines={1}>
                   {item.reference}
                 </Text>
-                <Text style={styles.cardText} numberOfLines={5}>
+                <Text style={styles.cardText} numberOfLines={4}>
                   {item.text}
                 </Text>
               </Pressable>
@@ -167,12 +156,8 @@ export default function PastReflectionsScreen() {
               <Text style={styles.modalDate}>
                 {selected ? formatLongDate(selected.dateKey) : ''}
               </Text>
-              <Pressable onPress={() => setSelected(null)} hitSlop={12}>
-                <MaterialIcons
-                  name="close"
-                  size={22}
-                  color={theme.colors.onSurfaceVariant}
-                />
+              <Pressable onPress={() => setSelected(null)} hitSlop={12} accessibilityLabel="Close">
+                <MaterialIcons name="close" size={22} color={theme.colors.onSurfaceVariant} />
               </Pressable>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -191,15 +176,14 @@ export default function PastReflectionsScreen() {
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
-                <Text style={styles.modalKicker}>Today&apos;s study</Text>
+                <Text style={styles.modalKicker}>That day&apos;s study</Text>
                 <Text style={styles.modalRef}>{verseInfo?.reference}</Text>
               </View>
-              <Pressable onPress={() => setVerseInfo(null)} hitSlop={12}>
-                <MaterialIcons
-                  name="close"
-                  size={22}
-                  color={theme.colors.onSurfaceVariant}
-                />
+              <Pressable
+                onPress={() => setVerseInfo(null)}
+                hitSlop={12}
+                accessibilityLabel="Close">
+                <MaterialIcons name="close" size={22} color={theme.colors.onSurfaceVariant} />
               </Pressable>
             </View>
             {verseInfo?.title ? (
@@ -216,174 +200,145 @@ export default function PastReflectionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#050505', overflow: 'hidden' },
-  topGlow: {
-    position: 'absolute',
-    left: -60,
-    right: -60,
-    top: 0,
-    height: 320,
-  },
-  headingRow: {
+  screen: { flex: 1, backgroundColor: theme.colors.background },
+  scroll: { paddingHorizontal: 16, paddingTop: 4 },
+  pressed: { opacity: 0.85 },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 14,
+    gap: 8,
   },
-  backBtn: {
-    marginLeft: -2,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heading: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: theme.fonts.headline,
-    fontSize: 26,
-    lineHeight: 30,
+  headerCenter: { flex: 1, alignItems: 'center' },
+  title: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 22,
+    letterSpacing: -0.3,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
-  scroll: { paddingHorizontal: 22 },
-  lead: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.58)',
-    lineHeight: 21,
-    marginBottom: 22,
+  titleSub: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 2,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
+  list: { gap: 10 },
   card: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    minHeight: 146,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    backgroundColor: 'rgba(255,255,255,0.045)',
-    paddingHorizontal: 14,
-    paddingVertical: 15,
-    overflow: 'hidden',
-  },
-  cardPressed: {
-    opacity: 0.92,
-    borderColor: 'rgba(255,255,255,0.82)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    ...frostedTile,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   cardTopIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  infoPressed: {
-    opacity: 0.6,
+    gap: 10,
   },
   cardDate: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 14,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 15,
+    color: theme.colors.onBackground,
   },
   cardRef: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
-    color: theme.colors.gold,
-    letterSpacing: 0.5,
-    marginBottom: 10,
+    letterSpacing: 1.4,
+    color: theme.colors.champagne,
+    textTransform: 'uppercase',
+    marginBottom: 8,
   },
   cardText: {
     fontFamily: theme.fonts.body,
-    fontSize: 13,
-    lineHeight: 19,
-    color: 'rgba(255,255,255,0.62)',
+    fontSize: 15,
+    lineHeight: 22,
+    color: theme.colors.onSurfaceVariant,
   },
   emptyBox: {
+    ...frostedTile,
     alignItems: 'center',
     gap: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    backgroundColor: 'rgba(255,255,255,0.045)',
     padding: 28,
-    marginTop: 12,
   },
   emptyTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 16,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    fontSize: 18,
+    letterSpacing: -0.3,
+    color: theme.colors.onBackground,
   },
   emptyMuted: {
     fontFamily: theme.fonts.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.58)',
+    fontSize: 14,
+    lineHeight: 21,
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
-    lineHeight: 19,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    padding: 24,
   },
   modalCard: {
-    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: '#121212',
+    borderColor: theme.colors.glassEdge,
     padding: 20,
-    maxHeight: '70%',
+    maxHeight: '75%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 14,
+    gap: 12,
   },
-  modalHeaderText: {
-    flex: 1,
-    paddingRight: 12,
-  },
+  modalHeaderText: { flex: 1 },
   modalDate: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 18,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    flex: 1,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 21,
+    letterSpacing: -0.3,
+    color: theme.colors.onBackground,
   },
   modalKicker: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   modalRef: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 18,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 21,
+    letterSpacing: -0.3,
+    color: theme.colors.onBackground,
   },
   modalVerseTitle: {
     fontFamily: theme.fonts.bodyMedium,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 12,
+    textTransform: 'capitalize',
   },
   modalScroll: { flexGrow: 0 },
   modalText: {
     fontFamily: theme.fonts.body,
-    fontSize: 15,
-    lineHeight: 24,
-    color: 'rgba(255,255,255,0.86)',
+    fontSize: 16,
+    lineHeight: 26,
+    color: theme.colors.onBackground,
   },
 });

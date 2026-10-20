@@ -33,6 +33,7 @@ function parsePaywallSource(raw: string | string[] | undefined): PaywallSource {
     value === 'fuel_gate' ||
     value === 'coach_chat' ||
     value === 'badge' ||
+    value === 'home' ||
     value === 'elite' ||
     value === 'insights_gate' ||
     value === 'rest_verses_gate'

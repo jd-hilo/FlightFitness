@@ -24,7 +24,7 @@ export function CoachChatHeaderButton() {
           ? `Open coach messages, ${unreadCount} unread`
           : 'Open coach messages'
       }>
-      <MaterialIcons name="chat" size={24} color={theme.colors.gold} />
+      <MaterialIcons name="chat" size={24} color={theme.colors.champagne} />
       {hasUnread ? <View style={styles.dot} /> : null}
     </Pressable>
   );

@@ -52,7 +52,7 @@ export function WorkoutBlock({
             <MaterialIcons
               name="check-circle"
               size={doneIconSize}
-              color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.gold}
+              color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.champagne}
             />
           ) : (
             <View
@@ -111,7 +111,7 @@ function ExerciseRow({
   const iconColor = done
     ? readOnly
       ? theme.colors.onSurfaceVariant
-      : theme.colors.gold
+      : theme.colors.champagne
     : theme.colors.onSurfaceVariant;
 
   return (
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   completeBtn: {
     borderWidth: 1,
-    borderColor: theme.colors.gold,
+    borderColor: theme.colors.champagne,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: theme.radii.full,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   completeTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   editLink: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   expandLink: {
     fontFamily: theme.fonts.label,
     fontSize: 9,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginTop: 6,

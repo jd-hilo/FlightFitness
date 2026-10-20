@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useLocalSearchParams, router, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -99,7 +100,7 @@ export default function EmailSignInScreen() {
   const onBack = useCallback(() => {
     if (step === 'code' && afterAuthToOnboarding) {
       if (router.canGoBack()) router.back();
-      else router.replace('/(intake)/sign-in' as Href);
+      else router.replace('/welcome' as Href);
       return;
     }
     if (step === 'code') {
@@ -111,7 +112,7 @@ export default function EmailSignInScreen() {
     }
     if (afterAuthToOnboarding) {
       if (router.canGoBack()) router.back();
-      else router.replace('/(intake)/sign-in' as Href);
+      else router.replace('/welcome' as Href);
       return;
     }
     router.back();
@@ -119,66 +120,66 @@ export default function EmailSignInScreen() {
 
   const resendDisabled = busy || resendIn > 0;
 
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const codeOk = code.trim().length >= 6;
+  const canContinue = step === 'email' ? emailOk : codeOk;
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.headerRow}>
-        <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Text style={styles.back}>Back</Text>
-        </Pressable>
-      </View>
 
-      <Text style={styles.title}>
-        {step === 'code' ? 'Check your inbox' : afterAuthToOnboarding ? 'Use email' : 'Enter your email'}
-      </Text>
-      <Text style={styles.sub}>
-        {step === 'email'
-          ? 'We will email you a 6-digit code. No password.'
-          : `We sent a 6-digit code to ${email}.`}
-      </Text>
-      {step === 'code' ? <Text style={styles.spam}>Check spam just in case.</Text> : null}
+      <View style={styles.center}>
+        {step === 'email' ? (
+          <>
+            <Text style={styles.title}>What is your email address?</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="john.smith@gmail.com"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              keyboardType="email-address"
+              returnKeyType="done"
+              blurOnSubmit
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              textAlign="center"
+              editable={!busy && supabaseConfigured}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.mailChip}>
+              <MaterialIcons name="mail-outline" size={28} color={theme.colors.onSurfaceVariant} />
+            </View>
+            <Text style={styles.title}>Check your inbox</Text>
+            <Text style={styles.sub}>
+              Enter the 6-digit code we sent to {email}. Check spam if it is not there.
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={code}
+              onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 8))}
+              placeholder="000000"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              blurOnSubmit
+              maxLength={8}
+              textAlign="center"
+              editable={!busy}
+            />
+          </>
+        )}
+      </View>
 
       {!supabaseConfigured ? (
         <Text style={styles.warn}>
           Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to use email sign-in.
         </Text>
       ) : null}
-
-      {step === 'email' ? (
-        <>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            keyboardType="email-address"
-            returnKeyType="done"
-            blurOnSubmit
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!busy && supabaseConfigured}
-          />
-        </>
-      ) : (
-        <>
-          <Text style={styles.label}>6-digit code</Text>
-          <TextInput
-            style={styles.input}
-            value={code}
-            onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 8))}
-            placeholder="000000"
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            keyboardType="number-pad"
-            returnKeyType="done"
-            blurOnSubmit
-            maxLength={8}
-            editable={!busy}
-          />
-        </>
-      )}
 
       {formError ? (
         formError.caption ? (
@@ -202,15 +203,13 @@ export default function EmailSignInScreen() {
       ) : null}
 
       <Pressable
-        style={[styles.primary, (busy || !supabaseConfigured) && styles.primaryDisabled]}
+        style={[styles.primary, (!canContinue || busy || !supabaseConfigured) && styles.primaryDisabled]}
         onPress={() => void (step === 'email' ? onSendCode() : onVerify())}
-        disabled={busy || !supabaseConfigured}>
+        disabled={!canContinue || busy || !supabaseConfigured}>
         {busy ? (
           <AppLoadingCross size="small" />
         ) : (
-          <Text style={styles.primaryTxt}>
-            {step === 'email' ? 'Send code' : verified ? 'Continue' : 'Verify & continue'}
-          </Text>
+          <Text style={[styles.primaryTxt, !canContinue && styles.primaryTxtDisabled]}>Continue</Text>
         )}
       </Pressable>
 
@@ -222,7 +221,7 @@ export default function EmailSignInScreen() {
           accessibilityRole="button"
           accessibilityLabel={resendIn > 0 ? `Resend code in ${resendIn} seconds` : 'Resend code'}>
           <Text style={[styles.resendTxt, resendDisabled && styles.resendDisabled]}>
-            {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+            {resendIn > 0 ? `Resend code (${resendIn})` : 'Resend code'}
           </Text>
         </Pressable>
       ) : null}
@@ -234,61 +233,58 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.space.screen,
   },
-  headerRow: { marginBottom: 20 },
-  back: {
-    fontFamily: theme.fonts.body,
-    fontSize: 16,
-    color: theme.colors.gold,
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 48,
+  },
+  mailChip: {
+    alignSelf: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.glassEdge,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   title: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    marginBottom: 10,
+    textAlign: 'center',
+    marginBottom: 18,
   },
   sub: {
     fontFamily: theme.fonts.body,
-    fontSize: 15,
+    fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  spam: {
-    fontFamily: theme.fonts.body,
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.colors.onSurfaceVariant,
-    marginTop: -16,
-    marginBottom: 24,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 28,
+    paddingHorizontal: 8,
   },
   warn: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
     color: theme.colors.error,
     marginBottom: 16,
-  },
-  label: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    marginBottom: 8,
+    textAlign: 'center',
   },
   input: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontFamily: theme.fonts.body,
-    fontSize: 17,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.outlineStrong,
+    paddingVertical: 12,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 22,
     color: theme.colors.onBackground,
-    marginBottom: 16,
-    borderRadius: theme.radii.md,
+    marginHorizontal: 12,
   },
   error: {
     fontFamily: theme.fonts.body,
@@ -296,6 +292,7 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     marginBottom: 12,
     lineHeight: 20,
+    textAlign: 'center',
   },
   messageCard: {
     borderWidth: 1,
@@ -305,7 +302,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   messageCardNotice: {
-    borderColor: 'rgba(255, 215, 0, 0.35)',
+    borderColor: 'rgba(235, 213, 174, 0.35)',
     backgroundColor: theme.colors.surfaceContainerHigh,
   },
   messageCardError: {
@@ -331,27 +328,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primary: {
-    backgroundColor: theme.colors.gold,
-    paddingVertical: 16,
+    backgroundColor: theme.colors.champagne,
+    height: 52,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
     borderRadius: theme.radii.full,
   },
-  primaryDisabled: { opacity: 0.55 },
+  primaryDisabled: { backgroundColor: 'rgba(255,255,255,0.08)' },
   primaryTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onChampagne,
+  },
+  primaryTxtDisabled: {
+    color: theme.colors.onSurfaceVariant,
   },
   resend: { alignItems: 'center', paddingVertical: 16 },
   resendTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    color: theme.colors.gold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onBackground,
   },
   resendDisabled: { opacity: 0.4 },
 });

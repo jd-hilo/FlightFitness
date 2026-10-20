@@ -45,7 +45,15 @@
         }
       ],
       "expo-audio",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "color": "#EBD5AE",
+          "defaultChannel": "daily-devotional",
+          "mode": "production"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

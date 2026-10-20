@@ -49,7 +49,7 @@ export function MealCard({
           <MaterialIcons
             name="check-circle"
             size={36}
-            color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.gold}
+            color={readOnly ? theme.colors.onSurfaceVariant : theme.colors.champagne}
           />
         ) : (
           <View style={[styles.addBtn, readOnly && styles.addBtnMuted]}>
@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
   badge: {
     borderRadius: theme.radii.full,
     alignSelf: 'flex-start',
-    backgroundColor: theme.colors.gold,
-    color: theme.colors.onGold,
+    backgroundColor: theme.colors.champagne,
+    color: theme.colors.onChampagne,
     fontFamily: theme.fonts.label,
     fontSize: 9,
     letterSpacing: 1,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   edit: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: theme.colors.onBackground,
   },
-  mValGold: { color: theme.colors.gold },
+  mValGold: { color: theme.colors.champagne },
   checkHit: { paddingTop: 4 },
   addBtn: {
     width: 48,

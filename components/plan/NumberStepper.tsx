@@ -77,7 +77,7 @@ export function NumberStepper({
           <MaterialIcons
             name="remove"
             size={compact ? 18 : 20}
-            color={theme.colors.gold}
+            color={theme.colors.champagne}
           />
         </Pressable>
         <View style={styles.valueWrap}>
@@ -118,7 +118,7 @@ export function NumberStepper({
           <MaterialIcons
             name="add"
             size={compact ? 18 : 20}
-            color={theme.colors.gold}
+            color={theme.colors.champagne}
           />
         </Pressable>
       </View>

@@ -213,7 +213,7 @@ export function ExerciseEditorModal({
             <View style={styles.catalogBox}>
               {searchLoading ? (
                 <View style={styles.catalogLoading}>
-                  <ActivityIndicator size="small" color={theme.colors.gold} />
+                  <ActivityIndicator size="small" color={theme.colors.champagne} />
                 </View>
               ) : null}
               {catalogMatches.map((entry) => (
@@ -303,7 +303,7 @@ export function ExerciseEditorModal({
           ))}
 
           <Pressable style={styles.addSetBox} onPress={addRow}>
-            <MaterialIcons name="add" size={20} color={theme.colors.gold} />
+            <MaterialIcons name="add" size={20} color={theme.colors.champagne} />
             <Text style={styles.addSetTxt}>Add set</Text>
           </Pressable>
 
@@ -362,14 +362,14 @@ const styles = StyleSheet.create({
   headerBtnPrimary: {
     fontFamily: theme.fonts.label,
     fontSize: 12,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
   },
   label: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   catalogRowSelected: {
     backgroundColor: theme.colors.surfaceContainer,
     borderLeftWidth: 3,
-    borderLeftColor: theme.colors.gold,
+    borderLeftColor: theme.colors.champagne,
   },
   catalogName: {
     flex: 1,
@@ -468,14 +468,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     alignItems: 'center',
     justifyContent: 'center',
   },
   setBadgeText: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 13,
-    color: theme.colors.onGold,
+    color: theme.colors.onChampagne,
   },
   setCardTitle: {
     flex: 1,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   addSetTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },

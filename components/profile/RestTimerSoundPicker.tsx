@@ -43,7 +43,7 @@ export function RestTimerSoundPicker() {
               <MaterialIcons
                 name={selected ? 'check-circle' : 'volume-up'}
                 size={22}
-                color={selected ? theme.colors.gold : theme.colors.onSurfaceVariant}
+                color={selected ? theme.colors.champagne : theme.colors.onSurfaceVariant}
               />
             </Pressable>
           );
@@ -63,10 +63,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
@@ -90,8 +88,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   rowSelected: {
-    borderColor: 'rgba(255, 215, 0, 0.55)',
-    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+    borderColor: 'rgba(235,213,174, 0.55)',
+    backgroundColor: 'rgba(235,213,174, 0.08)',
   },
   rowPressed: { opacity: 0.9 },
   rowText: { flex: 1, minWidth: 0 },
@@ -101,7 +99,7 @@ const styles = StyleSheet.create({
     color: theme.colors.onBackground,
     textTransform: 'uppercase',
   },
-  labelSelected: { color: theme.colors.gold },
+  labelSelected: { color: theme.colors.champagne },
   desc: {
     fontFamily: theme.fonts.body,
     fontSize: 12,

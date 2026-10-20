@@ -162,7 +162,7 @@ export default function WorkoutInsightsScreen() {
             <MaterialIcons
               name="insights"
               size={28}
-              color={theme.colors.gold}
+              color={theme.colors.champagne}
             />
             <Text style={styles.emptyTitle}>No data yet</Text>
             <Text style={styles.muted}>
@@ -206,7 +206,7 @@ export default function WorkoutInsightsScreen() {
                     <MaterialIcons
                       name="edit"
                       size={20}
-                      color={theme.colors.gold}
+                      color={theme.colors.champagne}
                     />
                   </Pressable>
                 </View>
@@ -267,10 +267,10 @@ export default function WorkoutInsightsScreen() {
           </View>
         ) : hasSessions ? (
           <View style={styles.emptyBox}>
-            <MaterialIcons
+          <MaterialIcons
               name="show-chart"
               size={28}
-              color={theme.colors.gold}
+              color={theme.colors.champagne}
             />
             <Text style={styles.emptyTitle}>Exercise trends</Text>
             <Text style={styles.muted}>
@@ -320,7 +320,7 @@ function Header({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.header}>
       <Pressable onPress={onBack} hitSlop={12}>
-        <MaterialIcons name="arrow-back" size={24} color={theme.colors.gold} />
+        <MaterialIcons name="arrow-back" size={24} color={theme.colors.onBackground} />
       </Pressable>
       <Text style={styles.headerTitle}>Insights</Text>
       <View style={{ width: 24 }} />
@@ -423,7 +423,7 @@ function ExerciseProgressCard({
               name={delta > 0 ? 'trending-up' : 'trending-down'}
               size={13}
               color={
-                delta > 0 ? theme.colors.gold : theme.colors.onSurfaceVariant
+                delta > 0 ? theme.colors.champagne : theme.colors.onSurfaceVariant
               }
             />
             <Text style={[styles.deltaTxt, delta > 0 && styles.deltaTxtUp]}>
@@ -470,17 +470,17 @@ const styles = StyleSheet.create({
   },
   kicker: {
     fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: theme.colors.gold,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginTop: 20,
   },
   title: {
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.headlineBold,
     fontSize: 26,
+    letterSpacing: -0.3,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
     marginTop: 4,
     marginBottom: 20,
   },
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 18,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   statLabel: {
     fontFamily: theme.fonts.label,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   recentDuration: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 18,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   editBtn: {
     width: 40,
@@ -553,10 +553,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 20,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    letterSpacing: -0.3,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
   sectionCaption: {
     fontFamily: theme.fonts.body,
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.surfaceContainerLow,
   },
-  segmentBtnActive: { backgroundColor: theme.colors.gold },
+  segmentBtnActive: { backgroundColor: theme.colors.champagne },
   segmentTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
-  segmentTxtActive: { color: theme.colors.onGold },
+  segmentTxtActive: { color: theme.colors.onChampagne },
   exCard: {
     borderWidth: 1,
     borderColor: theme.colors.outlineStrong,
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: theme.colors.onSurfaceVariant,
   },
-  deltaTxtUp: { color: theme.colors.gold },
+  deltaTxtUp: { color: theme.colors.champagne },
   exHeadline: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
@@ -642,8 +642,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 16,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    color: theme.colors.champagne,
   },
   muted: {
     fontFamily: theme.fonts.body,

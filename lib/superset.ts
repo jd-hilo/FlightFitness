@@ -155,6 +155,32 @@ export function focusLabel(exercises: Exercise[], focus: SetFocus | null): strin
   return `Next: ${name} · Set ${focus.setRowIndex + 1}`;
 }
 
+/**
+ * Drop a superset id from any exercise that is no longer beside another member.
+ * Reordering can leave the same id on exercises that are no longer contiguous.
+ */
+export function settleSupersetGroups(exercises: Exercise[]): Exercise[] {
+  const next = exercises.map((ex) => ({ ...ex }));
+  let i = 0;
+  while (i < next.length) {
+    const id = next[i]?.supersetGroupId?.trim();
+    if (!id) {
+      i += 1;
+      continue;
+    }
+    let end = i;
+    while (end + 1 < next.length && next[end + 1]?.supersetGroupId?.trim() === id) {
+      end += 1;
+    }
+    if (end === i) {
+      const { supersetGroupId: _drop, ...rest } = next[i]!;
+      next[i] = rest;
+    }
+    i = end + 1;
+  }
+  return next;
+}
+
 /** Collapse orphan groups (fewer than 2 members) after unlink/remove. */
 export function cleanupSupersetGroups(exercises: Exercise[]): Exercise[] {
   const counts = new Map<string, number>();

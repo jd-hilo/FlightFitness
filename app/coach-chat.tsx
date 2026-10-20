@@ -186,7 +186,7 @@ export default function CoachChatScreen() {
           {sending ? (
             <AppLoadingCross size="small" />
           ) : (
-            <MaterialIcons name="send" size={22} color={theme.colors.onGold} />
+            <MaterialIcons name="send" size={22} color={theme.colors.onChampagne} />
           )}
         </Pressable>
       </View>
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   coachLabel: {
     fontFamily: theme.fonts.bodyMedium,
     fontSize: 11,
-    color: theme.colors.goldDim,
+    color: theme.colors.champagne,
     marginBottom: 4,
     marginLeft: 2,
     textTransform: 'uppercase',
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   bubbleUser: {
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
   },
   bubbleCoach: {
     backgroundColor: theme.colors.surfaceContainerHigh,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   bubbleTextUser: {
-    color: theme.colors.onGold,
+    color: theme.colors.onChampagne,
   },
   composer: {
     flexDirection: 'row',
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     alignItems: 'center',
     justifyContent: 'center',
   },

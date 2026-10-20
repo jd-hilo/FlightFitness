@@ -7,7 +7,7 @@ import { isAiWeekPlanEnabled } from '@/lib/featureFlags';
 
 export type SubscriptionTier = 'free' | 'essentials' | 'coaching';
 
-export const FREE_TIER_MAX_SAVED_WORKOUTS = 3;
+export const FREE_TIER_MAX_SAVED_WORKOUTS = 2;
 export const FREE_TIER_MAX_SAVED_MEALS = 5;
 
 export function hasPremiumLibraryAccess(tier: SubscriptionTier): boolean {

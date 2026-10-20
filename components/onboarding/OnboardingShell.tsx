@@ -1,23 +1,8 @@
-import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ONBOARDING_STEP_COUNT, onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
-
-function FlightFitnessWordmark() {
-  return (
-    <Text style={styles.brand} accessibilityRole="header">
-      FLIGHT FITNESS
-    </Text>
-  );
-}
 
 type Props = {
   step: number;
@@ -27,8 +12,9 @@ type Props = {
   canNext: boolean;
   nextLabel?: string;
   onNext: () => void;
+  /** Accepted so callers compile; back button is not rendered (iOS swipe-back still works). */
   backHref?: string;
-  /** When set, Back calls this instead of router.back(). */
+  /** Accepted so callers compile; back button is not rendered. */
   onBackPress?: () => void;
   hideFooter?: boolean;
   hideNext?: boolean;
@@ -40,10 +26,8 @@ export function OnboardingShell({
   totalSteps = ONBOARDING_STEP_COUNT,
   children,
   canNext,
-  nextLabel = 'Next',
+  nextLabel = 'Continue',
   onNext,
-  backHref,
-  onBackPress,
   hideFooter = false,
   hideNext = false,
   showProgress = true,
@@ -51,49 +35,46 @@ export function OnboardingShell({
   const insets = useSafeAreaInsets();
   const safeTotal = Math.max(1, totalSteps);
   const progressRatio = Math.min(1, step / safeTotal);
-  const canBack = Boolean(onBackPress || backHref);
-
-  const onBack = () => {
-    if (onBackPress) {
-      onBackPress();
-      return;
-    }
-    if (backHref) router.back();
-  };
 
   return (
     <KeyboardAvoidingView
       style={styles.kavRoot}
       behavior={Platform.OS === 'ios' ? 'height' : undefined}>
-      <View style={[styles.screen, { paddingTop: insets.top + 24, paddingBottom: hideFooter ? insets.bottom + 12 : 0 }]}>
-        <FlightFitnessWordmark />
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: hideFooter || hideNext ? insets.bottom + 12 : 0,
+          },
+        ]}>
         {showProgress ? (
           <View
-            style={styles.progressTrack}
+            style={styles.topRow}
             accessible
             accessibilityRole="progressbar"
             accessibilityLabel={`Onboarding progress, step ${step} of ${safeTotal}`}
             accessibilityValue={{ min: 0, max: safeTotal, now: step }}>
-            <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
+            </View>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.topRow} />
+        )}
         <View style={styles.shellBody}>{children}</View>
-        {!hideFooter ? (
-          <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+        {!hideFooter && !hideNext ? (
+          <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
             <Pressable
-              onPress={onBack}
-              style={styles.secondary}
-              disabled={!canBack}>
-              <Text style={[styles.secondaryTxt, !canBack && styles.disabled]}>Back</Text>
+              onPress={onNext}
+              style={[styles.primary, !canNext && styles.primaryDisabled]}
+              disabled={!canNext}
+              accessibilityRole="button"
+              accessibilityLabel={nextLabel}>
+              <Text style={[styles.primaryTxt, !canNext && styles.primaryTxtDisabled]}>
+                {nextLabel}
+              </Text>
             </Pressable>
-            {hideNext ? null : (
-              <Pressable
-                onPress={onNext}
-                style={[styles.primary, !canNext && styles.primaryDisabled]}
-                disabled={!canNext}>
-                <Text style={styles.primaryTxt}>{nextLabel}</Text>
-              </Pressable>
-            )}
           </View>
         ) : null}
       </View>

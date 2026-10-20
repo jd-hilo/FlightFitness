@@ -15,7 +15,7 @@ export function PlanFeatureRow({ feature }: Props) {
   return (
     <View style={styles.row}>
       <View style={styles.iconCol}>
-        <MaterialIcons name={feature.icon} size={22} color={theme.colors.gold} />
+        <MaterialIcons name={feature.icon} size={22} color={theme.colors.champagne} />
       </View>
       <Text style={styles.text} numberOfLines={2}>
         {feature.label}

@@ -101,7 +101,7 @@ export default function CoachingInfoScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={['rgba(255,255,255,0.14)', 'rgba(255,215,0,0.10)', 'transparent']}
+        colors={['rgba(255,255,255,0.14)', 'rgba(235,213,174,0.10)', 'transparent']}
         locations={[0, 0.45, 1]}
         style={styles.topGlow}
         pointerEvents="none"
@@ -109,7 +109,7 @@ export default function CoachingInfoScreen() {
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <MaterialIcons name="arrow-back" size={24} color={theme.colors.gold} />
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.champagne} />
         </Pressable>
         <Text style={styles.headerTitle}>Custom Coaching</Text>
         <View style={styles.headerSpacer} />
@@ -129,7 +129,7 @@ export default function CoachingInfoScreen() {
           {COACHING_INFO_HIGHLIGHTS.map((item) => (
             <View key={item.title} style={styles.card}>
               <View style={styles.iconWrap}>
-                <MaterialIcons name={item.icon} size={22} color={theme.colors.gold} />
+                <MaterialIcons name={item.icon} size={22} color={theme.colors.champagne} />
               </View>
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
@@ -218,11 +218,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontFamily: theme.fonts.headline,
+    fontFamily: theme.fonts.labelBold,
     fontSize: 16,
     color: theme.colors.onBackground,
     textAlign: 'center',
-    textTransform: 'uppercase',
   },
   headerSpacer: {
     width: 40,
@@ -232,20 +231,18 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 2.4,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     textAlign: 'center',
     marginBottom: 8,
   },
   headline: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 26,
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 24,
     color: '#FFFFFF',
     textAlign: 'center',
-    textTransform: 'uppercase',
+    letterSpacing: -0.4,
     lineHeight: 30,
     marginBottom: 10,
   },
@@ -279,9 +276,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(235,213,174, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.22)',
+    borderColor: 'rgba(235,213,174, 0.22)',
   },
   cardText: {
     flex: 1,
@@ -289,10 +286,9 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
+    fontSize: 15,
     color: '#FFFFFF',
-    textTransform: 'uppercase',
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 4,
   },
   cardDesc: {
@@ -312,18 +308,16 @@ const styles = StyleSheet.create({
   },
   inviteBox: {
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.28)',
-    backgroundColor: 'rgba(255,215,0,0.06)',
+    borderColor: 'rgba(235,213,174,0.28)',
+    backgroundColor: 'rgba(235,213,174,0.06)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     gap: 10,
   },
   inviteLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: theme.colors.gold,
+    ...theme.type.kicker,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
@@ -342,23 +336,21 @@ const styles = StyleSheet.create({
   },
   inviteBtn: {
     borderWidth: 1,
-    borderColor: theme.colors.gold,
-    borderRadius: 999,
+    borderColor: theme.colors.champagne,
+    borderRadius: theme.radii.full,
     paddingVertical: 12,
     alignItems: 'center',
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
   },
   inviteBtnTxt: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 14,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 15,
+    color: theme.colors.champagne,
   },
   cta: {
-    borderWidth: 1.4,
-    borderColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 999,
+    backgroundColor: theme.colors.champagne,
+    borderRadius: theme.radii.full,
     paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',
@@ -368,9 +360,8 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   ctaTxt: {
-    fontFamily: theme.fonts.headline,
-    fontSize: 17,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onChampagne,
   },
 });

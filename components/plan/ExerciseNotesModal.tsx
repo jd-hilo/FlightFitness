@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   headerBtnPrimary: {
     fontFamily: theme.fonts.label,
     fontSize: 12,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
   },
   body: { paddingHorizontal: 20, paddingTop: 16 },
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 8,
   },

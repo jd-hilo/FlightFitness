@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 1.5,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     textAlign: 'center',
   },

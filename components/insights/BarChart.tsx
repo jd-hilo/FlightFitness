@@ -89,9 +89,9 @@ const styles = StyleSheet.create({
     width: '78%',
     minHeight: 0,
   },
-  /** Previous bars: darker gold so every bar reads on the dark background. */
-  barIdle: { backgroundColor: 'rgba(255,215,0,0.35)' },
-  barActive: { backgroundColor: theme.colors.gold },
+  /** Previous bars: muted champagne so every bar reads on the dark background. */
+  barIdle: { backgroundColor: 'rgba(235,213,174,0.35)' },
+  barActive: { backgroundColor: theme.colors.champagne },
   barEmpty: { backgroundColor: theme.colors.outline, opacity: 0.4 },
   value: {
     fontFamily: theme.fonts.label,
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   valueLg: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 17,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     marginBottom: 6,
     letterSpacing: -0.3,
   },

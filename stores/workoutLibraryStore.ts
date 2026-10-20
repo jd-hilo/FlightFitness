@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { ensureExerciseSetRows, newId, syncExerciseAggregateFromSetRows } from '@/lib/exerciseNormalize';
 import { deleteRemoteWorkout, scheduleTrackingRemoteSave } from '@/lib/api/trackingPersistence';
-import { cleanupSupersetGroups } from '@/lib/superset';
+import { cleanupSupersetGroups, settleSupersetGroups } from '@/lib/superset';
 import { canAddSavedWorkout, useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { Exercise } from '@/types/plan';
 
@@ -27,6 +27,7 @@ type WorkoutLibraryState = {
   addExercise: (workoutId: string, exercise: Exercise) => void;
   updateExercise: (workoutId: string, exerciseIndex: number, exercise: Exercise) => void;
   removeExercise: (workoutId: string, exerciseIndex: number) => void;
+  reorderExercises: (workoutId: string, fromIndex: number, toIndex: number) => void;
   /** Link exercise at index with the one above into a superset (joins existing group if present). */
   linkWithPreviousAsSuperset: (workoutId: string, exerciseIndex: number) => void;
   unlinkSuperset: (workoutId: string, exerciseIndex: number) => void;
@@ -118,6 +119,33 @@ export const useWorkoutLibraryStore = create<WorkoutLibraryState>()((set, get) =
             const exercises = [...w.exercises];
             exercises[exerciseIndex] = ensureExerciseSetRows(exercise);
             return { ...w, exercises, updatedAt: new Date().toISOString() };
+          }),
+        }));
+        scheduleTrackingRemoteSave();
+      },
+
+      reorderExercises: (workoutId, fromIndex, toIndex) => {
+        if (fromIndex === toIndex) return;
+        set((s) => ({
+          workouts: s.workouts.map((w) => {
+            if (w.id !== workoutId) return w;
+            if (
+              fromIndex < 0 ||
+              toIndex < 0 ||
+              fromIndex >= w.exercises.length ||
+              toIndex >= w.exercises.length
+            ) {
+              return w;
+            }
+            const exercises = [...w.exercises];
+            const [moved] = exercises.splice(fromIndex, 1);
+            if (!moved) return w;
+            exercises.splice(toIndex, 0, moved);
+            return {
+              ...w,
+              exercises: settleSupersetGroups(exercises),
+              updatedAt: new Date().toISOString(),
+            };
           }),
         }));
         scheduleTrackingRemoteSave();

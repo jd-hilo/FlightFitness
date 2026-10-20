@@ -55,7 +55,7 @@ export function MacroDashboard({
           </View>
           <View style={[styles.barTrack, compact && styles.barTrackCompact]}>
             <LinearGradient
-              colors={[theme.colors.gold, theme.colors.orange]}
+              colors={[theme.colors.champagne, theme.colors.orange]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[styles.barFill, { width: `${kcalPct * 100}%` }]}
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   metaGold: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
   },
   barTrack: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   thinFill: {
     height: '100%',
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
   },
   wrapCompact: { marginBottom: 6, gap: 1 },
   heroCompact: {

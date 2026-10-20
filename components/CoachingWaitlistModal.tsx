@@ -157,10 +157,8 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     minWidth: 0,
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.gold,
-    textTransform: 'uppercase',
+    ...theme.type.section,
+    color: theme.colors.champagne,
     lineHeight: 24,
   },
   titleHint: {
@@ -211,19 +209,19 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   primary: {
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
     marginBottom: 12,
     borderRadius: theme.radii.full,
   },
   primaryDisabled: { opacity: 0.6 },
   primaryTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: theme.colors.onGold,
-    textTransform: 'uppercase',
+    fontFamily: theme.fonts.labelBold,
+    fontSize: 16,
+    color: theme.colors.onChampagne,
   },
   cancelWrap: { alignItems: 'center', paddingVertical: 8 },
   cancel: {

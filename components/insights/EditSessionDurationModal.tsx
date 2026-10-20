@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   headerBtnPrimary: {
     fontFamily: theme.fonts.label,
     fontSize: 15,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textAlign: 'right',
   },
   headerTitle: {
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   previewValue: {
     fontFamily: theme.fonts.headlineBold,
     fontSize: 40,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   steppers: {
     flexDirection: 'row',

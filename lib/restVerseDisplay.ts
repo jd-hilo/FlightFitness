@@ -17,9 +17,9 @@ export function restVerseHeroText(raw: string): {
   };
 }
 
-/** e.g. "Next: Bench · Set 3" → "NEXT · BENCH · SET 3" */
+/** e.g. "Next: Bench · Set 3" → "Bench · Set 3" */
 export function formatRestNextLabel(nextLabel: string): string {
   const stripped = nextLabel.replace(/^next:\s*/i, '').trim();
   if (!stripped) return '';
-  return stripped.replace(/\s*·\s*/g, ' · ').toUpperCase();
+  return stripped.replace(/\s*·\s*/g, ' · ');
 }

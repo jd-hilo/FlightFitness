@@ -56,14 +56,14 @@ export function PlanUpgradeBadge() {
       accessibilityLabel={a11y}
       style={({ pressed }) => [styles.press, pressed && styles.pressPressed]}>
       <LinearGradient
-        colors={['rgba(255, 215, 0, 0.28)', 'rgba(255, 215, 0, 0.1)']}
+        colors={['rgba(235,213,174, 0.28)', 'rgba(235,213,174, 0.1)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}>
         <MaterialIcons
           name="workspace-premium"
           size={18}
-          color={theme.colors.gold}
+          color={theme.colors.champagne}
         />
         <Text
           style={styles.label}
@@ -94,14 +94,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.55)',
+    borderColor: 'rgba(235,213,174, 0.55)',
     backgroundColor: theme.colors.surfaceContainerHigh,
   },
   label: {
     fontFamily: theme.fonts.label,
     fontSize: 11,
     letterSpacing: 0.5,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     maxWidth: 168,
     textAlign: 'center',

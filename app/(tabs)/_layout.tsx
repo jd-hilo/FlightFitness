@@ -6,6 +6,7 @@ import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { FlightTabBar } from '@/components/FlightTabBar';
 import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { tabFade } from '@/constants/screenFade';
 import { theme } from '@/constants/theme';
 import { pullProfileOnboardingIntoStore } from '@/lib/api/profileOnboarding';
 import { pullUserTrackingIntoStores } from '@/lib/api/trackingPersistence';
@@ -69,12 +70,22 @@ export default function TabLayout() {
         tabBar={(props) => <FlightTabBar {...props} />}
         screenOptions={{
           headerShown: useClientOnlyValue(false, false),
+          ...tabFade,
         }}>
-        <Tabs.Screen name="index" options={{ title: 'Fitness' }} />
-        <Tabs.Screen name="train" options={{ title: 'Train', href: null }} />
+        <Tabs.Screen name="index" options={{ title: 'Home' }} />
+        <Tabs.Screen
+          name="train"
+          options={{
+            title: 'Train',
+            href: null,
+            // The tab transition drops this fade after the screen has been opened once.
+            // Train fades its own content every time it is focused instead.
+            animation: 'none',
+          }}
+        />
         <Tabs.Screen name="fuel" options={{ title: 'Fuel', href: null }} />
         <Tabs.Screen name="faith" options={{ title: 'Faith' }} />
-        <Tabs.Screen name="elite" options={{ title: 'Profile' }} />
+        <Tabs.Screen name="elite" options={{ title: 'Progress' }} />
       </Tabs>
       <VerseCelebrationModal
         visible={visible}

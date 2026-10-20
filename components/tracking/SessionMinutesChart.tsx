@@ -89,10 +89,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
-  barTrackActive: { borderColor: theme.colors.gold },
+  barTrackActive: { borderColor: theme.colors.champagne },
   barFill: {
     width: '100%',
-    backgroundColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
     minHeight: 0,
   },
   dayLbl: {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textTransform: 'uppercase',
   },
-  dayLblActive: { color: theme.colors.gold },
+  dayLblActive: { color: theme.colors.champagne },
   detail: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   detailVal: {
     fontFamily: theme.fonts.headline,
     fontSize: 26,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
   },
   detailUnit: {
     fontFamily: theme.fonts.body,

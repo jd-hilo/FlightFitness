@@ -237,7 +237,7 @@ export function MealEditorModal({
                   <MaterialIcons
                     name={templateMenuOpen ? 'expand-less' : 'expand-more'}
                     size={22}
-                    color={theme.colors.gold}
+                    color={theme.colors.champagne}
                   />
                 ) : null}
               </Pressable>
@@ -315,7 +315,7 @@ export function MealEditorModal({
           <SectionCard title="Macros">
             <View style={styles.kcalHero}>
               <View style={styles.kcalHeroTop}>
-                <MaterialIcons name="local-fire-department" size={20} color={theme.colors.gold} />
+                <MaterialIcons name="local-fire-department" size={20} color={theme.colors.champagne} />
                 <Text style={styles.kcalHeroLabel}>Total calories</Text>
               </View>
               <Pressable
@@ -360,7 +360,7 @@ export function MealEditorModal({
                     setKcal(suggestedKcal);
                     setKcalManual(false);
                   }}>
-                  <MaterialIcons name="sync" size={14} color={theme.colors.gold} />
+                  <MaterialIcons name="sync" size={14} color={theme.colors.champagne} />
                   <Text style={styles.syncChipTxt}>
                     Recalculate from macros (~{suggestedKcal})
                   </Text>
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   headerBtnPrimary: {
     fontFamily: theme.fonts.label,
     fontSize: 12,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 1,
   },
   templateSection: {
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
   },
   templatePickerBtn: {
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 9,
     letterSpacing: 1.2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
   },
   templateRowName: {
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.label,
     fontSize: 10,
     letterSpacing: 2,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
@@ -572,8 +572,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
   },
   slotOptionActive: {
-    backgroundColor: theme.colors.gold,
-    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.champagne,
+    borderColor: theme.colors.champagne,
   },
   slotOptionTxt: {
     fontFamily: theme.fonts.label,
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
-  slotOptionTxtActive: { color: theme.colors.onGold },
+  slotOptionTxtActive: { color: theme.colors.onChampagne },
   field: { gap: 6 },
   fieldLabel: {
     fontFamily: theme.fonts.label,
@@ -633,13 +633,13 @@ const styles = StyleSheet.create({
   kcalHeroValue: {
     fontFamily: theme.fonts.headline,
     fontSize: 36,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     lineHeight: 38,
   },
   kcalHeroInput: {
     fontFamily: theme.fonts.headline,
     fontSize: 36,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     lineHeight: 38,
     minWidth: 72,
     padding: 0,
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
   syncChipTxt: {
     fontFamily: theme.fonts.label,
     fontSize: 10,
-    color: theme.colors.gold,
+    color: theme.colors.champagne,
     letterSpacing: 0.5,
   },
   macroStepperRow: { flexDirection: 'row', gap: 10 },

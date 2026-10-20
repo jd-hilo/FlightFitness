@@ -100,3 +100,7 @@ export function applyScreenshotFixtures(options?: { reflectionCompleted?: boolea
 export function applyScreenshotReflectionCompleted() {
   applyScreenshotFixtures({ reflectionCompleted: true });
 }
+
+if (isScreenshotMode && typeof window !== 'undefined') {
+  applyScreenshotFixtures();
+}

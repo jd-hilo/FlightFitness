@@ -18,6 +18,7 @@ export const useRestVerseModeStore = create<RestVerseModeState>()(
     {
       name: 'flight-rest-verse-mode',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
     }
   )
 );

@@ -96,6 +96,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
     {
       name: 'flight-subscription',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
       /**
        * Rehydration can finish after RevenueCat has already applied a higher tier from
        * the network, restoring a stale `tier` from disk (e.g. still `free`). Refresh from

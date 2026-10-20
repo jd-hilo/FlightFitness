@@ -201,6 +201,7 @@ export const useCompletionStore = create<CompletionState>()(
     {
       name: 'flight-completion',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
     }
   )
 );

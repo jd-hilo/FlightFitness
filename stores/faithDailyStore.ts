@@ -126,6 +126,7 @@ export const useFaithDailyStore = create<FaithDailyState>()(
     {
       name: 'flight-faith-v2',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
     }
   )
 );

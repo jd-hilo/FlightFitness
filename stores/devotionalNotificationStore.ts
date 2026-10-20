@@ -22,6 +22,7 @@ export const useDevotionalNotificationStore = create<DevotionalNotificationState
     {
       name: 'flight-devotional-notifications',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
       partialize: (state) => ({ asked: state.asked, wantsDaily: state.wantsDaily }),
     }
   )

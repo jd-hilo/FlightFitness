@@ -264,6 +264,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     {
       name: 'flight-onboarding-v5',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
       merge: (persisted, current) => {
         const p = persisted as
           | Partial<Pick<OnboardingState, 'answers' | 'completedAt' | 'intakeComplete'>>

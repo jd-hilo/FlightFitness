@@ -109,8 +109,9 @@ function serveDir(dir, port) {
   return new Promise((resolve) => {
     const server = createServer(async (req, res) => {
       const url = new URL(req.url || '/', `http://127.0.0.1:${port}`);
-      let filePath = join(dir, decodeURIComponent(url.pathname));
-      if (filePath.endsWith('/')) filePath += 'index.html';
+      const rel = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+      let filePath = join(dir, rel);
+      if (filePath.endsWith('/') || rel === '') filePath = join(dir, rel, 'index.html');
       const { readFile, stat } = await import('node:fs/promises');
       try {
         const st = await stat(filePath);
@@ -149,10 +150,14 @@ function serveDir(dir, port) {
 }
 
 async function waitReady(page) {
-  await page.waitForFunction(() => window.__SCREENSHOT_READY__ === true, {
-    timeout: 45_000,
-  });
-  await page.evaluate(() => document.fonts.ready);
+  try {
+    await page.waitForFunction(() => window.__SCREENSHOT_READY__ === true, {
+      timeout: 12_000,
+    });
+  } catch {
+    console.warn('__SCREENSHOT_READY__ not set; capturing after fonts');
+  }
+  await page.evaluate(() => document.fonts.ready).catch(() => {});
   await sleep(900);
 }
 
@@ -185,11 +190,15 @@ async function main() {
 
   const dist = join(ROOT, 'dist-screenshots');
   process.env.EXPO_PUBLIC_SCREENSHOT_MODE = '1';
-  console.log('Exporting static web build…');
-  await run('npx', ['expo', 'export', '-p', 'web', '--output-dir', 'dist-screenshots'], {
-    cwd: ROOT,
-    env: { ...process.env, EXPO_PUBLIC_SCREENSHOT_MODE: '1' },
-  });
+  if (process.env.SCREENSHOT_SKIP_EXPORT === '1') {
+    console.log('Skipping export (SCREENSHOT_SKIP_EXPORT=1)');
+  } else {
+    console.log('Exporting static web build…');
+    await run('npx', ['expo', 'export', '-p', 'web', '--output-dir', 'dist-screenshots'], {
+      cwd: ROOT,
+      env: { ...process.env, EXPO_PUBLIC_SCREENSHOT_MODE: '1' },
+    });
+  }
 
   const server = await serveDir(dist, PORT);
   await waitForUrl(`${BASE}/`);

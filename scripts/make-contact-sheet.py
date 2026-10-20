@@ -6,7 +6,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    import subprocess
+    import sys
+
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pillow", "-q"])
+    from PIL import Image, ImageDraw, ImageFont
 
 ORDER = [
     "01_home.png",

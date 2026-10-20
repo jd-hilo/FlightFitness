@@ -127,6 +127,7 @@ export const useDailyContentStore = create<DailyContentState>()(
     {
       name: 'flight-daily-content',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
       partialize: (s) => ({ content: s.content }),
       onRehydrateStorage: () => (state) => {
         if (!state?.content || state.content.day !== utcDayNow()) return;

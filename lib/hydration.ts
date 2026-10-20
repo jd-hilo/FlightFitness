@@ -22,9 +22,15 @@ const DROPPED_DEVICE_CACHE_KEYS = [
 
 /** Wait for remaining persisted stores to rehydrate. Plans/workouts come from the cloud. */
 export function useStoresHydrated(): boolean {
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(isScreenshotMode);
 
   useEffect(() => {
+    if (isScreenshotMode) {
+      applyScreenshotFixtures();
+      setReady(true);
+      return;
+    }
+
     let cancelled = false;
     Promise.all([
       AsyncStorage.multiRemove(DROPPED_DEVICE_CACHE_KEYS),
@@ -36,7 +42,6 @@ export function useStoresHydrated(): boolean {
       useWeightLogStore.persist.rehydrate(),
       useDailyContentStore.persist.rehydrate(),
     ]).then(() => {
-      if (isScreenshotMode) applyScreenshotFixtures();
       if (!cancelled) setReady(true);
     });
     return () => {

@@ -91,6 +91,39 @@ function run(cmd, args, opts = {}) {
   });
 }
 
+function runExpoExport() {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      'npx',
+      ['expo', 'export', '-p', 'web', '--output-dir', 'dist-screenshots'],
+      {
+        cwd: ROOT,
+        env: { ...process.env, EXPO_PUBLIC_SCREENSHOT_MODE: '1' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
+    let buf = '';
+    const onData = (chunk) => {
+      const text = chunk.toString();
+      buf += text;
+      process.stdout.write(text);
+      if (buf.includes('Exported:')) {
+        setTimeout(() => {
+          child.kill('SIGTERM');
+          resolve();
+        }, 1500);
+      }
+    };
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onData);
+    child.on('exit', (code) => {
+      if (buf.includes('Exported:')) resolve();
+      else reject(new Error(`expo export exited ${code}`));
+    });
+    child.on('error', reject);
+  });
+}
+
 async function waitForUrl(url, timeoutMs = 120_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -145,8 +178,18 @@ function serveDir(dir, port) {
       }
       if (!filePath) filePath = join(dir, 'index.html');
       try {
-        const data = await readFile(filePath);
+        let data = await readFile(filePath);
         const ext = filePath.split('.').pop();
+        if (ext === 'html') {
+          data = Buffer.from(
+            data
+              .toString('utf8')
+              .replace(
+                /<script src="(\/_expo\/static\/js\/web\/entry-[^"]+\.js)" defer><\/script>/g,
+                '<script type="module" src="$1"></script>'
+              )
+          );
+        }
         const types = {
           html: 'text/html; charset=utf-8',
           js: 'text/javascript; charset=utf-8',
@@ -161,7 +204,13 @@ function serveDir(dir, port) {
           woff2: 'font/woff2',
           ttf: 'font/ttf',
         };
-        res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream' });
+        const headers = {
+          'content-type': types[ext] || 'application/octet-stream',
+        };
+        if (ext === 'ttf' || ext === 'woff' || ext === 'woff2') {
+          headers['access-control-allow-origin'] = '*';
+        }
+        res.writeHead(200, headers);
         res.end(data);
       } catch {
         res.writeHead(404);
@@ -234,10 +283,7 @@ async function main() {
     console.log('Skipping export (SCREENSHOT_SKIP_EXPORT=1)');
   } else {
     console.log('Exporting static web build…');
-    await run('npx', ['expo', 'export', '-p', 'web', '--output-dir', 'dist-screenshots'], {
-      cwd: ROOT,
-      env: { ...process.env, EXPO_PUBLIC_SCREENSHOT_MODE: '1' },
-    });
+    await runExpoExport();
   }
 
   const server = await serveDir(dist, PORT);
@@ -259,10 +305,6 @@ async function main() {
     locale: 'en-US',
     timezoneId: 'America/New_York',
   });
-  await context.addInitScript(() => {
-    document.documentElement.style.fontSynthesis = 'none';
-  });
-
   const failed = [];
   const pageErrors = [];
   for (const shot of SHOTS) {

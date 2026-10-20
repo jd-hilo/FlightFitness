@@ -106,6 +106,6 @@ export function applyScreenshotReflectionCompleted() {
   applyScreenshotFixtures({ reflectionCompleted: true });
 }
 
-if (isScreenshotMode && typeof window !== 'undefined') {
+if (isScreenshotMode) {
   applyScreenshotFixtures();
 }

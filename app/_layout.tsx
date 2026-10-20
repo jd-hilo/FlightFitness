@@ -107,7 +107,7 @@ export default function RootLayout() {
     void SplashScreen.hideAsync();
   }, [loaded]);
 
-  if (!loaded) return null;
+  if (!loaded && !(isScreenshotMode && error)) return null;
 
   return (
     <ScreenshotSafeArea>

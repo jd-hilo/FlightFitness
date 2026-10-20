@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { pullProfileOnboardingIntoStore } from '@/lib/api/profileOnboarding';
 import { useStoresHydrated } from '@/lib/hydration';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { useRegisteredAuth } from '@/lib/useRegisteredAuth';
 import { isIntakeReady, useOnboardingStore } from '@/stores/onboardingStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
@@ -55,6 +56,10 @@ export default function Index() {
       cancelled = true;
     };
   }, [hydrated, authReady, authRegistered, completed]);
+
+  if (isScreenshotMode) {
+    return <Redirect href={'/(tabs)' as Href} />;
+  }
 
   if (!hydrated || !authReady) {
     return (

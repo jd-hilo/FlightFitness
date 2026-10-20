@@ -10,6 +10,7 @@ import {
   type DailyContentFetchResult,
 } from '@/lib/api/dailyContent';
 import { resolveDailyVerse } from '@/lib/dailyVerse';
+import { isScreenshotMode } from '@/lib/screenshotMode';
 import { prefetchVersePassage } from '@/lib/versePassageCache';
 
 type DailyContentState = {
@@ -70,6 +71,10 @@ export const useDailyContentStore = create<DailyContentState>()(
       loading: false,
       dailyFetchSettled: false,
       load: async () => {
+        if (isScreenshotMode) {
+          set({ loading: false, dailyFetchSettled: true });
+          return;
+        }
         if (loadInFlight) return loadInFlight;
 
         const run = (async () => {

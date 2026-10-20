@@ -21,6 +21,7 @@ export const useRestTimerSoundStore = create<RestTimerSoundState>()(
     {
       name: 'flight-rest-timer-sound',
       storage: createJSONStorage(() => AsyncStorage),
+      skipHydration: process.env.EXPO_PUBLIC_SCREENSHOT_MODE === '1',
     }
   )
 );

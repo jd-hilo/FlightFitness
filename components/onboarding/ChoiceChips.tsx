@@ -18,43 +18,38 @@ export function ChoiceChips({
   onPress: (id: string) => void;
   isDisabled?: (id: string) => boolean;
 }) {
-  const last = options.length - 1;
   return (
     <View style={styles.choiceList}>
-      {options.map((opt, i) => {
+      {options.map((opt) => {
         const selected = isSelected(opt.id);
         const disabled = isDisabled?.(opt.id) ?? false;
         return (
-          <View key={opt.id}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected, disabled }}
-              disabled={disabled}
-              onPress={() => {
-                hapticSelection();
-                onPress(opt.id);
-              }}
-              style={({ pressed }) => [
-                styles.choiceRow,
-                i === 0 && styles.choiceRowFirst,
-                i === last && styles.choiceRowLast,
-                selected && styles.choiceRowSelected,
-                disabled && styles.choiceRowDisabled,
-                pressed && !disabled && styles.choiceRowPressed,
-              ]}>
-              <Text
-                style={[styles.choiceLabel, selected && styles.choiceLabelSelected]}
-                numberOfLines={2}>
-                {opt.label}
-              </Text>
+          <Pressable
+            key={opt.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected, disabled }}
+            disabled={disabled}
+            onPress={() => {
+              hapticSelection();
+              onPress(opt.id);
+            }}
+            style={({ pressed }) => [
+              styles.choiceRow,
+              selected && styles.choiceRowSelected,
+              disabled && styles.choiceRowDisabled,
+              pressed && !disabled && styles.choiceRowPressed,
+            ]}>
+            <Text
+              style={[styles.choiceLabel, selected && styles.choiceLabelSelected]}
+              numberOfLines={2}>
+              {opt.label}
+            </Text>
+            <View style={[styles.choiceCheck, selected && styles.choiceCheckOn]}>
               {selected ? (
-                <MaterialIcons name="check" size={22} color={theme.colors.champagne} />
-              ) : (
-                <View style={styles.choiceCheckEmpty} />
-              )}
-            </Pressable>
-            {i < last ? <View style={styles.choiceSep} /> : null}
-          </View>
+                <MaterialIcons name="check" size={16} color={theme.colors.onChampagne} />
+              ) : null}
+            </View>
+          </Pressable>
         );
       })}
     </View>

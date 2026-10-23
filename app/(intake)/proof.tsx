@@ -10,115 +10,175 @@ import { hapticImpact, ImpactStyle } from '@/lib/haptics';
 
 const SUNRISE = require('../../assets/images/sunrise-bg.jpg');
 
-const REVIEWS = [
+type Review = { title: string; who: string; body: string };
+
+const REVIEWS: readonly Review[] = [
   {
     title: 'BEST FITNESS APP',
-    who: 'Bellaoorlando · Aug 9, 2026',
-    body: 'I started using this app as soon as it came to the App Store and it’s changed the game for working out. It keeps my workouts centered on mind body and spirit. Having my faith be a part of how I take care of myself and nurture body is SO important! I highly recommend!!',
+    who: 'Bellaoorlando',
+    body: 'It’s changed the game for working out. It keeps my workouts centered on mind, body and spirit. Having my faith be a part of how I take care of myself is SO important!',
   },
   {
     title: 'Love',
-    who: 'Gracelahart · Aug 4, 2026',
+    who: 'Gracelahart',
     body: 'This app is amazing. Helps keep me on track with my fitness and spiritual goals. Love to have it all in one.',
   },
   {
     title: 'Great Training App!',
-    who: 'ROOSTAA! · Aug 1, 2026',
-    body: 'Excellent content and easy to navigate. A real Winner for those seeking advancing in physical, mental and spiritual health!',
+    who: 'ROOSTAA!',
+    body: 'Excellent content and easy to navigate. A real winner for those seeking to advance in physical, mental and spiritual health!',
   },
   {
     title: 'Pro Athlete approved',
-    who: '813machine · Aug 7, 2026',
-    body: 'This app is now my go to for training. Not only does it guide you physically but guides you spiritually and emotionally as well, and those are things the competition doesn’t focus on. FF Faith Meets Fitness helps me stay ahead of the game.',
+    who: '813machine',
+    body: 'Now my go-to for training. It guides you physically, spiritually and emotionally, and those are things the competition doesn’t focus on.',
   },
   {
     title: 'Busy mom',
-    who: 'Monster902 · Aug 4, 2026',
-    body: 'This app has become such a meaningful part of my daily routine. My favorite feature is the ability to truly reflect on the messages provided and thoughtfully apply them to my own life. It has been a wonderful tool for personal growth, helping me strive to be a better mother, daughter, and friend each day. I highly recommend it to anyone looking for a source of daily inspiration and spiritual encouragement.',
+    who: 'Monster902',
+    body: 'Such a meaningful part of my daily routine. It has helped me strive to be a better mother, daughter, and friend each day.',
   },
-] as const;
+];
 
-const LOOP = [...REVIEWS, ...REVIEWS];
+const TOP_ROW = [REVIEWS[0], REVIEWS[2], REVIEWS[4]];
+const BOTTOM_ROW = [REVIEWS[3], REVIEWS[1]];
 
-export default function IntakeProofScreen() {
-  const insets = useSafeAreaInsets();
+const CARD_WIDTH = 264;
+const CARD_GAP = 12;
+
+function ReviewRow({
+  reviews,
+  pxPerSecond,
+  reverse = false,
+}: {
+  reviews: readonly Review[];
+  pxPerSecond: number;
+  reverse?: boolean;
+}) {
   const drift = useRef(new Animated.Value(0)).current;
   const [loopWidth, setLoopWidth] = useState(0);
+  const loop = [...reviews, ...reviews];
 
   useEffect(() => {
     if (loopWidth <= 0) return;
-    drift.setValue(0);
+    const half = loopWidth / 2;
+    const from = reverse ? -half : 0;
+    const to = reverse ? 0 : -half;
+    drift.setValue(from);
     const animation = Animated.loop(
       Animated.timing(drift, {
-        toValue: -loopWidth / 2,
-        duration: 42000,
+        toValue: to,
+        duration: (half / pxPerSecond) * 1000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
     );
     animation.start();
     return () => animation.stop();
-  }, [drift, loopWidth]);
+  }, [drift, loopWidth, pxPerSecond, reverse]);
+
+  return (
+    <View style={local.rowClip}>
+      <Animated.View
+        style={[local.track, { transform: [{ translateX: drift }] }]}
+        onLayout={(event) => {
+          const width = event.nativeEvent.layout.width;
+          if (width > 0 && Math.abs(width - loopWidth) > 1) setLoopWidth(width);
+        }}>
+        {loop.map((review, index) => (
+          <View key={`${review.who}-${index}`} style={local.card}>
+            <View style={local.cardHead}>
+              <Text style={local.stars}>★★★★★</Text>
+              <Text style={local.who} numberOfLines={1}>
+                {review.who}
+              </Text>
+            </View>
+            <Text style={local.cardTitle} numberOfLines={1}>
+              {review.title}
+            </Text>
+            <Text style={local.cardBody} numberOfLines={4}>
+              {review.body}
+            </Text>
+          </View>
+        ))}
+      </Animated.View>
+    </View>
+  );
+}
+
+function useRise(delay: number) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const animation = Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 650,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 650,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [delay, opacity, translateY]);
+  return { opacity, transform: [{ translateY }] };
+}
+
+export default function IntakeProofScreen() {
+  const insets = useSafeAreaInsets();
+  const line1 = useRise(100);
+  const line2 = useRise(260);
+  const line3 = useRise(420);
+  const rest = useRise(620);
 
   return (
     <View style={local.root}>
       <Image source={SUNRISE} style={StyleSheet.absoluteFill} resizeMode="cover" />
       <LinearGradient
-        colors={['rgba(0,0,0,0.62)', 'rgba(0,0,0,0.18)', 'rgba(0,0,0,0.38)', '#000000']}
-        locations={[0, 0.34, 0.68, 1]}
+        colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0.28)', 'rgba(0,0,0,0.5)', '#000000']}
+        locations={[0, 0.38, 0.66, 1]}
         style={StyleSheet.absoluteFill}
       />
+
       <View
         style={[
           local.foreground,
-          { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 16 },
+          { paddingTop: insets.top + 36, paddingBottom: insets.bottom + 16 },
         ]}>
-        <View>
-          <Text style={local.title}>Closer, and stronger</Text>
-          <Text style={local.subtitle}>
-            People who train and study scripture say they feel closer to God, and stronger, within a
-            few weeks.
-          </Text>
+        <View style={local.hero}>
+          <Animated.Text style={[local.headline, line1]}>Closer to God.</Animated.Text>
+          <Animated.Text style={[local.headline, line2]}>Stronger.</Animated.Text>
+          <Animated.Text style={[local.headline, local.headlineAccent, line3]}>
+            In 2 weeks.
+          </Animated.Text>
+          <Animated.Text style={[local.subtitle, rest]}>
+            That’s what people tell us after pairing their training with time in the Word.
+          </Animated.Text>
         </View>
 
-        <View style={local.reviewWrap}>
-          <Animated.View
-            style={[local.track, { transform: [{ translateX: drift }] }]}
-            onLayout={(event) => {
-              const width = event.nativeEvent.layout.width;
-              if (width > 0 && Math.abs(width - loopWidth) > 1) setLoopWidth(width);
-            }}>
-            {LOOP.map((review, index) => (
-              <View key={`${review.title}-${index}`} style={local.review} accessibilityRole="text">
-                <Text style={local.stars}>★★★★★</Text>
-                <Text style={local.reviewTitle}>{review.title}</Text>
-                <Text style={local.who}>{review.who}</Text>
-                <Text style={local.body}>{review.body}</Text>
-              </View>
-            ))}
-          </Animated.View>
-          <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0)']}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={local.fadeLeft}
-          />
-          <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.85)']}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={local.fadeRight}
-          />
-        </View>
+        <Animated.View style={[local.reviews, rest]}>
+          <View style={local.ratingRow}>
+            <Text style={local.ratingStars}>★★★★★</Text>
+            <Text style={local.ratingTxt}>Loved by our members</Text>
+          </View>
+          <ReviewRow reviews={TOP_ROW} pxPerSecond={46} />
+          <ReviewRow reviews={BOTTOM_ROW} pxPerSecond={38} reverse />
+        </Animated.View>
 
         <Pressable
           onPress={() => {
             hapticImpact(ImpactStyle.Light);
             router.push('/(onboarding)/faith-goals' as Href);
           }}
-          style={styles.primary}
+          style={({ pressed }) => [styles.primary, pressed && local.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Continue">
           <Text style={styles.primaryTxt}>Continue</Text>
@@ -136,85 +196,104 @@ const local = StyleSheet.create({
   foreground: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
-  title: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 22,
-    lineHeight: 28,
-    letterSpacing: -0.3,
+  pressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
+  hero: {
+    gap: 0,
+  },
+  headline: {
+    fontFamily: theme.fonts.headline,
+    fontSize: 42,
+    lineHeight: 46,
+    letterSpacing: -1.4,
     color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: { width: 0, height: 8 },
-    textShadowRadius: 24,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 6 },
+    textShadowRadius: 20,
+  },
+  headlineAccent: {
+    color: theme.colors.champagne,
   },
   subtitle: {
-    marginTop: 6,
-    marginBottom: 14,
+    marginTop: 14,
+    maxWidth: 320,
     fontFamily: theme.fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: 'rgba(255,255,255,0.78)',
+    fontSize: 15,
+    lineHeight: 21,
+    color: 'rgba(255,255,255,0.8)',
   },
-  reviewWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    marginHorizontal: -16,
+  reviews: {
+    marginHorizontal: -20,
+    gap: CARD_GAP,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 2,
+  },
+  ratingStars: {
+    color: theme.colors.champagne,
+    fontSize: 14,
+    letterSpacing: 2,
+  },
+  ratingTxt: {
+    fontFamily: theme.fonts.label,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  rowClip: {
+    flexDirection: 'row',
     overflow: 'hidden',
   },
   track: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingHorizontal: 16,
+    flexShrink: 0,
+    alignSelf: 'flex-start',
   },
-  review: {
-    width: 228,
-    paddingTop: 12,
-    paddingHorizontal: 12,
+  card: {
+    width: CARD_WIDTH,
+    height: 150,
+    marginRight: CARD_GAP,
+    paddingTop: 14,
+    paddingHorizontal: 16,
     paddingBottom: 14,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.46)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(14,12,10,0.62)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
   },
   stars: {
     color: theme.colors.champagne,
     letterSpacing: 2,
     fontSize: 12,
-    marginBottom: 6,
   },
-  reviewTitle: {
+  who: {
+    flexShrink: 1,
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.55)',
+  },
+  cardTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
+    fontSize: 15,
     letterSpacing: -0.2,
     color: '#fff',
     marginBottom: 4,
   },
-  who: {
+  cardBody: {
     fontFamily: theme.fonts.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.62)',
-    marginBottom: 8,
-  },
-  body: {
-    fontFamily: theme.fonts.body,
-    fontSize: 12,
-    lineHeight: 17,
-    color: 'rgba(255,255,255,0.88)',
-  },
-  fadeLeft: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 28,
-  },
-  fadeRight: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 28,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.85)',
   },
 });

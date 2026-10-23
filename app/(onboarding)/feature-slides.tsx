@@ -33,14 +33,14 @@ export default function FeatureSlidesScreen() {
 
   return (
     <OnboardingShell
-      step={3}
+      step={2}
       canNext
       onBackPress={() => {
         if (slide > 0) {
           setSlide((value) => value - 1);
           return;
         }
-        backOrReplace('/(onboarding)/first-workout' as Href);
+        backOrReplace('/(onboarding)/faith-goals' as Href);
       }}
       onNext={() => {
         if (!last) {
@@ -51,11 +51,13 @@ export default function FeatureSlidesScreen() {
       }}>
       <View style={local.body}>
         <Text style={styles.sectionLabel}>{current.kicker}</Text>
-        <Image
-          source={current.image}
-          style={[local.image, { width: imgSize, height: imgSize }]}
-          resizeMode="contain"
-        />
+        <View style={local.art}>
+          <Image
+            source={current.image}
+            style={[local.image, { width: imgSize, height: imgSize }]}
+            resizeMode="contain"
+          />
+        </View>
         <Text style={styles.title}>{current.title}</Text>
         <Text style={styles.subtitle}>{current.body}</Text>
       </View>
@@ -66,8 +68,11 @@ export default function FeatureSlidesScreen() {
 const local = StyleSheet.create({
   body: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+  },
+  art: {
+    alignItems: 'center',
+    marginBottom: 8,
   },
   image: {
     marginBottom: 4,

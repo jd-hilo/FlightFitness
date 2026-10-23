@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
@@ -17,6 +18,7 @@ import { ExerciseIcon } from '@/components/plan/ExerciseIcon';
 import { ExerciseNotesButton } from '@/components/plan/ExerciseNotesButton';
 import { ExerciseNotesModal } from '@/components/plan/ExerciseNotesModal';
 import { theme } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { hapticImpact, hapticSelection, ImpactStyle } from '@/lib/haptics';
 import {
@@ -180,10 +182,48 @@ export default function WorkoutDetailScreen() {
     if (workout) setTitleDraft(workout.title);
   }, [workout?.id, workout?.title]);
 
+  const startedAtRef = useRef<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id || fromOnboarding) return;
+      const current = useWorkoutLibraryStore.getState().workouts.find((w) => w.id === id);
+      if (!current) return;
+      const totalSets = current.exercises.reduce(
+        (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? ex.sets),
+        0
+      );
+      startedAtRef.current = Date.now();
+      track('workout started', {
+        source_workout_id: current.id,
+        title: current.title,
+        exercise_count: current.exercises.length,
+        total_sets: totalSets,
+        surface: 'saved_workout',
+      });
+      return () => {
+        const startedAt = startedAtRef.current;
+        startedAtRef.current = null;
+        if (startedAt == null) return;
+        const latest = useWorkoutLibraryStore.getState().workouts.find((w) => w.id === id) ?? current;
+        track('workout completed', {
+          duration_sec: Math.max(0, Math.round((Date.now() - startedAt) / 1000)),
+          source_workout_id: latest.id,
+          title: latest.title,
+          exercise_count: latest.exercises.length,
+          total_sets: latest.exercises.reduce(
+            (acc, ex) => acc + (ensureExerciseSetRows(ex).setRows?.length ?? ex.sets),
+            0
+          ),
+          surface: 'saved_workout',
+        });
+      };
+    }, [fromOnboarding, id])
+  );
+
   useEffect(() => {
     if (id && !workout && workouts.length >= 0) {
       if (fromOnboarding) {
-        router.replace('/(onboarding)/first-workout' as Href);
+        router.replace('/(onboarding)/feature-slides' as Href);
         return;
       }
       router.replace('/(tabs)/train');

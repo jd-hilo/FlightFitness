@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
 
-import { glassCard, theme } from '@/constants/theme';
+import { theme } from '@/constants/theme';
 
 /**
- * Post-auth shell screens are faith goals, first workout, and the two slides.
- * The paywall is the fourth screen and does not use the shell.
+ * Post-auth shell screens are faith goals and the two feature slides.
+ * The paywall is the third screen and does not use the shell.
  */
-export const ONBOARDING_STEP_COUNT = 4;
+export const ONBOARDING_STEP_COUNT = 3;
 
 /** Pre-auth questions: fitness goal, lifting, faith tenure, age. */
 export const INTAKE_STEP_COUNT = 4;
@@ -52,52 +52,94 @@ export const onboardingStyles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: -0.4,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.3,
     color: theme.colors.onBackground,
-    textAlign: 'center',
-    marginBottom: 10,
-    marginTop: 20,
+    textAlign: 'left',
+    marginBottom: 6,
+    marginTop: 12,
   },
   subtitle: {
     fontFamily: theme.fonts.body,
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 21,
-    textAlign: 'center',
-    marginBottom: 20,
+    lineHeight: 20,
+    textAlign: 'left',
+    marginBottom: 22,
   },
   capHint: {
-    fontFamily: theme.fonts.label,
-    fontSize: 12,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 13,
     color: theme.colors.champagne,
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 12,
+    marginTop: -10,
   },
   chipsScroll: { flexGrow: 1, paddingBottom: 16 },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  chip: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: theme.radii.full,
+  choiceList: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: theme.colors.glassEdge,
-    backgroundColor: theme.colors.glass,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  choiceRow: {
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'transparent',
+  },
+  choiceRowFirst: {},
+  choiceRowLast: {},
+  choiceRowSelected: {
+    backgroundColor: 'rgba(235,213,174,0.08)',
+  },
+  choiceRowPressed: { opacity: 0.85 },
+  choiceRowDisabled: { opacity: 0.35 },
+  choiceLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 16,
+    color: theme.colors.onBackground,
+  },
+  choiceLabelSelected: {
+    fontFamily: theme.fonts.label,
+  },
+  choiceCheckEmpty: {
+    width: 22,
+    height: 22,
+  },
+  choiceSep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginLeft: 16,
+  },
+  chip: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     maxWidth: '100%',
   },
   chipSelected: {
-    borderColor: theme.colors.champagne,
-    backgroundColor: theme.colors.champagneSoft,
+    borderColor: 'rgba(235,213,174,0.45)',
+    backgroundColor: 'rgba(235,213,174,0.08)',
   },
   chipText: {
     fontFamily: theme.fonts.bodyMedium,
-    fontSize: 15,
+    fontSize: 16,
     color: theme.colors.onBackground,
   },
   chipTextSelected: {
-    fontFamily: theme.fonts.labelBold,
-    color: theme.colors.champagne,
+    fontFamily: theme.fonts.label,
+    color: theme.colors.onBackground,
   },
   textField: {
     minHeight: 56,
@@ -184,9 +226,12 @@ export const onboardingStyles = StyleSheet.create({
     textAlign: 'right',
   },
   infoCard: {
-    ...glassCard,
-    padding: 20,
-    marginTop: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 4,
   },
   infoTitle: {
     fontFamily: theme.fonts.headlineBold,

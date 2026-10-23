@@ -16,6 +16,7 @@ import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { finishAuthAndRoute } from '@/components/onboarding/enterOnboarding';
 import { theme } from '@/constants/theme';
 import { requestEmailOtp, verifyEmailOtp } from '@/lib/emailOtpAuth';
+import { hapticImpact, ImpactStyle } from '@/lib/haptics';
 import { supabaseConfigured } from '@/lib/supabase';
 
 type Step = 'email' | 'code';
@@ -145,7 +146,7 @@ export default function EmailSignInScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               autoFocus
-              textAlign="center"
+              textAlign="left"
               editable={!busy && supabaseConfigured}
             />
           </>
@@ -204,7 +205,10 @@ export default function EmailSignInScreen() {
 
       <Pressable
         style={[styles.primary, (!canContinue || busy || !supabaseConfigured) && styles.primaryDisabled]}
-        onPress={() => void (step === 'email' ? onSendCode() : onVerify())}
+        onPress={() => {
+          hapticImpact(ImpactStyle.Light);
+          void (step === 'email' ? onSendCode() : onVerify());
+        }}
         disabled={!canContinue || busy || !supabaseConfigured}>
         {busy ? (
           <AppLoadingCross size="small" />
@@ -216,7 +220,10 @@ export default function EmailSignInScreen() {
       {step === 'code' ? (
         <Pressable
           style={styles.resend}
-          onPress={() => void onSendCode()}
+          onPress={() => {
+            hapticImpact(ImpactStyle.Light);
+            void onSendCode();
+          }}
           disabled={resendDisabled}
           accessibilityRole="button"
           accessibilityLabel={resendIn > 0 ? `Resend code in ${resendIn} seconds` : 'Resend code'}>
@@ -241,7 +248,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   mailChip: {
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
     width: 64,
     height: 64,
     borderRadius: theme.radii.full,
@@ -254,28 +261,27 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: -0.4,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.3,
     color: theme.colors.onBackground,
-    textAlign: 'center',
-    marginBottom: 18,
+    textAlign: 'left',
+    marginBottom: 8,
   },
   sub: {
     fontFamily: theme.fonts.body,
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    lineHeight: 21,
-    textAlign: 'center',
+    lineHeight: 20,
+    textAlign: 'left',
     marginBottom: 28,
-    paddingHorizontal: 8,
   },
   warn: {
     fontFamily: theme.fonts.body,
     fontSize: 13,
     color: theme.colors.error,
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   input: {
     borderBottomWidth: 1,
@@ -284,7 +290,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bodyMedium,
     fontSize: 22,
     color: theme.colors.onBackground,
-    marginHorizontal: 12,
   },
   error: {
     fontFamily: theme.fonts.body,
@@ -292,7 +297,7 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     marginBottom: 12,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   messageCard: {
     borderWidth: 1,

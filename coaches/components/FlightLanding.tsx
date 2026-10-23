@@ -91,14 +91,14 @@ export function FlightLanding() {
           <div className="flex items-center gap-3">
             <Image
               src="/header-logo.png"
-              alt="Flight Fitness"
+              alt="Fortify"
               width={36}
               height={36}
               className="brightness-0 invert"
               priority
             />
             <span className="font-headline text-[11px] sm:text-xs tracking-[0.28em] text-gold uppercase font-black">
-              Flight Fitness
+              Fortify
             </span>
           </div>
           <Link
@@ -115,7 +115,7 @@ export function FlightLanding() {
               ready ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
             }`}
           >
-            <p className="label-caps mb-4">Flight Fitness</p>
+            <p className="label-caps mb-4">Fortify</p>
             <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tight text-gold leading-[0.95] max-w-xl">
               Where faith
               <br />
@@ -272,7 +272,7 @@ export function FlightLanding() {
 
       <footer className="border-t border-outline px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-6xl mx-auto w-full">
         <span className="font-headline text-[10px] tracking-[0.25em] uppercase text-on-surface-variant">
-          Flight Fitness · Coaches
+          Fortify · Coaches
         </span>
         <Link
           href="/login"

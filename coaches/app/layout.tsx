@@ -17,7 +17,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Flight Fitness — Coaches",
+  title: "Fortify — Coaches",
   description:
     "The ultimate strength app for faith-based training. Coach clients with workouts, meals, and faith — all in Flight.",
 };

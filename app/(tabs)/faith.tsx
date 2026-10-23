@@ -204,7 +204,7 @@ export default function FaithScreen() {
               style={({ pressed }) => [styles.devoWrap, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel={`Today's devotional: ${reading.title}`}>
-              <FrostedCard style={styles.devoCard} intensity={18}>
+              <FrostedCard style={styles.devoCard} intensity={36}>
                 <View style={styles.devoText}>
                   <Text style={styles.kicker}>Today&apos;s devotional</Text>
                   <Text
@@ -438,8 +438,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 20,
     gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(16,12,10,0.5)',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   devoText: { flex: 1, minWidth: 0 },
   kicker: {

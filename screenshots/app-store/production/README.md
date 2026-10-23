@@ -1,4 +1,4 @@
-# Flight Fitness App Store Screenshots
+# Fortify App Store Screenshots
 
 Generated production screenshot drafts at 1290x2796 for the iPhone 6.7-inch App Store slot.
 

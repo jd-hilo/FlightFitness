@@ -515,7 +515,7 @@ export function RestTimerOverlay({
           </Animated.View>
         ) : (
           <>
-            <Text style={styles.brandMark}>FLIGHT FITNESS</Text>
+            <Text style={styles.brandMark}>FORTIFY</Text>
 
             <View style={styles.ringWrap}>
               <RestRing size={ringSize} remaining={remaining} seconds={seconds} urgent={urgent} />
@@ -984,3 +984,4 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 });
+

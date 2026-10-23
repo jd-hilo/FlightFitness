@@ -26,7 +26,7 @@ export default function FaithGoalsScreen() {
       step={1}
       canNext={faithGoals.length > 0}
       onBackPress={() => backOrReplace('/(intake)/proof' as Href)}
-      onNext={() => router.push('/(onboarding)/first-workout' as Href)}>
+      onNext={() => router.push('/(onboarding)/feature-slides' as Href)}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
         <Text style={styles.title}>What do you want for your faith?</Text>
         <Text style={styles.subtitle}>Choose up to three.</Text>

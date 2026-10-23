@@ -44,7 +44,7 @@ export function CoachingWaitlistJoinedModal({ visible, onDismiss }: Props) {
             style={styles.sheetGlow}
             pointerEvents="none"
           />
-          <Text style={styles.kicker}>Flight Fitness</Text>
+          <Text style={styles.kicker}>Fortify</Text>
           <Text style={styles.title}>You&apos;re on the waitlist</Text>
           <Text style={styles.body}>
             Our coaching program is currently at capacity. We&apos;ll let you know as soon as

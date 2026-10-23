@@ -9,7 +9,7 @@ type Props = {
   rightSlot?: ReactNode;
 };
 
-export function ScreenHeader({ title = 'FLIGHT FITNESS', rightSlot }: Props) {
+export function ScreenHeader({ title = 'FORTIFY', rightSlot }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -19,7 +19,7 @@ export function ScreenHeader({ title = 'FLIGHT FITNESS', rightSlot }: Props) {
           style={styles.titleSide}
           accessible
           accessibilityRole="header"
-          accessibilityLabel={`${title}, Flight Fitness logo`}>
+          accessibilityLabel={`${title}, Fortify logo`}>
           <Image
             source={require('../assets/images/header-logo.png')}
             style={[

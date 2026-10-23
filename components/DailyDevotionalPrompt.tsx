@@ -129,7 +129,7 @@ function PromptCard({
               <View style={styles.noteText}>
                 <View style={styles.noteTop}>
                   <Text style={styles.noteApp} numberOfLines={1}>
-                    Flight Fitness
+                    Fortify
                   </Text>
                   <Text style={styles.noteTime}>now</Text>
                 </View>

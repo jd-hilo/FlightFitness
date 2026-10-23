@@ -12,8 +12,8 @@ import { theme } from '@/constants/theme';
 import { weightLbValues } from '@/lib/onboardingOptions';
 
 const VALUES = weightLbValues();
-const ITEM_HEIGHT = 48;
-const PICKER_HEIGHT = 216;
+const ITEM_HEIGHT = 36;
+const PICKER_HEIGHT = 180;
 const PAD = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
 
 type Props = {
@@ -23,13 +23,11 @@ type Props = {
   onChange: (lb: number) => void;
 };
 
-/** ScrollView-based wheel — avoids nesting VirtualizedList inside onboarding ScrollViews. */
+/** iOS-style wheel picker for bodyweight. */
 export function WeightPicker({ label, hint, value, onChange }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const safe =
-    value >= VALUES[0]! && value <= VALUES[VALUES.length - 1]!
-      ? value
-      : VALUES[0]!;
+    value >= VALUES[0]! && value <= VALUES[VALUES.length - 1]! ? value : VALUES[0]!;
 
   const scrollToLb = useCallback((lb: number, animated: boolean) => {
     const i = VALUES.indexOf(lb);
@@ -59,29 +57,25 @@ export function WeightPicker({ label, hint, value, onChange }: Props) {
     <View style={styles.wrap}>
       <Text style={styles.label}>{label}</Text>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-      <View style={styles.pickerShell}>
-        <View style={styles.window} pointerEvents="box-none">
-          <View pointerEvents="none" style={styles.highlight} />
-          <ScrollView
-            ref={scrollRef}
-            showsVerticalScrollIndicator={false}
-            snapToInterval={ITEM_HEIGHT}
-            decelerationRate="fast"
-            contentContainerStyle={styles.listContent}
-            style={styles.list}
-            onMomentumScrollEnd={onMomentumScrollEnd}>
-            {VALUES.map((item) => {
-              const active = item === safe;
-              return (
-                <View key={item} style={styles.row}>
-                  <Text style={[styles.rowText, active && styles.rowTextActive]}>
-                    {item} lb
-                  </Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
+      <View style={styles.window} pointerEvents="box-none">
+        <View pointerEvents="none" style={styles.highlight} />
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          decelerationRate="fast"
+          contentContainerStyle={styles.listContent}
+          style={styles.list}
+          onMomentumScrollEnd={onMomentumScrollEnd}>
+          {VALUES.map((item) => {
+            const active = item === safe;
+            return (
+              <View key={item} style={styles.row}>
+                <Text style={[styles.rowText, active && styles.rowTextActive]}>{item} lb</Text>
+              </View>
+            );
+          })}
+        </ScrollView>
       </View>
     </View>
   );
@@ -91,10 +85,8 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: 8 },
   label: {
     fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    color: 'rgba(255,255,255,0.65)',
-    textTransform: 'uppercase',
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 8,
   },
   hint: {
@@ -103,12 +95,6 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     marginBottom: 12,
     lineHeight: 18,
-  },
-  pickerShell: {
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    overflow: 'hidden',
   },
   window: {
     height: PICKER_HEIGHT,
@@ -120,11 +106,9 @@ const styles = StyleSheet.create({
     right: 0,
     top: PAD,
     height: ITEM_HEIGHT,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.champagne,
+    borderRadius: 8,
+    backgroundColor: 'rgba(120,120,128,0.24)',
     zIndex: 1,
-    backgroundColor: theme.colors.champagneSoft,
   },
   list: {
     flexGrow: 0,
@@ -140,12 +124,12 @@ const styles = StyleSheet.create({
   },
   rowText: {
     fontFamily: theme.fonts.body,
-    fontSize: 18,
-    color: theme.colors.onSurfaceVariant,
+    fontSize: 20,
+    color: 'rgba(235,235,245,0.38)',
   },
   rowTextActive: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 20,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 22,
     color: theme.colors.onBackground,
   },
 });

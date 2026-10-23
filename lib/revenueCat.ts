@@ -19,7 +19,7 @@ const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY ?? '';
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY ?? '';
 
 /**
- * RevenueCat entitlement identifier for "Flight Fitness Essentials".
+ * RevenueCat entitlement identifier for Fortify Essentials.
  * If the dashboard identifier differs, set EXPO_PUBLIC_REVENUECAT_ESSENTIALS_ENTITLEMENT_ID.
  */
 export const REVENUECAT_ESSENTIALS_ENTITLEMENT_ID =

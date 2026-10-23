@@ -6,6 +6,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { theme } from '@/constants/theme';
+import { hapticImpact, hapticSelection, ImpactStyle } from '@/lib/haptics';
 import {
   ESSENTIALS_LIFETIME_FOOTNOTE,
   ESSENTIALS_MONTHLY_FOOTNOTE,
@@ -45,6 +46,7 @@ type Props = {
 const APP_ICON = require('../assets/images/icon.png');
 const FALLBACK_MONTHLY_PRICE = '$4.99';
 const FALLBACK_LIFETIME_PRICE = '$99.99';
+const LIFETIME_COMPARE_AT_PRICE = '$129';
 const EMPTY_OWNERSHIP: EssentialsOwnership = {
   hasMonthly: false,
   hasLifetime: false,
@@ -198,7 +200,10 @@ export function FlightUpgradeOffer({
               monthlyLocked && styles.offerCardLocked,
               pressed && !monthlyLocked && styles.offerCardPressed,
             ]}
-            onPress={() => setSelected('monthly')}>
+            onPress={() => {
+              hapticSelection();
+              setSelected('monthly');
+            }}>
             <MaterialIcons
               name={selected === 'monthly' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
@@ -240,7 +245,10 @@ export function FlightUpgradeOffer({
               lifetimeLocked && styles.offerCardLocked,
               pressed && !lifetimeLocked && styles.offerCardPressed,
             ]}
-            onPress={() => setSelected('lifetime')}>
+            onPress={() => {
+              hapticSelection();
+              setSelected('lifetime');
+            }}>
             <MaterialIcons
               name={selected === 'lifetime' ? 'check-circle' : 'radio-button-unchecked'}
               size={22}
@@ -260,7 +268,12 @@ export function FlightUpgradeOffer({
                 Lifetime
               </Text>
             </View>
-            <View style={styles.offerBottom}>
+            <View style={[styles.offerBottom, styles.offerBottomStack]}>
+              <Text
+                style={[styles.offerWas, lifetimeLocked && styles.offerCaptionMuted]}
+                numberOfLines={1}>
+                {LIFETIME_COMPARE_AT_PRICE}
+              </Text>
               <Text
                 style={[styles.offerPrice, lifetimeLocked && styles.offerTextMuted]}
                 numberOfLines={1}
@@ -280,7 +293,10 @@ export function FlightUpgradeOffer({
             styles.coachingInfoCard,
             pressed && styles.coachingInfoPressed,
           ]}
-          onPress={onCoachingInfo}
+          onPress={() => {
+            hapticImpact(ImpactStyle.Light);
+            onCoachingInfo();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Custom Coaching, see more info">
           <View style={styles.coachingInfoText}>
@@ -304,7 +320,10 @@ export function FlightUpgradeOffer({
             styles.continueBtn,
             (essentialsBusy || purchaseLocked) && styles.continueBtnDisabled,
           ]}
-          onPress={onContinue}
+          onPress={() => {
+            hapticImpact(ImpactStyle.Light);
+            onContinue();
+          }}
           disabled={essentialsBusy || purchaseLocked}>
           {essentialsBusy ? (
             <AppLoadingCross size="small" />
@@ -321,7 +340,10 @@ export function FlightUpgradeOffer({
         <View style={styles.secondaryActions}>
           {onRedeemOfferCode ? (
             <Pressable
-              onPress={onRedeemOfferCode}
+              onPress={() => {
+                hapticImpact(ImpactStyle.Light);
+                onRedeemOfferCode?.();
+              }}
               disabled={essentialsBusy}
               style={styles.secondaryAction}
               accessibilityRole="button"
@@ -330,7 +352,10 @@ export function FlightUpgradeOffer({
             </Pressable>
           ) : null}
           <Pressable
-            onPress={onRestore}
+            onPress={() => {
+              hapticImpact(ImpactStyle.Light);
+              onRestore();
+            }}
             disabled={essentialsBusy}
             style={styles.secondaryAction}
             accessibilityRole="button"
@@ -551,6 +576,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginTop: 14,
     minHeight: 31,
+  },
+  offerBottomStack: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    minHeight: 44,
+  },
+  offerWas: {
+    fontFamily: theme.fonts.label,
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.2,
+    color: 'rgba(255,255,255,0.45)',
+    textDecorationLine: 'line-through',
+    marginBottom: 1,
   },
   offerPrice: {
     fontFamily: theme.fonts.headlineBold,

@@ -8,7 +8,7 @@ export const FLIGHT_FITNESS_PRIVACY_POLICY_URL =
 
 /** In-app feedback inbox. */
 export const FEEDBACK_EMAIL = 'hello@hilo.media';
-export const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Flight Fitness app feedback')}`;
+export const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Fortify app feedback')}`;
 
 /** RepDB free exercise dataset (bundled JSON + WebP). Attribution required. */
 export const REPDB_URL = 'https://repdb.co';

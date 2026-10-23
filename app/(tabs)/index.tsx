@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,7 +12,8 @@ import { ProgressRing } from '@/components/progress/TrendLine';
 import { SunriseBackdrop } from '@/components/SunriseBackdrop';
 import { theme } from '@/constants/theme';
 import { paywallHref } from '@/lib/analytics';
-import { FREE_TIER_MAX_SAVED_WORKOUTS } from '@/stores/subscriptionStore';
+import { pullProfileFirstNameIntoStore } from '@/lib/api/profileFirstName';
+import { refreshRevenueCatCustomerInfo } from '@/lib/revenueCat';
 import { getDailyFaithReading } from '@/lib/faithReadings';
 import { formatDuration } from '@/lib/formatDuration';
 import { formatRelativeDate } from '@/lib/insights/workoutInsights';
@@ -19,7 +21,11 @@ import { formatYmdLocal, viewWeekStartYmdLocal, weekDatesFromStart } from '@/lib
 import { useActiveWorkoutStore } from '@/stores/activeWorkoutStore';
 import { useDailyContentStore } from '@/stores/dailyContentStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import {
+  FREE_TIER_MAX_SAVED_WORKOUTS,
+  hasEssentialsAccess,
+  useSubscriptionStore,
+} from '@/stores/subscriptionStore';
 import { useWorkoutLibraryStore } from '@/stores/workoutLibraryStore';
 import { useWorkoutSessionLogStore } from '@/stores/workoutSessionLogStore';
 
@@ -54,7 +60,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     void useDailyContentStore.getState().load();
+    void pullProfileFirstNameIntoStore();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshRevenueCatCustomerInfo();
+    }, [])
+  );
 
   const reading = useMemo(() => getDailyFaithReading(), []);
   const weeklyGoal = WEEKLY_GOAL_BY_OPTION[trainingDays] ?? 3;
@@ -185,7 +198,7 @@ export default function HomeScreen() {
               <View style={styles.headerActions}>
                 {tier === 'coaching' ? (
                   <CoachChatHeaderButton />
-                ) : (
+                ) : hasEssentialsAccess(tier) ? null : (
                   <Pressable
                     style={({ pressed }) => [styles.upgradeBtn, pressed && styles.pressed]}
                     onPress={() => router.push(paywallHref('home'))}

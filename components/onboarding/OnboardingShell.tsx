@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ONBOARDING_STEP_COUNT, onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
+import { hapticImpact, ImpactStyle } from '@/lib/haptics';
 
 type Props = {
   step: number;
@@ -66,7 +67,10 @@ export function OnboardingShell({
         {!hideFooter && !hideNext ? (
           <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
             <Pressable
-              onPress={onNext}
+              onPress={() => {
+                hapticImpact(ImpactStyle.Light);
+                onNext();
+              }}
               style={[styles.primary, !canNext && styles.primaryDisabled]}
               disabled={!canNext}
               accessibilityRole="button"

@@ -28,7 +28,7 @@ export function CoachingTierHero({ coachingActive }: Props) {
               source={LOGO}
               style={[styles.logo, Platform.OS === 'ios' ? { tintColor: '#FFFFFF' } : null]}
               resizeMode="contain"
-              accessibilityLabel="Flight Fitness logo"
+              accessibilityLabel="Fortify logo"
             />
             <View style={styles.textCol}>
               {coachingActive ? (

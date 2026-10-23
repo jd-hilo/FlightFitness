@@ -11,12 +11,9 @@ export async function finishAuthAndRoute(givenName?: string): Promise<
 > {
   const name = givenName?.trim();
   if (name) {
-    const current = useOnboardingStore.getState().answers.firstName.trim();
-    if (!current) {
-      useOnboardingStore.getState().setAnswers({
-        firstName: name.slice(0, FIRST_NAME_MAX),
-      });
-    }
+    useOnboardingStore.getState().setAnswers({
+      firstName: name.slice(0, FIRST_NAME_MAX),
+    });
   }
 
   const next = await continueAfterRegisteredAuth();

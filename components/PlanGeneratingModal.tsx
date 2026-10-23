@@ -82,7 +82,7 @@ export function PlanGeneratingModal({ visible }: Props) {
       onRequestClose={() => {}}>
       <View style={styles.backdrop} accessibilityViewIsModal>
         <View style={styles.card}>
-          <Text style={styles.kicker}>Flight Fitness</Text>
+          <Text style={styles.kicker}>Fortify</Text>
           <Text style={styles.title}>Building your week</Text>
           <Text style={styles.sub}>
             Setting up your meals, workouts, and grocery list from your answers. Most

@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '@/constants/theme';
+import { hapticSelection } from '@/lib/haptics';
 
 const ITEMS: {
   name: string;
@@ -12,7 +13,7 @@ const ITEMS: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
-  { name: 'index', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'index', label: 'Fitness', icon: 'dumbbell', activeIcon: 'dumbbell' },
   { name: 'faith', label: 'Faith', icon: 'cross-outline', activeIcon: 'cross' },
   { name: 'elite', label: 'Progress', icon: 'chart-bar', activeIcon: 'chart-bar' },
 ];
@@ -21,74 +22,92 @@ export function FlightTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {Platform.OS === 'ios' ? (
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, styles.androidBg]} />
-      )}
-      <View style={styles.row}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key]!;
-          const meta = ITEMS.find((i) => i.name === route.name);
-          const hidden = (options as { href?: string | null }).href === null;
-          if (!meta || hidden) return null;
-          const focused = state.index === index;
-          const color = focused ? theme.colors.champagne : 'rgba(255,255,255,0.55)';
+    <View
+      pointerEvents="box-none"
+      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <View style={styles.shadow}>
+        <View style={styles.pill}>
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, styles.androidBg]} />
+          )}
+          <View style={styles.row}>
+            {state.routes.map((route, index) => {
+              const { options } = descriptors[route.key]!;
+              const meta = ITEMS.find((i) => i.name === route.name);
+              const hidden = (options as { href?: string | null }).href === null;
+              if (!meta || hidden) return null;
+              const focused = state.index === index;
+              const color = focused ? theme.colors.champagne : 'rgba(255,255,255,0.55)';
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
+              const onPress = () => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  hapticSelection();
+                  navigation.navigate(route.name);
+                }
+              };
 
-          return (
-            <Pressable
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityLabel={meta.label}
-              accessibilityState={focused ? { selected: true } : {}}
-              onPress={onPress}
-              style={styles.item}>
-              <MaterialCommunityIcons
-                name={focused ? meta.activeIcon : meta.icon}
-                size={24}
-                color={color}
-              />
-              <Text style={[styles.label, { color }]} numberOfLines={1}>
-                {meta.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+              return (
+                <Pressable
+                  key={route.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={meta.label}
+                  accessibilityState={focused ? { selected: true } : {}}
+                  onPress={onPress}
+                  style={styles.item}>
+                  <MaterialCommunityIcons
+                    name={focused ? meta.activeIcon : meta.icon}
+                    size={24}
+                    color={color}
+                  />
+                  <Text style={[styles.label, { color }]} numberOfLines={1}>
+                    {meta.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: {
+  wrap: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
     bottom: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(8,8,9,0.78)',
+  },
+  shadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 18,
+  },
+  pill: {
+    borderRadius: 32,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(8,8,9,0.72)',
   },
   androidBg: {
-    backgroundColor: 'rgba(8,8,9,0.97)',
+    backgroundColor: 'rgba(12,12,14,0.96)',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   item: {
     flex: 1,

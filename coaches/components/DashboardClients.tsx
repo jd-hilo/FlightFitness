@@ -85,7 +85,7 @@ export function DashboardClients({ inviteCode }: { inviteCode?: string | null })
             </p>
           </div>
           <p className="text-xs text-on-surface-variant max-w-xs">
-            Clients enter this code in the Flight app to join you.
+            Clients enter this code in the Fortify app to join you.
           </p>
         </div>
       ) : null}

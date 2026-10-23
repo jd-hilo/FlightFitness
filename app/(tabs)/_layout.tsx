@@ -8,6 +8,7 @@ import { VerseCelebrationModal } from '@/components/VerseCelebrationModal';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { tabFade } from '@/constants/screenFade';
 import { theme } from '@/constants/theme';
+import { pullProfileFirstNameIntoStore } from '@/lib/api/profileFirstName';
 import { pullProfileOnboardingIntoStore } from '@/lib/api/profileOnboarding';
 import { pullUserTrackingIntoStores } from '@/lib/api/trackingPersistence';
 import { ensureCurrentWeekPlan } from '@/lib/ensureCurrentWeekPlan';
@@ -41,6 +42,7 @@ export default function TabLayout() {
   useEffect(() => {
     if (!hydrated || !registered || !supabaseConfigured) return;
     void pullProfileOnboardingIntoStore();
+    void pullProfileFirstNameIntoStore();
     void pullUserTrackingIntoStores();
   }, [hydrated, registered]);
 
@@ -72,7 +74,7 @@ export default function TabLayout() {
           headerShown: useClientOnlyValue(false, false),
           ...tabFade,
         }}>
-        <Tabs.Screen name="index" options={{ title: 'Home' }} />
+        <Tabs.Screen name="index" options={{ title: 'Fitness' }} />
         <Tabs.Screen
           name="train"
           options={{

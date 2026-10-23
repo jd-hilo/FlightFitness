@@ -68,6 +68,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()((set, get) => 
           title: workout.title,
           exercise_count: workout.exercises.length,
           total_sets: totalSets,
+          surface: 'session',
         });
         set({
           session: {

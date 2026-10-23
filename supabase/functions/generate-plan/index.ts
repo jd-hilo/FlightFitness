@@ -46,7 +46,7 @@ When setRows is provided, sets/reps/restSec should match the row count and first
 dayIndex on each workout MUST equal its 0-based array index. Every training day MUST have a non-empty exercises array.
 workoutsByDay layout: spread training and rest across Mon–Sun (see TRAINING WEEK LAYOUT below).`;
 
-const MACRO_SYSTEM_PROMPT = `You are Flight Fitness AI — a registered sports dietitian.
+const MACRO_SYSTEM_PROMPT = `You are Fortify AI — a registered sports dietitian.
 Given an athlete profile, recommend daily macro targets (calories, protein, carbs, fat in grams).
 
 Return ONLY valid JSON with this exact shape — no markdown, no extra keys:
@@ -94,7 +94,7 @@ function parseMacroTargetsPayload(raw: unknown): Record<string, number> | null {
   };
 }
 
-const SYSTEM_PROMPT = `You are Flight Fitness AI — a certified strength & conditioning coach (CSCS) and registered sports dietitian.
+const SYSTEM_PROMPT = `You are Fortify AI — a certified strength & conditioning coach (CSCS) and registered sports dietitian.
 You create complete, evidence-based 7-day meal + training plans personalized to each athlete.
 
 TRAINING GUIDELINES:

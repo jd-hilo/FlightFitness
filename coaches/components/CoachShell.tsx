@@ -35,7 +35,7 @@ export function CoachShell({ children }: { children: React.ReactNode }) {
             >
               <Image
                 src="/header-logo.png"
-                alt="Flight Fitness"
+                alt="Fortify"
                 width={28}
                 height={28}
                 className="brightness-0 invert"

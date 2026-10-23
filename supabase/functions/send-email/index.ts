@@ -2,7 +2,7 @@ import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
 
 const LOOPS_API = 'https://app.loops.so/api/v1/transactional';
 
-/** Published Loops transactionals in Hilo Media / Flight Fitness account */
+/** Published Loops transactionals in Hilo Media / Fortify account */
 const TX_ONE_TIME_CODE = 'cmbcmkriy29221c0ija767ig3';
 const TX_CONFIRM_SIGNUP = 'cmd3tw3ud2li8wa0icl6etxq1';
 

@@ -115,7 +115,7 @@ export function CoachDashboard({
               {coach.invite_code ?? "—"}
             </p>
             <p className="mt-2 text-xs text-on-surface-variant leading-relaxed">
-              Clients enter this under Custom Coaching in the Flight app.
+              Clients enter this under Custom Coaching in the Fortify app.
             </p>
           </div>
           <div className="border border-outline p-5 space-y-3">

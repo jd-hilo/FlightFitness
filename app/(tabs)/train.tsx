@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +10,7 @@ import { FadeInOnFocus } from '@/components/FadeInOnFocus';
 import { SheenTile } from '@/components/FrostedCard';
 import { theme } from '@/constants/theme';
 import { paywallHref } from '@/lib/analytics';
+import { refreshRevenueCatCustomerInfo } from '@/lib/revenueCat';
 import { formatDuration } from '@/lib/formatDuration';
 import { ensureExerciseSetRows } from '@/lib/exerciseNormalize';
 import { buildOverview, formatRelativeDate, formatVolume } from '@/lib/insights/workoutInsights';
@@ -57,6 +59,12 @@ export default function TrainScreen() {
     importFromLegacyTemplates(legacyTemplates);
   }, [importFromLegacyTemplates, legacyTemplates]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void refreshRevenueCatCustomerInfo();
+    }, [])
+  );
+
   useEffect(() => {
     if (!session) return;
     const id = setInterval(() => setTimerTick((t) => t + 1), 1000);
@@ -76,6 +84,7 @@ export default function TrainScreen() {
   };
 
   const workoutLimit = savedWorkoutLimit(tier);
+  const atWorkoutCap = workoutLimit != null && workouts.length >= workoutLimit;
 
   const onBegin = (workoutId: string) => {
     const workout = workouts.find((w) => w.id === workoutId);
@@ -350,12 +359,16 @@ export default function TrainScreen() {
           })
         )}
 
-        {workouts.length > 0 && workoutLimit != null ? (
+        {workouts.length > 0 ? (
           <Pressable
             style={({ pressed }) => [styles.upgradeBtn, pressed && styles.pressed]}
-            onPress={() => router.push(paywallHref('train_gate'))}
+            onPress={
+              atWorkoutCap ? () => router.push(paywallHref('train_gate')) : onCreateWorkout
+            }
             accessibilityRole="button"
-            accessibilityLabel="Upgrade to add more workouts">
+            accessibilityLabel={
+              atWorkoutCap ? 'Upgrade to add more workouts' : 'Add workout'
+            }>
             <LinearGradient
               colors={['#F8F1E0', '#EBD5AE', '#C4A46C', '#EFE2C4']}
               locations={[0, 0.32, 0.72, 1]}
@@ -369,7 +382,7 @@ export default function TrainScreen() {
                 style={styles.upgradeSheen}
               />
               <Text style={styles.upgradeBtnTxt} numberOfLines={1}>
-                Upgrade to add more workouts
+                {atWorkoutCap ? 'Upgrade to add more workouts' : 'Add workout'}
               </Text>
             </LinearGradient>
           </Pressable>

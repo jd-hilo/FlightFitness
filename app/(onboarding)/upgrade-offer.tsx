@@ -8,6 +8,7 @@ import type { PurchasesPackage } from 'react-native-purchases';
 
 import { FlightUpgradeOffer } from '@/components/FlightUpgradeOffer';
 import { theme } from '@/constants/theme';
+import { hapticImpact, ImpactStyle } from '@/lib/haptics';
 import { persistProfileOnboarding } from '@/lib/api/profileOnboarding';
 import { track } from '@/lib/analytics';
 import {
@@ -131,7 +132,7 @@ export default function OnboardingUpgradeOfferScreen() {
         Alert.alert(
           restored ? 'Purchases restored' : 'No active Essentials purchase found',
           restored
-            ? 'Flight Fitness Essentials is active on this account.'
+            ? 'Fortify Essentials is active on this account.'
             : 'We did not find an active Essentials purchase for this App Store account.'
         );
         if (restored) finishOnboarding('restore');
@@ -161,7 +162,7 @@ export default function OnboardingUpgradeOfferScreen() {
         if (result.status === 'activated') {
           Alert.alert(
             'Offer code applied',
-            'Flight Fitness Essentials is active on this account.'
+            'Fortify Essentials is active on this account.'
           );
           finishOnboarding('restore');
           return;
@@ -185,7 +186,10 @@ export default function OnboardingUpgradeOfferScreen() {
     <View style={styles.root}>
       <Pressable
         style={[styles.closeBtn, { top: insets.top + 8 }]}
-        onPress={skipPaywall}
+        onPress={() => {
+          hapticImpact(ImpactStyle.Light);
+          skipPaywall();
+        }}
         accessibilityLabel="Continue without subscribing"
         accessibilityRole="button"
         hitSlop={12}>

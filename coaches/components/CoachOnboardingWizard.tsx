@@ -85,7 +85,7 @@ export function CoachOnboardingWizard({ coach: initial }: { coach: CoachRow }) {
           className="brightness-0 invert"
         />
         <span className="font-headline text-[11px] tracking-[0.28em] text-gold uppercase font-black">
-          Flight Fitness
+          Fortify
         </span>
       </header>
 

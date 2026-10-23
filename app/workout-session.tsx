@@ -242,6 +242,7 @@ export default function WorkoutSessionScreen() {
       completion_pct: total > 0 ? completed / total : 0,
       saved_progress: saveProgress,
       source_workout_id: live.sourceWorkoutId,
+      surface: 'session',
     });
     if (saveProgress) {
       applySessionProgress(live.sourceWorkoutId, live.exercises);

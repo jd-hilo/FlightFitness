@@ -124,7 +124,7 @@ export default function PaywallScreen() {
         Alert.alert(
           restored ? 'Purchases restored' : 'No active Essentials purchase found',
           restored
-            ? 'Flight Fitness Essentials is active on this account.'
+            ? 'Fortify Essentials is active on this account.'
             : 'We did not find an active Essentials purchase for this App Store account.'
         );
       } catch (error) {
@@ -153,7 +153,7 @@ export default function PaywallScreen() {
         if (result.status === 'activated') {
           Alert.alert(
             'Offer code applied',
-            'Flight Fitness Essentials is active on this account.'
+            'Fortify Essentials is active on this account.'
           );
           router.back();
           return;

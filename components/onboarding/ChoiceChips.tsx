@@ -1,6 +1,9 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, Text, View } from 'react-native';
 
 import { onboardingStyles as styles } from '@/components/onboarding/onboardingStyles';
+import { theme } from '@/constants/theme';
+import { hapticSelection } from '@/lib/haptics';
 
 type Option = { id: string; label: string };
 
@@ -15,21 +18,43 @@ export function ChoiceChips({
   onPress: (id: string) => void;
   isDisabled?: (id: string) => boolean;
 }) {
+  const last = options.length - 1;
   return (
-    <View style={styles.chipGrid}>
-      {options.map((opt) => {
+    <View style={styles.choiceList}>
+      {options.map((opt, i) => {
         const selected = isSelected(opt.id);
         const disabled = isDisabled?.(opt.id) ?? false;
         return (
-          <Pressable
-            key={opt.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected, disabled }}
-            disabled={disabled}
-            onPress={() => onPress(opt.id)}
-            style={[styles.chip, selected && styles.chipSelected, disabled && { opacity: 0.35 }]}>
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt.label}</Text>
-          </Pressable>
+          <View key={opt.id}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected, disabled }}
+              disabled={disabled}
+              onPress={() => {
+                hapticSelection();
+                onPress(opt.id);
+              }}
+              style={({ pressed }) => [
+                styles.choiceRow,
+                i === 0 && styles.choiceRowFirst,
+                i === last && styles.choiceRowLast,
+                selected && styles.choiceRowSelected,
+                disabled && styles.choiceRowDisabled,
+                pressed && !disabled && styles.choiceRowPressed,
+              ]}>
+              <Text
+                style={[styles.choiceLabel, selected && styles.choiceLabelSelected]}
+                numberOfLines={2}>
+                {opt.label}
+              </Text>
+              {selected ? (
+                <MaterialIcons name="check" size={22} color={theme.colors.champagne} />
+              ) : (
+                <View style={styles.choiceCheckEmpty} />
+              )}
+            </Pressable>
+            {i < last ? <View style={styles.choiceSep} /> : null}
+          </View>
         );
       })}
     </View>

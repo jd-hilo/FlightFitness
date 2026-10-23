@@ -255,11 +255,10 @@ const local = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    height: 132,
     marginRight: CARD_GAP,
     paddingTop: 14,
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 20,
     borderRadius: 20,
     backgroundColor: 'rgba(14,12,10,0.62)',
     borderWidth: 1,

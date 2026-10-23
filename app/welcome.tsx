@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router, useFocusEffect, type Href } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -8,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { AppLoadingCross } from '@/components/AppLoadingCross';
 import { finishAuthAndRoute } from '@/components/onboarding/enterOnboarding';
+import { SILVER_BACKGROUND, SilverStreakBackdrop } from '@/components/SilverStreakBackdrop';
 import { theme } from '@/constants/theme';
 import {
   getAppleAuthenticationModule,
@@ -35,8 +35,6 @@ export default function WelcomeScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const bgOpacity = useRef(new Animated.Value(0)).current;
-  const bgScale = useRef(new Animated.Value(1.12)).current;
   const helloOpacity = useRef(new Animated.Value(0)).current;
   const helloY = useRef(new Animated.Value(14)).current;
   const restOpacity = useRef(new Animated.Value(0)).current;
@@ -55,25 +53,6 @@ export default function WelcomeScreen() {
       return () => setStatusBarStyle('light');
     }, []),
   );
-
-  useEffect(() => {
-    const backdrop = Animated.parallel([
-      Animated.timing(bgOpacity, {
-        toValue: 1,
-        duration: 1400,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(bgScale, {
-        toValue: 1,
-        duration: 9000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
-    backdrop.start();
-    return () => backdrop.stop();
-  }, [bgOpacity, bgScale]);
 
   useEffect(() => {
     if (!markLoaded) return;
@@ -156,32 +135,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={['#A9B3BD', '#C3CBD2', '#DDE1E5', '#EEF0F2']}
-        locations={[0, 0.35, 0.7, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-      <Animated.View
-        style={[styles.streaks, { opacity: bgOpacity, transform: [{ scale: bgScale }, { rotate: '-14deg' }] }]}
-        pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']}
-          style={[styles.streak, { top: '12%', height: 140 }]}
-        />
-        <LinearGradient
-          colors={['rgba(120,132,144,0)', 'rgba(120,132,144,0.18)', 'rgba(120,132,144,0)']}
-          style={[styles.streak, { top: '28%', height: 90 }]}
-        />
-        <LinearGradient
-          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-          style={[styles.streak, { top: '58%', height: 180 }]}
-        />
-        <LinearGradient
-          colors={['rgba(120,132,144,0)', 'rgba(120,132,144,0.12)', 'rgba(120,132,144,0)']}
-          style={[styles.streak, { top: '76%', height: 110 }]}
-        />
-      </Animated.View>
+      <SilverStreakBackdrop />
 
       <View
         style={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 8 }]}>
@@ -278,20 +232,8 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#C3CBD2',
+    backgroundColor: SILVER_BACKGROUND,
     overflow: 'hidden',
-  },
-  streaks: {
-    position: 'absolute',
-    top: '-25%',
-    bottom: '-25%',
-    left: '-40%',
-    right: '-40%',
-  },
-  streak: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
   },
   content: {
     flex: 1,

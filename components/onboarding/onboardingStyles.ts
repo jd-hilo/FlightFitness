@@ -3,10 +3,10 @@ import { StyleSheet } from 'react-native';
 import { theme } from '@/constants/theme';
 
 /**
- * Post-auth shell screens are faith goals and the two feature slides.
- * The paywall is the third screen and does not use the shell.
+ * Faith goals is the only post-auth screen that uses the shell.
+ * The transformation page and the paywall follow it without a progress bar.
  */
-export const ONBOARDING_STEP_COUNT = 3;
+export const ONBOARDING_STEP_COUNT = 1;
 
 /** Pre-auth questions: fitness goal, lifting, faith tenure, age. */
 export const INTAKE_STEP_COUNT = 4;

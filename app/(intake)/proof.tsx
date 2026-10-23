@@ -96,7 +96,7 @@ function ReviewRow({
             <Text style={local.cardTitle} numberOfLines={1}>
               {review.title}
             </Text>
-            <Text style={local.cardBody} numberOfLines={4}>
+            <Text style={local.cardBody} numberOfLines={3} ellipsizeMode="tail">
               {review.body}
             </Text>
           </View>
@@ -255,7 +255,7 @@ const local = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    height: 150,
+    height: 132,
     marginRight: CARD_GAP,
     paddingTop: 14,
     paddingHorizontal: 16,

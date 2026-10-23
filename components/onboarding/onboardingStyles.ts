@@ -78,9 +78,9 @@ export const onboardingStyles = StyleSheet.create({
   },
   chipsScroll: { flexGrow: 1, paddingBottom: 16 },
   choiceList: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: 'rgba(255,255,255,0.24)',
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -96,7 +96,7 @@ export const onboardingStyles = StyleSheet.create({
   choiceRowFirst: {},
   choiceRowLast: {},
   choiceRowSelected: {
-    backgroundColor: 'rgba(235,213,174,0.08)',
+    backgroundColor: 'rgba(235,213,174,0.22)',
   },
   choiceRowPressed: { opacity: 0.85 },
   choiceRowDisabled: { opacity: 0.35 },
@@ -113,10 +113,13 @@ export const onboardingStyles = StyleSheet.create({
   choiceCheckEmpty: {
     width: 22,
     height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.55)',
   },
   choiceSep: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     marginLeft: 16,
   },
   chip: {

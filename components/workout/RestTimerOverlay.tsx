@@ -567,7 +567,8 @@ export function RestTimerOverlay({
                     <Text style={styles.verseRef}>{referenceDisplay}</Text>
                     <Text
                       style={[styles.verseText, verseTypeSize(verseHero.text.length)]}
-                      numberOfLines={7}>
+                      numberOfLines={4}
+                      ellipsizeMode="tail">
                       “{verseHero.text}”
                     </Text>
 
@@ -698,9 +699,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     minHeight: 0,
+    overflow: 'hidden',
   },
   coachTipWrap: { marginBottom: 8 },
-  verseAnim: { flexShrink: 1 },
+  verseAnim: {
+    flexShrink: 1,
+    maxHeight: '100%',
+    width: '100%',
+  },
   card: {
     borderRadius: 26,
     borderWidth: 1,
@@ -708,6 +714,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     overflow: 'hidden',
     flexShrink: 1,
+    maxHeight: '100%',
   },
   cardAndroidFill: { backgroundColor: 'rgba(22,20,18,0.86)' },
   cardInner: {
@@ -782,6 +789,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   verseText: {
+    flexShrink: 1,
     fontFamily: theme.fonts.bodyMedium,
     color: theme.colors.onBackground,
     letterSpacing: -0.3,

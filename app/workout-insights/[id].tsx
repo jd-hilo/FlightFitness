@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { frostedTile, pageTitleStyle } from '@/components/FrostedCard';
 import { BarChart, type BarDatum } from '@/components/insights/BarChart';
 import { EditSessionDurationModal } from '@/components/insights/EditSessionDurationModal';
 import { theme } from '@/constants/theme';
@@ -101,8 +102,15 @@ export default function WorkoutInsightsScreen() {
 
   if (!workout) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-        <Header onBack={() => router.back()} />
+      <View style={[styles.screen, styles.scroll, { paddingTop: insets.top + 14 }]}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Back">
+          <MaterialIcons name="arrow-back" size={22} color={theme.colors.onBackground} />
+        </Pressable>
         <View style={styles.emptyBox}>
           <Text style={styles.muted}>This workout is no longer available.</Text>
         </View>
@@ -114,46 +122,54 @@ export default function WorkoutInsightsScreen() {
   const hasSessions = sessions.length > 0;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <Header onBack={() => router.back()} />
-
+    <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 48,
-          paddingHorizontal: 20,
-        }}>
-        <Text style={styles.kicker}>Insights</Text>
-        <Text style={styles.title}>{workout.title}</Text>
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 48 },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.headRow}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={8}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Back">
+            <MaterialIcons name="arrow-back" size={22} color={theme.colors.onBackground} />
+          </Pressable>
+          <Text style={styles.title} numberOfLines={2}>
+            {workout.title}
+          </Text>
+        </View>
 
         <View style={styles.statGrid}>
-          <StatCard label="Times done" value={String(overview.timesPerformed)} />
+          <StatCard
+            label="Times done"
+            value={String(overview.timesPerformed)}
+            icon="bar-chart"
+            iconColor={theme.colors.champagne}
+          />
           <StatCard
             label="Last done"
             value={formatRelativeDate(overview.lastPerformedKey)}
+            icon="event"
           />
           <StatCard
             label="Avg time"
-            value={
-              overview.avgDurationSec > 0
-                ? formatDuration(overview.avgDurationSec)
-                : '—'
-            }
+            value={overview.avgDurationSec > 0 ? formatDuration(overview.avgDurationSec) : '—'}
+            icon="schedule"
           />
           <StatCard
             label="Best time"
-            value={
-              overview.bestDurationSec > 0
-                ? formatDuration(overview.bestDurationSec)
-                : '—'
-            }
+            value={overview.bestDurationSec > 0 ? formatDuration(overview.bestDurationSec) : '—'}
+            icon="timer"
           />
           <StatCard
             label="Weight moved"
-            value={
-              overview.totalVolumeLb > 0
-                ? formatVolume(overview.totalVolumeLb)
-                : '—'
-            }
+            value={overview.totalVolumeLb > 0 ? formatVolume(overview.totalVolumeLb) : '—'}
+            icon="fitness-center"
+            iconColor={theme.colors.champagne}
           />
         </View>
 
@@ -241,8 +257,8 @@ export default function WorkoutInsightsScreen() {
 
         {hasHistory ? (
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Exercise trends</Text>
-            <Text style={styles.sectionCaption}>
+            <Text style={styles.cardTitle}>Exercise trends</Text>
+            <Text style={styles.cardCaption}>
               Top set, estimated 1RM, and volume across sessions
             </Text>
             <View style={styles.segment}>
@@ -267,7 +283,7 @@ export default function WorkoutInsightsScreen() {
           </View>
         ) : hasSessions ? (
           <View style={styles.emptyBox}>
-          <MaterialIcons
+            <MaterialIcons
               name="show-chart"
               size={28}
               color={theme.colors.champagne}
@@ -316,25 +332,28 @@ export default function WorkoutInsightsScreen() {
   );
 }
 
-function Header({ onBack }: { onBack: () => void }) {
+function StatCard({
+  label,
+  value,
+  icon,
+  iconColor = theme.colors.onBackground,
+}: {
+  label: string;
+  value: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  iconColor?: string;
+}) {
   return (
-    <View style={styles.header}>
-      <Pressable onPress={onBack} hitSlop={12}>
-        <MaterialIcons name="arrow-back" size={24} color={theme.colors.onBackground} />
-      </Pressable>
-      <Text style={styles.headerTitle}>Insights</Text>
-      <View style={{ width: 24 }} />
-    </View>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue} numberOfLines={1}>
+    <View style={styles.tile}>
+      <View style={styles.tileHead}>
+        <Text style={styles.tileLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <MaterialIcons name={icon} size={22} color={iconColor} />
+      </View>
+      <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
         {value}
       </Text>
-      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -349,10 +368,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {caption ? <Text style={styles.sectionCaption}>{caption}</Text> : null}
-      <View style={styles.sectionBody}>{children}</View>
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {caption ? <Text style={styles.cardCaption}>{caption}</Text> : null}
+      <View style={styles.cardBody}>{children}</View>
     </View>
   );
 }
@@ -452,145 +471,142 @@ function ExerciseProgressCard({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
-  header: {
+  scroll: { paddingHorizontal: 16 },
+  pressed: { opacity: 0.85 },
+  headRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.outline,
+    gap: 12,
+    marginBottom: 18,
   },
-  headerTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 14,
-    color: theme.colors.onBackground,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  kicker: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    color: theme.colors.champagne,
-    textTransform: 'uppercase',
-    marginTop: 20,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.glassEdge,
   },
   title: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 26,
-    letterSpacing: -0.3,
-    color: theme.colors.onBackground,
-    marginTop: 4,
-    marginBottom: 20,
+    ...pageTitleStyle,
+    flex: 1,
   },
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
+    rowGap: 12,
+    marginBottom: 12,
+  },
+  tile: {
+    ...frostedTile,
+    width: '48.5%',
+    padding: 16,
+  },
+  tileHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
   },
-  statCard: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 14,
-    borderRadius: theme.radii.md,
+  tileLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: theme.fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.8)',
   },
-  statValue: {
+  tileValue: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.champagne,
-  },
-  statLabel: {
-    fontFamily: theme.fonts.label,
-    fontSize: 9,
-    letterSpacing: 1,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  section: { marginTop: 28 },
-  sectionBody: { marginTop: 14 },
-  recentList: { gap: 8 },
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    gap: 12,
-    borderRadius: theme.radii.md,
-  },
-  recentText: { flex: 1, gap: 4 },
-  recentDate: {
-    fontFamily: theme.fonts.label,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-  },
-  recentDuration: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    color: theme.colors.champagne,
-  },
-  editBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-  },
-  sectionHead: {
-    marginTop: 32,
-    marginBottom: 4,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontFamily: theme.fonts.headlineBold,
-    fontSize: 18,
-    letterSpacing: -0.3,
+    fontSize: 28,
+    letterSpacing: -0.8,
     color: theme.colors.onBackground,
   },
-  sectionCaption: {
+  card: {
+    ...frostedTile,
+    padding: 18,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.onBackground,
+  },
+  cardCaption: {
     fontFamily: theme.fonts.body,
     fontSize: 12,
     color: theme.colors.onSurfaceVariant,
     marginTop: 4,
   },
+  cardBody: { marginTop: 14 },
+  recentList: { gap: 0 },
+  recentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  recentText: { flex: 1, gap: 2 },
+  recentDate: {
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+  },
+  recentDuration: {
+    fontFamily: theme.fonts.headlineBold,
+    fontSize: 18,
+    color: theme.colors.onBackground,
+  },
+  editBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.glassEdge,
+  },
+  sectionHead: {
+    marginTop: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
   segment: {
     flexDirection: 'row',
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginTop: 4,
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceContainerLow,
   },
-  segmentBtnActive: { backgroundColor: theme.colors.champagne },
+  segmentBtnActive: { backgroundColor: 'rgba(255,255,255,0.12)' },
   segmentTxt: {
-    fontFamily: theme.fonts.label,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 13,
     color: theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
   },
-  segmentTxtActive: { color: theme.colors.onChampagne },
+  segmentTxtActive: {
+    fontFamily: theme.fonts.label,
+    color: theme.colors.onBackground,
+  },
   exCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    padding: 16,
-    marginTop: 12,
-    borderRadius: theme.radii.md,
+    ...frostedTile,
+    padding: 18,
+    marginBottom: 12,
   },
   exHeadRow: {
     flexDirection: 'row',
@@ -601,9 +617,8 @@ const styles = StyleSheet.create({
   exName: {
     flex: 1,
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 15,
+    fontSize: 18,
     color: theme.colors.onBackground,
-    textTransform: 'uppercase',
   },
   deltaPill: {
     flexDirection: 'row',
@@ -630,19 +645,16 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   emptyBox: {
+    ...frostedTile,
     alignItems: 'center',
     gap: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.outlineStrong,
-    backgroundColor: theme.colors.surfaceContainerLow,
     padding: 24,
-    marginTop: 16,
-    borderRadius: theme.radii.md,
+    marginBottom: 12,
   },
   emptyTitle: {
     fontFamily: theme.fonts.headlineBold,
-    fontSize: 16,
-    color: theme.colors.champagne,
+    fontSize: 18,
+    color: theme.colors.onBackground,
   },
   muted: {
     fontFamily: theme.fonts.body,

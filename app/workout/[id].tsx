@@ -230,12 +230,25 @@ export default function WorkoutDetailScreen() {
     }
   }, [fromOnboarding, id, workout, workouts.length]);
 
-  const leave = useCallback(() => {
+  const persistTitle = useCallback(() => {
     if (id && titleDraft.trim()) {
       updateWorkoutTitle(id, titleDraft.trim());
     }
-    router.back();
   }, [id, titleDraft, updateWorkoutTitle]);
+
+  const leave = useCallback(() => {
+    persistTitle();
+    router.back();
+  }, [persistTitle]);
+
+  const saveWorkout = useCallback(() => {
+    persistTitle();
+    if (fromOnboarding) {
+      router.push('/(onboarding)/feature-slides' as Href);
+      return;
+    }
+    router.replace('/(tabs)/train');
+  }, [fromOnboarding, persistTitle]);
 
   const continueOnboarding = useCallback(() => {
     if (id && titleDraft.trim()) {
@@ -265,7 +278,12 @@ export default function WorkoutDetailScreen() {
             {workout.exercises.length} exercise{workout.exercises.length === 1 ? '' : 's'}
           </Text>
         </View>
-        <Pressable onPress={leave} hitSlop={12} style={styles.headerIcon}>
+        <Pressable
+          onPress={saveWorkout}
+          hitSlop={12}
+          style={styles.headerIcon}
+          accessibilityRole="button"
+          accessibilityLabel="Save workout">
           <Text style={styles.headerBtnPrimary}>Save</Text>
         </Pressable>
       </View>

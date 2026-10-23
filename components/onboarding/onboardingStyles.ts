@@ -252,10 +252,6 @@ export const onboardingStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 40,
   },
-  proofBody: {
-    flex: 1,
-    justifyContent: 'center',
-  },
   loadingText: {
     fontFamily: theme.fonts.body,
     fontSize: 14,

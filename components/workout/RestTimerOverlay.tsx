@@ -72,9 +72,9 @@ const RING_STROKE = 7;
 const URGENT_SECONDS = 10;
 
 function verseTypeSize(length: number) {
-  if (length <= 80) return { fontSize: 25, lineHeight: 34 };
-  if (length <= 130) return { fontSize: 22, lineHeight: 31 };
-  return { fontSize: 19, lineHeight: 27 };
+  if (length <= 80) return { fontSize: 18, lineHeight: 25 };
+  if (length <= 130) return { fontSize: 16, lineHeight: 22 };
+  return { fontSize: 15, lineHeight: 21 };
 }
 
 function RestBackdrop() {
